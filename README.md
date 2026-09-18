@@ -1,25 +1,18 @@
-# Tammy CRM
+# Tammy Pet Shop CRM
 
-A minimal Node.js HTTP service with no runtime dependencies.
+หน้าเว็บจัดการหมวดหมู่สินค้าสำหรับ Tammy Pet Shop CRM สร้างด้วย Next.js, TypeScript และ Tailwind CSS โดยอ้างอิงรูปแบบจากชุดภาพ UI ต้นฉบับ
 
-## Requirements
-
-- Node.js 18 or newer
-
-## Run
+## เริ่มใช้งาน
 
 ```bash
-npm start
+npm install
+npm run dev
 ```
 
-The service listens on `http://localhost:3000` by default. Set `PORT` to use a different port.
+เปิด [http://localhost:3000](http://localhost:3000)
 
-## Test
+## คำสั่ง
 
-```bash
-npm test
-```
-
-## Endpoints
-
-- `GET /health` — returns `{ "status": "ok" }`
+- `npm run dev` — เปิด development server
+- `npm run build` — ตรวจ TypeScript และสร้าง production build
+- `npm start` — เปิด production server
