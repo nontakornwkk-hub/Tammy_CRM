@@ -8,3 +8,5 @@ coverage/
 artifacts/
 *.log
 .DS_Store
+
+.vercel
