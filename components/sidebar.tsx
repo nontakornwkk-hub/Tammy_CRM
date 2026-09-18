@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadSettings } from "@/lib/settings";
+import { supabase } from "@/lib/supabase/client";
 import {
   BarChart3,
   ChevronRight,
@@ -74,7 +75,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
         </div>
         <ChevronRight size={18} />
       </div>
-      <button className="logout" type="button"><LogOut size={19} /> ออกจากระบบ</button>
+      <Link className="logout" href="/login" onClick={() => { void supabase?.auth.signOut(); }}><LogOut size={19} /> เข้าสู่ระบบ / ออกจากระบบ</Link>
     </aside>
   );
 }

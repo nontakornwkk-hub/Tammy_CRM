@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 import { Sidebar } from "./sidebar";
 
-type Sheet = "members" | "pets" | "points_transactions";
+type Sheet = "members" | "pets" | "points_transactions" | "rewards" | "coupons" | "news" | "redemptions" | "contact_channels";
 type Cell = string | number | boolean | null;
 type Row = Record<string, Cell | string[]>;
 
-const sheetLabels: Record<Sheet, string> = { members: "สมาชิก", pets: "สัตว์เลี้ยง", points_transactions: "ประวัติแต้ม" };
+const sheetLabels: Record<Sheet, string> = { members: "สมาชิก", pets: "สัตว์เลี้ยง", points_transactions: "ประวัติแต้ม", rewards:"ของรางวัล", coupons:"คูปอง", news:"ข่าวสาร", redemptions:"การแลกสิทธิ์", contact_channels:"ช่องทางติดต่อ" };
 const demo: Record<Sheet, Row[]> = {
   members: [
     { member_code: "TM00001", name: "คุณมะลิ จันทร์สุข", phone: "089-456-7890", email: "mali.jun@gmail.com", level: "Silver", points: 680, spending: 12340, status: "active", tags: ["ลูกค้าประจำ", "รักแมว"] },
@@ -25,12 +25,18 @@ const demo: Record<Sheet, Row[]> = {
     { created_at: "2026-09-18 14:32", member_code: "TM00001", member_name: "คุณมะลิ จันทร์สุข", sale_amount: 500, points_delta: 50, transaction_type: "earn", note: "ซื้ออาหารแมว" },
     { created_at: "2026-09-17 13:05", member_code: "TM00002", member_name: "คุณศิริพร กมลดี", sale_amount: 1200, points_delta: 120, transaction_type: "earn", note: "ซื้อสินค้าในร้าน" },
   ],
+  rewards: [], coupons: [], news: [], redemptions: [], contact_channels: [],
 };
 
 const columns: Record<Sheet, Array<{ key: string; label: string }>> = {
   members: [{ key: "member_code", label: "รหัส" }, { key: "name", label: "ชื่อสมาชิก" }, { key: "phone", label: "เบอร์โทร" }, { key: "email", label: "อีเมล" }, { key: "level", label: "ระดับ" }, { key: "points", label: "แต้ม" }, { key: "spending", label: "ยอดซื้อสะสม" }, { key: "status", label: "สถานะ" }, { key: "tags", label: "แท็ก" }],
   pets: [{ key: "member_code", label: "รหัสสมาชิก" }, { key: "name", label: "ชื่อสัตว์เลี้ยง" }, { key: "species", label: "ประเภท" }, { key: "breed", label: "สายพันธุ์" }, { key: "sex", label: "เพศ" }, { key: "birth_date", label: "วันเกิด" }, { key: "allergies", label: "อาการแพ้" }, { key: "health_note", label: "บันทึกสุขภาพ" }],
   points_transactions: [{ key: "created_at", label: "วันที่" }, { key: "member_code", label: "รหัสสมาชิก" }, { key: "member_name", label: "สมาชิก" }, { key: "sale_amount", label: "ยอดซื้อ" }, { key: "points_delta", label: "แต้ม" }, { key: "transaction_type", label: "ประเภทรายการ" }, { key: "note", label: "หมายเหตุ" }],
+  rewards: [{key:"title",label:"ชื่อ"},{key:"points_cost",label:"แต้มที่ใช้"},{key:"stock",label:"คงเหลือ"},{key:"active",label:"เปิดใช้งาน"},{key:"starts_at",label:"เริ่ม"},{key:"ends_at",label:"สิ้นสุด"}],
+  coupons: [{key:"code",label:"รหัส"},{key:"title",label:"ชื่อคูปอง"},{key:"discount_type",label:"ประเภท"},{key:"discount_value",label:"ส่วนลด"},{key:"used_count",label:"ใช้แล้ว"},{key:"active",label:"เปิดใช้งาน"}],
+  news: [{key:"title",label:"หัวข้อ"},{key:"summary",label:"สรุป"},{key:"status",label:"สถานะ"},{key:"published_at",label:"เผยแพร่"},{key:"popup_enabled",label:"Popup"}],
+  redemptions: [{key:"redeemed_at",label:"วันที่"},{key:"member_id",label:"สมาชิก"},{key:"reward_id",label:"ของรางวัล"},{key:"coupon_id",label:"คูปอง"},{key:"points_spent",label:"แต้มที่ใช้"},{key:"status",label:"สถานะ"}],
+  contact_channels: [{key:"platform",label:"แพลตฟอร์ม"},{key:"label",label:"ชื่อ"},{key:"value",label:"ข้อมูลติดต่อ"},{key:"url",label:"ลิงก์"},{key:"active",label:"เปิดใช้งาน"},{key:"sort_order",label:"ลำดับ"}],
 };
 
 export function DatabaseManager() {
@@ -46,13 +52,19 @@ export function DatabaseManager() {
     setLoading(true);
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { setSource("demo"); setLoading(false); return; }
-    const [members, pets, transactions] = await Promise.all([
+    await supabase.rpc("claim_starter_data");
+    const [members, pets, transactions, rewards, coupons, news, redemptions, contacts] = await Promise.all([
       supabase.from("members").select("member_code,name,phone,email,level,points,spending,status,tags").order("created_at"),
       supabase.from("pets").select("member_id,name,species,breed,sex,birth_date,allergies,health_note").order("created_at"),
       supabase.from("points_transactions").select("created_at,member_id,sale_amount,points_delta,transaction_type,note").order("created_at", { ascending: false }),
+      supabase.from("rewards").select("title,points_cost,stock,active,starts_at,ends_at").order("created_at"),
+      supabase.from("coupons").select("code,title,discount_type,discount_value,used_count,active").order("created_at"),
+      supabase.from("news").select("title,summary,status,published_at,popup_enabled").order("created_at"),
+      supabase.from("redemptions").select("redeemed_at,member_id,reward_id,coupon_id,points_spent,status").order("redeemed_at",{ascending:false}),
+      supabase.from("contact_channels").select("platform,label,value,url,active,sort_order").order("sort_order"),
     ]);
-    if (!members.error && !pets.error && !transactions.error) {
-      setRows({ members: members.data as Row[], pets: pets.data as Row[], points_transactions: transactions.data as Row[] });
+    if (![members,pets,transactions,rewards,coupons,news,redemptions,contacts].some(result=>result.error)) {
+      setRows({ members: members.data as Row[], pets: pets.data as Row[], points_transactions: transactions.data as Row[], rewards:rewards.data as Row[], coupons:coupons.data as Row[], news:news.data as Row[], redemptions:redemptions.data as Row[], contact_channels:contacts.data as Row[] });
       setSource("supabase");
     }
     setLoading(false);

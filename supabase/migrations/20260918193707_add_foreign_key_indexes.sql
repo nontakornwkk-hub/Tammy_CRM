@@ -1,0 +1,2 @@
+-- Applied remotely after the core migration. The indexes are also included in
+-- the consolidated core migration for fresh local databases.
