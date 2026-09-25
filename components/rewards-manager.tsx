@@ -2,10 +2,8 @@
 
 import {
   Armchair,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Eye,
   Gift,
   ImageIcon,
   Menu,
@@ -18,10 +16,10 @@ import {
   Sparkles,
   Tag,
   Trash2,
-  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Sidebar } from "./sidebar";
+import { DateRangePicker } from "./date-range-picker";
 
 type RewardType = "ของรางวัล" | "คูปอง" | "ข่าวสาร";
 type Reward = {
@@ -70,7 +68,6 @@ export function RewardsManager() {
   const [search, setSearch] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [popupEnabled, setPopupEnabled] = useState(true);
   const [startDate, setStartDate] = useState("2025-04-01");
   const [endDate, setEndDate] = useState("2025-06-30");
@@ -123,7 +120,7 @@ export function RewardsManager() {
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
           <div className="title-icon"><Gift /></div>
           <div className="heading-copy"><h1>คูปอง ของรางวัล และข่าวสาร</h1><p>สร้าง จัดการ และเลือกเนื้อหาที่ลูกค้าจะเห็น</p></div>
-          <div className="header-actions"><span className="ready"><i /> พร้อมใช้งาน</span><button className="button outline" type="button" onClick={() => setPreviewOpen(true)}><Eye size={19} /> ดูตัวอย่าง</button><button className="button primary" type="button" onClick={addItem}><Plus size={20} /> เพิ่มรายการ</button></div>
+          <div className="header-actions"><span className="ready"><i /> พร้อมใช้งาน</span><button className="button primary" type="button" onClick={addItem}><Plus size={20} /> เพิ่มรายการ</button></div>
         </header>
 
         <nav className="reward-tabs" aria-label="ประเภทเนื้อหา">
@@ -171,32 +168,13 @@ export function RewardsManager() {
                 <div className="field suffix-field"><label>แต้มที่ใช้แลก <em>*</em></label><input type="number" value={draft.points} onChange={(event) => setDraft({ ...draft, points: Number(event.target.value) })} /><span>แต้ม</span></div>
                 <div className="field suffix-field"><label>จำนวนคงเหลือ <em>*</em></label><input type="number" value={draft.stock ?? 0} onChange={(event) => setDraft({ ...draft, stock: Number(event.target.value) })} /><span>ชิ้น</span></div>
               </div>
-              <div className="two-fields">
-                <div className="field"><label htmlFor="reward-start">วันที่เริ่มต้น <em>*</em></label><div className="date-control"><CalendarDays size={17} /><input id="reward-start" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div></div>
-                <div className="field"><label htmlFor="reward-end">วันสิ้นสุด <em>*</em></label><div className="date-control"><CalendarDays size={17} /><input id="reward-end" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></div></div>
-              </div>
+              <div className="field"><label>ช่วงวันที่ใช้งาน <em>*</em></label><DateRangePicker start={startDate} end={endDate} onChange={(start, end) => { setStartDate(start); setEndDate(end); }} label="ช่วงวันที่ใช้งานของรางวัล" /></div>
               <div className="field"><label>เงื่อนไขการใช้</label><textarea className="terms" value={"1. ใช้คะแนนแลกรับได้ 1 สิทธิ์ ต่อ 1 สมาชิก\n2. สินค้ามีจำนวนจำกัด\n3. ไม่สามารถแลกเป็นเงินสดได้"} readOnly /></div>
               <div className="reward-switches"><label>เปิดใช้งาน <Switch checked={draft.active} onClick={() => setDraft({ ...draft, active: !draft.active })} label="เปิดใช้งาน" /></label><label>แสดงใน Popup หลัง Login <Switch checked={popupEnabled} onClick={() => setPopupEnabled((current) => !current)} label="แสดงใน Popup" /></label><label>ลำดับ Popup <input type="number" min="1" defaultValue="2" /></label></div>
-              <div className="customer-preview"><strong>ตัวอย่างที่ลูกค้าจะเห็น</strong><div><RewardArtwork item={draft} /><span><b>{draft.title}</b><small>{draft.description}</small></span><em>{draft.points.toLocaleString()} แต้ม</em><ChevronRight /></div></div>
             </div>
             <div className="editor-actions"><button className="delete-button" type="button" onClick={remove}><Trash2 size={18} /> ลบรายการ</button><button className={`save-button${saved ? " saved" : ""}`} type="button" onClick={save}>{saved ? <Gift size={18} /> : <Save size={18} />} {saved ? "บันทึกแล้ว" : "บันทึกการเปลี่ยนแปลง"}</button></div>
           </section>
         </div>
-        {previewOpen ? (
-          <div className="preview-modal" role="dialog" aria-modal="true" aria-label="ตัวอย่างของรางวัล">
-            <button className="preview-backdrop" type="button" aria-label="ปิดตัวอย่าง" onClick={() => setPreviewOpen(false)} />
-            <section>
-              <button className="preview-close" type="button" onClick={() => setPreviewOpen(false)} aria-label="ปิด"><X /></button>
-              <span className="preview-kicker">ตัวอย่างสำหรับลูกค้า</span>
-              <RewardArtwork item={draft} large />
-              <h2>{draft.title}</h2>
-              <p>{draft.description}</p>
-              <strong>{draft.points.toLocaleString()} แต้ม</strong>
-              <small>{startDate} — {endDate}</small>
-              <button className="preview-redeem" type="button" onClick={() => setPreviewOpen(false)}>ตกลง</button>
-            </section>
-          </div>
-        ) : null}
       </main>
     </div>
   );

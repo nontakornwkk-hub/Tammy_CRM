@@ -1,3 +1,7 @@
+import type { PointPromotion } from "./promotions";
+import { defaultPopupContent, normalizePopupContent, type PopupContent } from "./popup-content";
+import { defaultCardDesign, normalizeCardDesign, type CardMascot, type CardTheme } from "./card-design";
+
 export type ContactPlatform = "line" | "facebook" | "instagram" | "tiktok" | "youtube" | "phone" | "website";
 
 export type StoreContact = {
@@ -8,6 +12,10 @@ export type StoreContact = {
   url: string;
   active: boolean;
 };
+export type ShopDay = { day: string; open: boolean; opensAt: string; closesAt: string };
+export type TemporaryClosure = { enabled: boolean; startsOn: string; endsOn: string; reopensOn: string; reason: string };
+export const WEEKDAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
+export const defaultWeeklyHours: ShopDay[] = WEEKDAYS.map(day => ({ day, open: true, opensAt: "08:00", closesAt: "20:30" }));
 
 export type AppSettings = {
   shopName: string;
@@ -18,10 +26,9 @@ export type AppSettings = {
   logoPositionX: number;
   logoPositionY: number;
   logoZoom: number;
-  heroDataUrl: string;
-  heroPositionX: number;
-  heroPositionY: number;
-  heroZoom: number;
+  customerUrl: string;
+  weeklyHours: ShopDay[];
+  temporaryClosure: TemporaryClosure;
   contacts: StoreContact[];
   storeHoursEnabled: boolean;
   storeDays: string;
@@ -30,15 +37,27 @@ export type AppSettings = {
   primaryColor: string;
   pointsSpend: number;
   pointsEarned: number;
+  goldMinSpend: number;
+  platinumMinSpend: number;
+  goldBahtPerPoint: number;
+  platinumBahtPerPoint: number;
+  goldUpgradeBonus: number;
+  platinumUpgradeBonus: number;
+  welcomeBonusEnabled: boolean;
+  welcomeBonusPoints: number;
   promotionMultiplier: number;
+  promotions: PointPromotion[];
   pointsExpiration: string;
   accumulationEnabled: boolean;
   popupEnabled: boolean;
+  popupContent: PopupContent[];
   inStoreEnabled: boolean;
   requireRedemptionApproval: boolean;
   displayCustomization: boolean;
   selectedTheme: string;
   selectedMascot: string;
+  cardThemes: CardTheme[];
+  cardMascots: CardMascot[];
   twoFactorEnabled: boolean;
   loginAlertsEnabled: boolean;
   autoLogoutEnabled: boolean;
@@ -56,10 +75,9 @@ export const defaultSettings: AppSettings = {
   logoPositionX: 50,
   logoPositionY: 50,
   logoZoom: 1,
-  heroDataUrl: "",
-  heroPositionX: 50,
-  heroPositionY: 50,
-  heroZoom: 1,
+  customerUrl: "",
+  weeklyHours: defaultWeeklyHours,
+  temporaryClosure: { enabled: false, startsOn: "", endsOn: "", reopensOn: "", reason: "" },
   contacts: [
     { id: 1, platform: "line", label: "LINE Official Account", value: "@tammypetshop", url: "https://line.me/R/ti/p/@tammypetshop", active: true },
     { id: 2, platform: "facebook", label: "Facebook Page", value: "Tammy Pet Shop", url: "https://facebook.com/", active: true },
@@ -68,20 +86,32 @@ export const defaultSettings: AppSettings = {
   ],
   storeHoursEnabled: true,
   storeDays: "ทุกวัน",
-  storeOpenTime: "09:00",
-  storeCloseTime: "20:00",
+  storeOpenTime: "08:00",
+  storeCloseTime: "20:30",
   primaryColor: "#ff554b",
   pointsSpend: 50,
   pointsEarned: 1,
-  promotionMultiplier: 2,
+  goldMinSpend: 5000,
+  platinumMinSpend: 20000,
+  goldBahtPerPoint: 45,
+  platinumBahtPerPoint: 40,
+  goldUpgradeBonus: 15,
+  platinumUpgradeBonus: 30,
+  welcomeBonusEnabled: false,
+  welcomeBonusPoints: 10,
+  promotionMultiplier: 1,
+  promotions: [],
   pointsExpiration: "ไม่มีวันหมดอายุ",
   accumulationEnabled: true,
   popupEnabled: true,
+  popupContent: defaultPopupContent,
   inStoreEnabled: true,
   requireRedemptionApproval: true,
-  displayCustomization: true,
+  displayCustomization: false,
   selectedTheme: "Coral Sunset",
   selectedMascot: "Tammy Cat",
+  cardThemes: defaultCardDesign.themes,
+  cardMascots: defaultCardDesign.mascots,
   twoFactorEnabled: false,
   loginAlertsEnabled: true,
   autoLogoutEnabled: true,
@@ -106,7 +136,8 @@ export function loadSettings(): AppSettings {
         active: legacy.active ?? true,
       };
     });
-    return { ...defaultSettings, ...parsed, contacts };
+    const card = normalizeCardDesign({ themes: parsed.cardThemes, mascots: parsed.cardMascots, selectedTheme: parsed.selectedTheme, selectedMascot: parsed.selectedMascot, displayCustomization: parsed.displayCustomization });
+    return { ...defaultSettings, ...parsed, cardThemes: card.themes, cardMascots: card.mascots, selectedTheme: card.selectedTheme, selectedMascot: card.selectedMascot, contacts, weeklyHours: Array.isArray(parsed.weeklyHours) ? parsed.weeklyHours : defaultWeeklyHours, temporaryClosure: { ...defaultSettings.temporaryClosure, ...parsed.temporaryClosure }, promotions: Array.isArray(parsed.promotions) ? parsed.promotions : [], popupContent: normalizePopupContent(parsed.popupContent) };
   } catch {
     return defaultSettings;
   }

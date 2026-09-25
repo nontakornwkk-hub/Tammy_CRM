@@ -11,7 +11,7 @@ import {
   Gift,
   LogOut,
   Settings,
-  Table2,
+  Smartphone,
   Tags,
   Users,
 } from "lucide-react";
@@ -19,13 +19,13 @@ import {
 const navigation = [
   { icon: Gift, label: "ให้แต้ม", href: "/points" },
   { icon: Users, label: "สมาชิก", href: "/members" },
-  { icon: Table2, label: "ฐานข้อมูล", href: "/database" },
+  { icon: Smartphone, label: "หน้าสำหรับลูกค้า", href: "/customer" },
   { icon: Tags, label: "คูปองและของรางวัล", href: "/rewards" },
-  { icon: BarChart3, label: "วิเคราะห์และรายงาน", href: "#" },
+  { icon: BarChart3, label: "วิเคราะห์และรายงาน", href: "/reports" },
   { icon: Settings, label: "ตั้งค่าระบบ", href: "/settings" },
 ];
 
-export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "/database" | "/rewards" | "/settings" }) {
+export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" }) {
   const [brand, setBrand] = useState({ logo: "", name: "Tammy", subtitle: "Pet Shop CRM", x: 50, y: 50, zoom: 1 });
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
 
       <nav className="sidebar-nav" aria-label="เมนูหลัก">
         {navigation.map(({ icon: Icon, label, href }) => (
-          <Link key={label} href={href} className={`nav-item${activePath === href ? " active" : ""}`}>
+          <Link key={label} href={href} title={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${activePath === href ? " active" : ""}`}>
             <Icon size={22} strokeWidth={2} />
             <span>{label}</span>
           </Link>
@@ -64,7 +64,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
 
       <div className="sidebar-art" aria-hidden="true">
         <p>เพราะทุกความสุข<br />เริ่มต้นที่น้องแมว 🐾</p>
-        <Image src="/assets/tammy-sidebar-cat.png" alt="" width={188} height={224} loading="eager" />
+        <Image src="/assets/member-mascot-cat.png" alt="" width={188} height={224} loading="eager" />
       </div>
 
       <div className="account-card">
@@ -75,7 +75,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
         </div>
         <ChevronRight size={18} />
       </div>
-      <Link className="logout" href="/login" onClick={() => { void supabase?.auth.signOut(); }}><LogOut size={19} /> เข้าสู่ระบบ / ออกจากระบบ</Link>
+      <Link className="logout" href="/login" onClick={() => { void supabase?.auth.signOut(); }}><LogOut size={19} /> ออกจากระบบ</Link>
     </aside>
   );
 }

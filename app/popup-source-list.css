@@ -1,0 +1,7 @@
+.popup-source-list{display:grid;gap:8px;margin-top:12px;max-height:300px;overflow:auto}
+.popup-source-list>button{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:1px solid #dce7f2;border-radius:12px;background:#fff;color:#203954;text-align:left;cursor:pointer}
+.popup-source-list>button>span:nth-child(2){display:grid;gap:3px;min-width:0;flex:1}
+.popup-source-list strong,.popup-source-list small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.popup-source-list small{color:#71849a}
+.popup-source-list p{margin:0;color:#6b8299}
+.popup-row-image svg,.popup-preview-image svg,.popup-preview-thumbnails svg{color:#dd6b62}

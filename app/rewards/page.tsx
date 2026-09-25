@@ -1,5 +1,5 @@
-import { RewardsManager } from "@/components/rewards-manager";
+import { RewardsGallery } from "@/components/rewards-gallery";
 
 export default function RewardsPage() {
-  return <RewardsManager />;
+  return <RewardsGallery />;
 }

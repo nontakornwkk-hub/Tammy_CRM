@@ -1,0 +1,55 @@
+/* Decorative layers only: the card keeps its existing 1.68 ratio and 600px max width. */
+.member-card-art{position:absolute;z-index:0;inset:0;overflow:hidden;color:var(--card-ink);pointer-events:none;opacity:.23;animation:card-art-drift 12s ease-in-out infinite}
+.member-card-art-orbit{position:absolute;right:-10%;top:-31%;width:72%;height:145%;border:2px solid currentColor;border-radius:48% 52% 48% 52%;transform:rotate(-27deg);opacity:.35}
+.member-card-art-icon{position:absolute;width:8%;height:auto;stroke-width:1.6;fill:currentColor;fill-opacity:.18}
+.member-card-art-icon.art-one{top:14%;left:60%;transform:rotate(-18deg)}
+.member-card-art-icon.art-two{top:42%;right:6%;width:10%;transform:rotate(19deg)}
+.member-card-art-icon.art-three{right:28%;bottom:7%;width:6%;transform:rotate(-12deg)}
+.member-card-art.pattern-fish .art-one{top:65%;left:57%;transform:rotate(-25deg)}
+.member-card-art.pattern-fish .art-two{top:20%;right:9%;transform:rotate(24deg)}
+.member-card-art.pattern-kibble .member-card-art-icon{fill-opacity:.35;stroke-width:1.2}
+.member-card-art.pattern-stitch .member-card-art-icon{stroke-dasharray:3 3;fill:none}
+.member-card-art.pattern-stitch .member-card-art-orbit{border-style:dashed}
+.member-card-art.pattern-bones .art-two{top:65%;right:5%;transform:rotate(-35deg)}
+.member-card-art.pattern-bones .member-card-art-orbit{border-radius:50%;transform:rotate(20deg)}
+.member-card-back .member-card-art{opacity:.12}
+/* Keep the real QR centered, still and unobstructed on every theme and screen size. */
+.member-card-back .member-card-brand{top:6%;left:5%;max-width:90%;font-size:clamp(12px,2.8vw,23px);line-height:1.1}
+.member-card-back .member-card-brand svg{width:1em;height:1em;flex:none}
+.member-card-back-note{position:absolute;z-index:2;top:15%;left:5%;width:90%;max-width:none;margin:0;font-size:clamp(9px,2.1vw,16px);font-weight:700;line-height:1.2;white-space:nowrap}
+.member-card-qr{position:absolute;z-index:3;top:23%;left:50%;width:35%;aspect-ratio:1;padding:2.5%;transform:translateX(-50%);border-radius:clamp(9px,2vw,16px);background:#fff;box-shadow:0 8px 22px #42343d1c}
+.member-card-qr img{display:block;width:100%;height:100%;object-fit:contain}
+.member-card-back-code{position:absolute;z-index:2;top:83%;left:5%;width:90%;font-size:clamp(12px,2.5vw,23px);font-weight:900;letter-spacing:.07em;line-height:1.1}
+.member-card-back-caption{position:absolute;z-index:2;bottom:3%;left:5%;width:90%;font-size:clamp(8px,1.5vw,13px);line-height:1.2}
+@media(max-width:620px){.member-card-back-note{top:16%;max-width:none;margin:0;font-size:clamp(8px,2.1vw,12px)}.member-card-qr{width:35%;padding:2.5%;border-radius:9px}.member-card-back-code{top:83%}}
+.member-card-rank.rank-gold,.member-card-rank.rank-platinum{position:absolute;overflow:hidden;animation:rank-arrive .65s ease both}
+.member-card-rank.rank-gold::after,.member-card-rank.rank-platinum::after{content:"";position:absolute;inset:-60% auto -60% -45%;width:35%;background:#fff9;transform:skewX(-25deg);animation:rank-sheen 4.8s .7s ease-in-out infinite}
+@keyframes rank-sheen{0%,9%{left:-45%}31%,100%{left:130%}}
+@keyframes card-art-drift{50%{transform:translate3d(5px,-3px,0)}}
+
+/* Theme gallery and editor. */
+.card-theme-mini::before{content:"";position:absolute;right:-10%;top:-35%;width:70%;height:150%;border:2px solid currentColor;border-radius:48%;opacity:.13;transform:rotate(-25deg)}
+.card-theme-mini::after{content:"✦";position:absolute;right:19%;bottom:17%;font-size:26px;opacity:.19}
+.card-theme-mini.pattern-paws::after{content:"🐾"}.card-theme-mini.pattern-fish::after{content:"﹏"}.card-theme-mini.pattern-kibble::after{content:"● · ●";font-size:15px}.card-theme-mini.pattern-stitch::before{border-style:dashed}.card-theme-mini.pattern-bones::after{content:"◇"}
+.card-theme-select>strong{padding-right:62px}
+.card-option-actions{position:absolute;right:8px;bottom:7px;display:flex;gap:3px}
+.card-option-actions button,.card-mascot-actions button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:#68809a;cursor:pointer}
+.card-option-actions button:hover,.card-mascot-actions button:hover{background:#fff0ee;color:#bf5554}.card-option-actions button:disabled{opacity:.35;cursor:not-allowed}
+.card-mascot-actions{position:absolute;top:3px;right:3px;display:flex;gap:1px;opacity:.2;transition:opacity .2s}
+.card-mascot-option:hover .card-mascot-actions,.card-mascot-option:focus-within .card-mascot-actions{opacity:1}
+.card-mascot-actions button{width:23px;height:23px}
+.card-add-trigger{margin-top:17px}
+.card-editor{display:grid;gap:17px;margin-top:18px;padding:20px;border:1px solid #dce8f5;border-radius:18px;background:linear-gradient(160deg,#fff,#f8fbff);box-shadow:0 10px 26px #3152750d;animation:tammy-dialog .24s ease-out}
+.card-editor-head{display:flex;align-items:center;gap:11px}.card-editor-head>div{flex:1;min-width:0}.card-editor-head h3{margin:0;color:#1f3854;font-size:17px}.card-editor-head p{margin:3px 0 0;color:#687f96;font-size:12px;line-height:1.4}
+.card-editor-head>button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:9px;background:#edf4fc;color:#54708f;cursor:pointer}
+.card-editor-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:#fff0e9;color:#da6962}
+.card-editor-name{display:grid;gap:7px;color:#38536e;font-size:13px;font-weight:700}.card-editor-name input{width:100%;min-height:44px;padding:10px 13px;border:1px solid #cfdeef;border-radius:11px;background:#fff;color:#263f58;font:inherit;font-weight:500;outline:none}.card-editor-name input:focus{border-color:#e77e75;box-shadow:0 0 0 3px #f8a69e32}
+.card-editor-label{margin-bottom:-9px;color:#36516d;font-size:13px;font-weight:800}
+.card-tone-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px}.card-tone-row button,.card-tone-custom{display:grid;justify-items:center;gap:5px;min-width:0;padding:8px 3px;border:1px solid #dce6f2;border-radius:11px;background:#fff;color:#60758c;font:inherit;font-size:10px;cursor:pointer}.card-tone-row button.active{border-color:#e87975;box-shadow:0 0 0 2px #f49a8d3d;color:#334b63;font-weight:800}.card-tone-row i,.card-tone-custom input{width:27px;height:27px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #bfcddd}.card-tone-custom input{padding:0;overflow:hidden;cursor:pointer}.card-tone-custom input::-webkit-color-swatch-wrapper{padding:0}.card-tone-custom input::-webkit-color-swatch{border:0;border-radius:50%}
+.card-pattern-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.card-pattern-row button{display:grid;justify-items:center;gap:4px;min-width:0;min-height:63px;padding:9px 3px;border:1px solid #dce6f2;border-radius:11px;background:#fff;color:#597087;font:inherit;font-size:11px;cursor:pointer}.card-pattern-row button.active{border-color:#e87975;background:#fff4f1;color:#b75553;font-weight:800}.card-pattern-row svg{stroke-width:1.8}
+.card-gradient-preview{display:grid;gap:7px;color:#667e97;font-size:11px}.card-gradient-preview i{display:flex;align-items:flex-start;gap:5px;min-height:80px;padding:13px 17px;border:1px solid #ffffffd0;border-radius:13px;box-shadow:0 7px 16px #2a456013;font-size:14px;font-style:normal;font-weight:900}.card-gradient-preview b{align-self:flex-end;margin-left:auto;font-size:17px}
+.card-editor-actions{display:flex;gap:8px}.card-editor-actions button{min-height:39px;padding:0 16px;border:1px solid #cbdbea;border-radius:9px;background:#fff;color:#526b86;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.card-editor-actions .card-editor-save{border-color:#ed746f;background:#ed746f;color:#fff}.card-editor-actions button:disabled{opacity:.5;cursor:not-allowed}
+.mascot-editor-body{display:grid;grid-template-columns:minmax(145px,.7fr) minmax(0,1.3fr);gap:14px}.mascot-dropzone{position:relative;display:grid;justify-items:center;gap:5px;padding:12px;border:1.5px dashed #b7cce0;border-radius:14px;background:#f4f9ff;color:#365b7d;text-align:center;cursor:pointer}.mascot-dropzone:hover{border-color:#ea8179;background:#fff7f5}.mascot-dropzone-preview{display:grid;place-items:center;width:100%;height:154px;padding:4px;overflow:visible;color:#7e9bb6;font-size:66px}.mascot-dropzone-preview img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center}.mascot-dropzone strong{font-size:12px}.mascot-dropzone small{max-width:170px;color:#70859b;font-size:10px;line-height:1.35}.mascot-dropzone input{position:absolute;width:1px;height:1px;opacity:0}.mascot-dropzone:focus-within{outline:3px solid #79a9df;outline-offset:2px}
+.mascot-editor-fields{display:grid;align-content:start;gap:13px}.mascot-editor-hint{margin:0;color:#71869a;font-size:11px;line-height:1.45}.mascot-upload-note,.mascot-upload-error{margin:-7px 0 0;font-size:12px}.mascot-upload-note{color:#17845a}.mascot-upload-error{color:#bd4e4e}
+@media(max-width:620px){.card-tone-row{grid-template-columns:repeat(4,minmax(0,1fr))}.card-pattern-row{grid-template-columns:repeat(3,minmax(0,1fr))}.mascot-editor-body{grid-template-columns:1fr}.card-editor{padding:15px}.card-mascot-actions{opacity:1}}
+@media(prefers-reduced-motion:reduce){.member-card-rank,.member-card-rank::after,.member-card-art,.card-editor{animation:none}}
