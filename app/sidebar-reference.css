@@ -1,0 +1,61 @@
+/* The supplied artwork is a sprite; labels remain real, accessible text. */
+.sidebar-reference .sidebar-picture { display: block; flex: 0 0 64px; width: 64px; height: 64px; background-image: url('/assets/sidebar-reference.png'); background-size: 478.5px 821.5px; background-repeat: no-repeat; border-radius: 13px; mix-blend-mode: multiply; }
+.sidebar-picture-points { background-position: -124px -161px; }
+.sidebar-picture-members { background-position: -124px -234px; }
+.sidebar-picture-reports { background-position: -124px -309px; }
+.sidebar-picture-rewards { background-position: -124px -382px; }
+.sidebar-picture-lucky { background-position: -124px -455px; }
+.sidebar-picture-line { background-position: -124px -531px; }
+.sidebar-picture-settings { background-position: -124px -609px; }
+.sidebar-reference .sidebar-picture-preview { background-image: none; display: grid; place-items: center; color: #69a8d7; background-color: #e8f5ff; }
+.sidebar-reference .sidebar-menu-copy { display: flex; flex-direction: column; min-width: 0; gap: 3px; text-align: left; }
+.sidebar-reference .sidebar-menu-copy strong { font-size: 15px; line-height: 1.45; color: #203c60; font-weight: 700; }
+.sidebar-reference .sidebar-menu-copy small { font-size: 11px; line-height: 1.5; color: #7b91aa; font-weight: 500; }
+.sidebar-reference .sidebar-menu-chevron { margin-left: auto; color: #92acc8; width: 17px; flex: 0 0 17px; }
+.sidebar-reference .nav-placeholder { cursor: default; }
+.sidebar-reference .nav-placeholder:hover { transform: none; background: #fff; }
+@media (min-width: 821px) {
+  .sidebar-wrap { flex-basis: 232px; width: 232px; }
+  .sidebar.sidebar-reference { width: 232px; padding: 16px 10px; overflow-y: auto; background: #fffcf8; border-right: 1px solid #e6edf3; }
+  .sidebar-reference .brand { flex-shrink: 0; display: grid; grid-template-columns: 52px minmax(0,1fr); column-gap: 9px; align-items: center; padding: 4px 10px 20px; text-align: left; }
+  .sidebar-reference .brand img { grid-row: span 2; width: 52px; height: 52px; }
+  .sidebar-reference .brand-name { align-self: end; font-size: 23px; color: #422c22; font-weight: 900; margin: 0; }
+  .sidebar-reference .brand-subtitle { align-self: start; font-size: 11px; color: #88715f; font-weight: 500; }
+  .sidebar-reference .sidebar-nav { display: grid; gap: 6px; }
+  .sidebar-reference .nav-item { flex-direction: row; gap: 9px; padding: 7px 9px; min-height: 56px; border: 1px solid transparent; border-radius: 14px; background: #fff; box-shadow: none; text-align: left; }
+  .sidebar-reference .sidebar-menu-copy strong { font-size: 12px; line-height: 1.45; font-weight: 600; }
+  .sidebar-reference .sidebar-menu-copy small, .sidebar-reference .sidebar-menu-chevron { display: none; }
+  .sidebar-reference .sidebar-picture { width: 40px; height: 40px; flex-basis: 40px; border-radius: 8px; background-size: 299.0625px 513.4375px; }
+  .sidebar-reference .sidebar-picture-points { background-position: -77.5px -100.625px; }
+  .sidebar-reference .sidebar-picture-members { background-position: -77.5px -146.25px; }
+  .sidebar-reference .sidebar-picture-reports { background-position: -77.5px -193.125px; }
+  .sidebar-reference .sidebar-picture-rewards { background-position: -77.5px -238.75px; }
+  .sidebar-reference .sidebar-picture-lucky { background-position: -77.5px -284.375px; }
+  .sidebar-reference .sidebar-picture-line { background-position: -77.5px -331.875px; }
+  .sidebar-reference .sidebar-picture-settings { background-position: -77.5px -380.625px; }
+  .sidebar-reference .nav-item.active { background: linear-gradient(110deg,#cbe8ff,#c4e2fc); border-color: #d8ecfc; }
+  .sidebar-reference .nav-item.active .sidebar-menu-chevron { color: #60a7f2; }
+  .sidebar-reference .nav-item:hover:not(.nav-placeholder) { transform: none; border-color: #b9d9f3; }
+  .sidebar-reference .account-card { flex-shrink: 0; justify-content: flex-start; gap: 10px; margin: auto 2px 0; padding: 10px; background: #f0f6fd; border-radius: 15px; }
+  .sidebar-reference .sidebar-nav { margin-bottom: 18px; }
+  .sidebar-reference .account-card>div:not(.avatar), .sidebar-reference .account-card>svg { display: block; }
+  .sidebar-reference .account-card>svg { margin-left: auto; color: #94b4d5; }
+  .sidebar-reference .account-card .avatar { width: 34px; height: 34px; flex-shrink: 0; font-size: 18px; background: #cce2ff; color: #22508b; }
+  .sidebar-reference .account-card strong { font-size: 14px; }
+  .sidebar-reference .account-card span { display: block; font-size: 11px; margin-top: 3px; color: #7b91aa; }
+  .sidebar-reference .logout { flex-shrink: 0; margin: 8px 2px 0; padding: 9px; background: #fff0f1; border-radius: 15px; font-size: 12px; color: #ae3939; gap: 8px; }
+}
+@media (max-width: 820px) {
+  .sidebar-reference .sidebar-nav { display: flex; overflow-x: auto; gap: 4px; }
+  .sidebar-reference .nav-item { flex: 0 0 76px; }
+  .sidebar-reference .sidebar-picture { width: 32px; height: 32px; flex-basis: 32px; background-size: 239.25px 410.75px; border-radius: 7px; }
+  .sidebar-reference .sidebar-picture-points { background-position: -62px -80.5px; }
+  .sidebar-reference .sidebar-picture-members { background-position: -62px -117px; }
+  .sidebar-reference .sidebar-picture-reports { background-position: -62px -154.5px; }
+  .sidebar-reference .sidebar-picture-rewards { background-position: -62px -191px; }
+  .sidebar-reference .sidebar-picture-lucky { background-position: -62px -227.5px; }
+  .sidebar-reference .sidebar-picture-line { background-position: -62px -265.5px; }
+  .sidebar-reference .sidebar-picture-settings { background-position: -62px -304.5px; }
+  .sidebar-reference .sidebar-menu-copy strong { font-size: 9px; white-space: nowrap; }
+  .sidebar-reference .sidebar-menu-copy small,.sidebar-reference .sidebar-menu-chevron { display: none; }
+}

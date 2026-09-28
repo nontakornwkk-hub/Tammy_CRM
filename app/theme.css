@@ -204,6 +204,10 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
 .check-notice { background:#fff7de; font-size:13px; border-radius:10px; }
 .confirm-points { min-height:50px; font-size:17px; border-radius:13px; }
 .recent-title { font-size:16px; }
+.recent-date-actions { display:flex; align-items:center; gap:8px; }
+.recent-date-actions label { display:flex; align-items:center; gap:6px; color:#63748e; font-size:12px; white-space:nowrap; }
+.recent-date-actions input[type="date"] { width:135px; min-height:32px; padding:3px 7px; border:1px solid #dce7f3; background:#fff; font:inherit; color:var(--ink); cursor:pointer; }
+.recent-date-actions button { white-space:nowrap; cursor:pointer; }
 .recent-head { background:#f1f6fc; font-size:12px; }
 .recent-row { font-size:13px; min-height:45px; }
 .recent-row .negative{color:#d35759;font-weight:800}

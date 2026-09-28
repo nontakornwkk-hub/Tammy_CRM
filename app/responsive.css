@@ -1,0 +1,100 @@
+/* Final responsive layer: keep page width stable while dense content scrolls locally. */
+.app-shell,.main-content,.points-workspace,.settings-grid,.rewards-gallery-page,.members-page,.settings-page,.report-layout,.settings-card,.panel{min-width:0}
+.page-header .heading-copy{min-width:0}
+.page-header h1,.page-header p{overflow-wrap:anywhere}
+
+@media(max-width:1180px){
+  .points-workspace,.settings-grid,.report-layout{grid-template-columns:minmax(0,1fr)}
+  .points-page .customer-panel,.members-page .members-list-panel{min-width:0}
+  .settings-page .settings-tabs{display:flex;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;gap:5px}
+  .settings-page .settings-tabs button{flex:0 0 auto;min-width:170px;white-space:nowrap}
+}
+
+@media(min-width:801px) and (max-width:1180px){
+  .rewards-gallery-page .rewards-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .main-content{padding:18px}
+}
+
+@media(min-width:821px) and (max-width:980px){
+  .rewards-gallery-page .rewards-gallery-grid{grid-template-columns:minmax(0,1fr)}
+  .rewards-gallery-page .rewards-gallery-card{max-width:620px;width:100%;margin-inline:auto}
+}
+
+@media(max-width:820px){
+  html,body{max-width:100%;overflow-x:clip}
+  .app-shell{width:100%;min-width:0;margin:0;padding-bottom:calc(76px + env(safe-area-inset-bottom));border:0;border-radius:0}
+  .main-content{width:100%;min-width:0;padding:18px clamp(12px,3vw,22px)}
+  .sidebar-wrap,.sidebar-wrap.open{position:static;width:0;height:0;transform:none;transition:none}
+  .sidebar{position:fixed;z-index:60;left:0;right:0;top:auto;bottom:0;width:100%;height:calc(72px + env(safe-area-inset-bottom));padding:5px 6px calc(5px + env(safe-area-inset-bottom));border-radius:18px 18px 0 0}
+  .sidebar-nav{width:100%;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}
+  .sidebar .nav-item{min-width:0;min-height:58px;padding:5px 2px;gap:2px;font-size:10px;line-height:1.15}
+  .sidebar .nav-item svg{width:21px;height:21px}
+  .mobile-menu,.mobile-overlay{display:none!important}
+  .page-header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:15px}
+  .page-header .heading-copy{flex:1 1 220px}
+  .page-header .header-actions{display:flex;justify-content:flex-start;width:auto;max-width:100%;margin-left:auto}
+  .settings-page .settings-tabs{margin-inline:0}
+  .rewards-gallery-page .rewards-gallery-toolbar,.rewards-gallery-page .rewards-gallery-grid{margin-inline:0}
+  .rewards-gallery-page .rewards-gallery-toolbar{flex-wrap:wrap;gap:9px}
+  .rewards-gallery-page .rewards-gallery-toolbar .search-box{flex:1 1 100%;max-width:none}
+  .rewards-gallery-page .rewards-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rewards-gallery-page .rewards-gallery-card{width:100%;max-width:none}
+  .members-page .members-table,.points-page .customer-table{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+  .preview-modal,.member-profile-modal,.rewards-gallery-modal{padding:12px}
+  .preview-modal>section,.rewards-gallery-modal>section,.member-profile-modal>.member-profile-reference{max-width:100%;max-height:calc(100dvh - 24px);overflow-y:auto}
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),select,textarea{font-size:16px!important}
+  .customer-portal{width:100%;max-width:520px;padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .customer-nav{height:calc(72px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
+}
+
+@media(max-width:700px){
+  .rewards-gallery-page .rewards-gallery-grid{grid-template-columns:minmax(0,1fr)}
+  .rewards-gallery-page .rewards-gallery-card{max-width:540px;margin-inline:auto}
+  .report-kpis,.report-follow-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .report-period{gap:4px}
+  .report-period>span:first-child{flex-basis:100%}
+  .report-period button{flex:1 1 auto;padding:7px 8px;font-size:12px}
+  .points-page .recent-title{flex-wrap:wrap;gap:8px}
+  .points-page .recent-date-actions{margin-left:auto}
+  .settings-page .team-security-fact{gap:8px}
+  .settings-page .team-security-fact strong{min-width:0;overflow-wrap:anywhere;text-align:right}
+}
+
+@media(max-width:520px){
+  .main-content{padding:14px 10px}
+  .page-header h1{font-size:23px}
+  .page-header .header-actions{flex-basis:100%;margin-left:0}
+  .page-header .header-actions .button,.page-header .header-actions button{min-width:0}
+  .settings-page .settings-tabs button{min-width:150px;font-size:12px}
+  .settings-card,.panel{max-width:100%}
+  .rewards-gallery-page .rewards-gallery-card{grid-template-columns:minmax(105px,38%) minmax(0,1fr)}
+  .rewards-gallery-page .rewards-gallery-card>.rewards-gallery-image{width:calc(100% - 12px);margin:6px}
+  .rewards-gallery-page .rewards-gallery-card>.rewards-gallery-copy{padding:10px 9px 10px 0}
+  .rewards-gallery-page .rewards-gallery-toolbar>label:not(.search-box){min-width:0;flex:1 1 42%}
+  .rewards-gallery-page .rewards-gallery-toolbar select{min-width:0;width:100%}
+  .report-kpis,.report-follow-grid{grid-template-columns:minmax(0,1fr)}
+  .report-podium-person{min-height:125px}
+  .members-page .member-directory-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .points-page .recent-head,.points-page .recent-row{grid-template-columns:69px minmax(0,1fr) 60px 44px;gap:4px;padding-inline:3px;font-size:10px}
+  .points-page .recent-title h3{font-size:13px}
+  .points-page .points-before-after{min-width:0}
+  .points-page .points-before-after>div{min-width:0}
+  .points-page .points-before-after strong{overflow-wrap:anywhere}
+  .settings-page .team-security-device{align-items:flex-start}
+  .settings-page .team-security-device-info{flex-basis:calc(100% - 50px)}
+  .settings-page .team-security-device button{margin-left:47px}
+  .settings-page .database-usage-total{align-items:flex-start;gap:8px}
+  .settings-page .database-usage-total small{flex-basis:100%;text-align:left}
+  .member-qr-modal .member-qr-video{height:min(230px,32dvh)}
+  .auth-page{padding:12px}
+  .auth-card{width:100%;padding:24px 19px}
+  .customer-content{padding:16px 12px}
+  .customer-top{padding-inline:13px}
+  .customer-hero{height:220px;padding:20px}
+  .customer-hero h1{font-size:25px}
+  .customer-actions{gap:6px}
+  .customer-actions button{min-width:0;padding:13px 4px;font-size:11px}
+  .coupon-stack article{flex-wrap:wrap;padding:14px}
+  .coupon-stack article div{min-width:0}
+  .coupon-stack code{overflow-wrap:anywhere}
+}

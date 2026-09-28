@@ -5,6 +5,18 @@ import "./card-design.css";
 import "./popup-content.css";
 import "./popup-source-list.css";
 import "./popup-refresh.css";
+import "./responsive.css";
+import "./customer-home.css";
+import "./customer-preview.css";
+import "./customer-reference.css";
+import "./coupon-customer-refresh.css";
+import "./customer-reward-detail.css";
+import "./coupon-ticket.css";
+import "./customer-catalog-refresh.css";
+import "./sidebar-reference.css";
+import "./line-manager.css";
+import "./line-inbox.css";
+import "./line-membership.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

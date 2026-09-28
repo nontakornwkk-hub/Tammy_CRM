@@ -33,6 +33,7 @@ import { useEffect, useRef, useState } from "react";
 import { SiFacebook, SiInstagram, SiLine, SiTiktok, SiYoutube } from "react-icons/si";
 import { AppSettings, ContactPlatform, defaultSettings, loadSettings, saveSettings } from "@/lib/settings";
 import { supabase } from "@/lib/supabase/client";
+import { clearCachedData, crmOwnerId, crmRole } from "@/lib/supabase/crm-data";
 import { bangkokToday, PROMOTION_PATTERN_COUNT, promotionPattern, type PointPromotion } from "@/lib/promotions";
 import { PromotionDisplay } from "./promotion-display";
 import { CardDesignSettings } from "./card-design-settings";
@@ -66,7 +67,10 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: () =
 }
 
 export function SettingsManager() {
-  const [activeTab, setActiveTab] = useState<Tab>("shop");
+  const role = crmRole();
+  const ownerMode = role === "owner";
+  const personalOnly = role === "staff";
+  const [activeTab, setActiveTab] = useState<Tab>(() => crmRole() === "staff" ? "team" : "shop");
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [team, setTeam] = useState(initialTeam);
   const [dirty, setDirty] = useState(false);
@@ -76,6 +80,8 @@ export function SettingsManager() {
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab === "team") setActiveTab("team");
     setSettings(loadSettings());
     if (!supabase) return;
     void supabase.from("public_shop_profiles").select("*").eq("slug", "tammy").maybeSingle().then(({ data }) => {
@@ -97,9 +103,8 @@ export function SettingsManager() {
         popupEnabled: typeof (data.card_design as Record<string, unknown>)?.popup_enabled === "boolean" ? Boolean((data.card_design as Record<string, unknown>).popup_enabled) : current.popupEnabled,
       }));
     });
-    void supabase.auth.getUser().then(async ({ data: auth }) => {
-      if (!auth.user || !supabase) return;
-      const { data } = await supabase.from("store_settings").select("extra,points_spend,points_earned").eq("owner_id", auth.user.id).maybeSingle();
+    const ownerId = crmOwnerId();
+    if (ownerId) void supabase.from("store_settings").select("extra,points_spend,points_earned").eq("owner_id", ownerId).maybeSingle().then(({ data }) => {
       const extra = data?.extra && typeof data.extra === "object" ? data.extra as Record<string, unknown> : null;
       if (!extra || extra.points_policy_version !== 1) return;
       setSettings((current) => ({
@@ -131,6 +136,7 @@ export function SettingsManager() {
 
   async function persist() {
     if (saving) return;
+    if (personalOnly || (role !== "owner" && role !== "manager")) { setSaveError("บัญชีนี้ไม่มีสิทธิ์แก้การตั้งค่าร้าน"); return; }
     if (!supabase) { setSaveError("ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูล"); return; }
     const customerUrl = settings.customerUrl.trim() || `${window.location.origin}/customer`;
     if (!/^https?:\/\/[^\s]+$/i.test(customerUrl)) {
@@ -155,11 +161,13 @@ export function SettingsManager() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("กรุณาเข้าสู่ระบบแอดมินก่อนบันทึกข้อมูลร้าน");
+      const ownerId = crmOwnerId();
+      if (!ownerId) throw new Error("ไม่พบร้านที่บัญชีนี้มีสิทธิ์จัดการ");
       let logoUrl = settings.logoDataUrl;
       if (logoUrl.startsWith("data:")) {
         const blob = await fetch(logoUrl).then((response) => response.blob());
         const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-        const path = `${auth.user.id}/shop-logo-${crypto.randomUUID()}.${ext}`;
+        const path = `${ownerId}/shop-logo-${crypto.randomUUID()}.${ext}`;
         const upload = await supabase.storage.from("crm-content").upload(path, blob, { contentType: blob.type });
         if (upload.error) throw upload.error;
         logoUrl = supabase.storage.from("crm-content").getPublicUrl(path).data.publicUrl;
@@ -168,7 +176,7 @@ export function SettingsManager() {
         if (!mascot.image.startsWith("data:")) return mascot;
         const blob = await fetch(mascot.image).then((response) => response.blob());
         const ext = blob.type === "image/png" ? "png" : blob.type === "image/jpeg" ? "jpg" : "webp";
-        const path = `${auth.user.id}/card-mascot-${crypto.randomUUID()}.${ext}`;
+        const path = `${ownerId}/card-mascot-${crypto.randomUUID()}.${ext}`;
         const upload = await supabase!.storage.from("crm-content").upload(path, blob, { contentType: blob.type });
         if (upload.error) throw upload.error;
         return { ...mascot, image: supabase!.storage.from("crm-content").getPublicUrl(path).data.publicUrl };
@@ -177,7 +185,7 @@ export function SettingsManager() {
       const publicPopupContent = next.popupContent.length
         ? resolvePopupContent(next.popupContent, await loadPopupCatalog()).filter(item => item.active)
         : [];
-      const settingsRow = await supabase.from("store_settings").select("extra").eq("owner_id", auth.user.id).single();
+      const settingsRow = await supabase.from("store_settings").select("extra").eq("owner_id", ownerId).single();
       if (settingsRow.error) throw settingsRow.error;
       const previousExtra = settingsRow.data.extra && typeof settingsRow.data.extra === "object" ? settingsRow.data.extra as Record<string, unknown> : {};
       const pointSave = await supabase.from("store_settings").update({
@@ -201,19 +209,23 @@ export function SettingsManager() {
           popup_enabled: next.popupEnabled,
         },
         updated_at: new Date().toISOString(),
-      }).eq("owner_id", auth.user.id);
+      }).eq("owner_id", ownerId).select("owner_id").single();
       if (pointSave.error) throw pointSave.error;
-      const result = await supabase.from("public_shop_profiles").upsert({
-        slug: "tammy", owner_id: auth.user.id, customer_url: customerUrl,
+      const profile = {
+        slug: "tammy", owner_id: ownerId, customer_url: customerUrl,
         shop_name: next.shopName, shop_name_en: next.shopNameEn,
         description: next.description, welcome_message: next.welcomeMessage,
         logo_url: logoUrl || null, contacts: next.contacts, store_hours_enabled: next.storeHoursEnabled,
         weekly_hours: next.weeklyHours, temporary_closure: next.temporaryClosure,
         card_design: { themes: next.cardThemes, mascots: next.cardMascots, selectedTheme: next.selectedTheme, selectedMascot: next.selectedMascot, displayCustomization: next.displayCustomization, popup_enabled: next.popupEnabled, popup_content: publicPopupContent },
         updated_at: new Date().toISOString(),
-      }, { onConflict: "slug" });
+      };
+      const result = ownerMode
+        ? await supabase.from("public_shop_profiles").upsert(profile, { onConflict: "slug" })
+        : await supabase.from("public_shop_profiles").update(profile).eq("slug", "tammy").eq("owner_id", ownerId).select("slug").single();
       if (result.error) throw result.error;
       saveSettings(next);
+      clearCachedData("points");
       setSettings(next);
       setDirty(false);
       setSaved(true);
@@ -236,20 +248,20 @@ export function SettingsManager() {
       <main className="main-content">
         <header className="page-header settings-header">
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
-          <div className="heading-copy"><h1>ตั้งค่าระบบ</h1><p>จัดการข้อมูลร้าน สมาชิก และสิทธิ์การใช้งาน</p></div>
-          <div className="header-actions"><span className={`save-state${dirty ? " dirty" : ""}`}><i /> {dirty ? "ยังไม่ได้บันทึก" : "บันทึกแล้ว"}</span><button className="button primary" type="button" onClick={persist} disabled={saving}><Save size={19} /> {saving ? "กำลังบันทึก…" : saved ? "บันทึกการตั้งค่า" : "บันทึกการเปลี่ยนแปลง"}</button></div>
+          <div className="heading-copy"><h1>{personalOnly ? "บัญชีของฉัน" : "ตั้งค่าระบบ"}</h1><p>{personalOnly ? "ตั้งรหัสผ่านและดูความปลอดภัยของบัญชี" : "จัดการข้อมูลร้าน สมาชิก และสิทธิ์การใช้งาน"}</p></div>
+          {!personalOnly && activeTab !== "team" ? <div className="header-actions"><span className={`save-state${dirty ? " dirty" : ""}`}><i /> {dirty ? "ยังไม่ได้บันทึก" : "บันทึกแล้ว"}</span><button className="button primary" type="button" onClick={persist} disabled={saving}><Save size={19} /> {saving ? "กำลังบันทึก…" : saved ? "บันทึกการตั้งค่า" : "บันทึกการเปลี่ยนแปลง"}</button></div> : null}
         </header>
 
-        <nav className="settings-tabs" aria-label="หมวดการตั้งค่า">
-          {tabs.map((tab) => <button type="button" key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
-        </nav>
+        {!personalOnly ? <nav className="settings-tabs" aria-label="หมวดการตั้งค่า">
+          {tabs.map((tab) => <button type="button" key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.id === "team" && !ownerMode ? "บัญชีของฉัน" : tab.label}</button>)}
+        </nav> : null}
 
-        {activeTab === "shop" ? <ShopTab settings={settings} update={update} /> : null}
-        {activeTab === "points" ? <PointsTab settings={settings} update={update} /> : null}
-        {activeTab === "card" ? <CardTab settings={settings} update={update} /> : null}
-        {activeTab === "content" ? <PopupContentSettings settings={settings} update={update} /> : null}
-        {activeTab === "team" ? <TeamSecuritySettings /> : null}
-        {activeTab === "team" ? <div className="database-usage-wrap"><DatabaseUsageCard /></div> : null}
+        {!personalOnly && activeTab === "shop" ? <ShopTab settings={settings} update={update} /> : null}
+        {!personalOnly && activeTab === "points" ? <PointsTab settings={settings} update={update} /> : null}
+        {!personalOnly && activeTab === "card" ? <CardTab settings={settings} update={update} /> : null}
+        {!personalOnly && activeTab === "content" ? <PopupContentSettings settings={settings} update={update} /> : null}
+        {activeTab === "team" ? <TeamSecuritySettings ownerMode={ownerMode} /> : null}
+        {ownerMode && activeTab === "team" ? <div className="database-usage-wrap"><DatabaseUsageCard /></div> : null}
 
         {saveError ? <p className="settings-save-error" role="alert">{saveError}</p> : null}
       </main>

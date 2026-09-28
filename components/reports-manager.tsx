@@ -6,9 +6,11 @@ import { Sidebar } from "./sidebar";
 import { DateRangePicker } from "./date-range-picker";
 import { ReportMonthPicker } from "./report-month-picker";
 import { supabase } from "@/lib/supabase/client";
+import { cachedData, crmOwnerId, fetchReportsData, loadCachedData } from "@/lib/supabase/crm-data";
 
 type Member = { id:string; name:string; member_code:string; level:string; created_at:string; last_visit:string|null };
 type Transaction = { id:string; member_id:string; sale_amount:number; points_delta:number; created_at:string; transaction_type:string };
+type ReportsData = Awaited<ReturnType<typeof fetchReportsData>>;
 const number = (n:number) => n.toLocaleString("th-TH", {maximumFractionDigits:2});
 const dayKey = (value:string) => value.length === 10 ? value : new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(value));
 const shift = (day:string, amount:number) => new Date(Date.parse(day+"T12:00:00Z")+amount*86400000).toISOString().slice(0,10);
@@ -39,17 +41,6 @@ const percentLabel=(now:number,before:number,context:string) =>
   before===0?(now?"เพิ่มจาก 0 ใน"+context:"ไม่มีรายการทั้งสองช่วง"):
   ((now>before?"+":"")+number((now-before)/Math.abs(before)*100)+"% เทียบ"+context);
 
-async function fetchRows<T>(table:string, columns:string):Promise<T[]> {
-  if (!supabase) throw new Error("ยังไม่ได้เชื่อมต่อฐานข้อมูล");
-  const rows:T[] = [];
-  for (let offset=0;;offset+=1000) {
-    const {data,error} = await supabase.from(table).select(columns).order("id").range(offset,offset+999);
-    if (error) throw new Error(error.message);
-    rows.push(...(data as unknown as T[]));
-    if (!data || data.length<1000) return rows;
-  }
-}
-
 export function ReportsManager() {
   const [range,setRange] = useState(() => { const today=dayKey(new Date().toISOString()); return {start:today.slice(0,7)+"-01",end:today}; });
   const [period,setPeriod] = useState<Period>("month");
@@ -58,9 +49,9 @@ export function ReportsManager() {
     return {current:today.slice(0,7),comparison:previousMonth(today).slice(0,7)};
   });
   const [draft,setDraft] = useState(range);
-  const [members,setMembers] = useState<Member[]>([]);
-  const [transactions,setTransactions] = useState<Transaction[]>([]);
-  const [loading,setLoading] = useState(true);
+  const [members,setMembers] = useState<Member[]>(() => cachedData<ReportsData>("reports")?.members as Member[] ?? []);
+  const [transactions,setTransactions] = useState<Transaction[]>(() => cachedData<ReportsData>("reports")?.transactions as Transaction[] ?? []);
+  const [loading,setLoading] = useState(() => !cachedData<ReportsData>("reports"));
   const [error,setError] = useState("");
   const [reload,setReload] = useState(0);
   const [metric,setMetric] = useState<"sales"|"points">("sales");
@@ -79,12 +70,17 @@ export function ReportsManager() {
   }
   useEffect(() => {
     let active=true;
-    setLoading(true); setError("");
-    Promise.all([
-      fetchRows<Member>("members","id,name,member_code,level,created_at,last_visit"),
-      fetchRows<Transaction>("points_transactions","id,member_id,sale_amount,points_delta,created_at,transaction_type"),
-    ]).then(([m,t]) => {if(active){setMembers(m);setTransactions(t);}})
-      .catch(e => {if(active)setError(e instanceof Error ? e.message : "โหลดรายงานไม่สำเร็จ");})
+    if (!cachedData<ReportsData>("reports") || reload > 0) setLoading(true);
+    setError("");
+    void (async () => {
+      if (!supabase) throw new Error("ยังไม่ได้เชื่อมต่อฐานข้อมูล");
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error("กรุณาเข้าสู่ระบบก่อนดูรายงาน");
+      const ownerId = crmOwnerId();
+      if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
+      const result = await loadCachedData(ownerId, "reports", () => fetchReportsData(ownerId), reload > 0);
+      if (active) { setMembers(result.members as Member[]); setTransactions(result.transactions as Transaction[]); }
+    })().catch(e => {if(active)setError(e instanceof Error ? e.message : "โหลดรายงานไม่สำเร็จ");})
       .finally(() => {if(active)setLoading(false);});
     return () => {active=false;};
   },[reload]);
