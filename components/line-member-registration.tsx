@@ -62,7 +62,11 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
         const { default: liff } = await import("@line/liff");
         await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
         if (!active) return;
-        if (!liff.isLoggedIn()) { liff.login({ redirectUri: `${window.location.origin}/customer${window.location.search}` }); return; }
+        if (!liff.isLoggedIn()) {
+          const menuQuery = requestedView === "points" || requestedView === "rewards" || requestedView === "news" ? `?view=${requestedView}` : "";
+          liff.login({ redirectUri: `${window.location.origin}/customer${menuQuery}` });
+          return;
+        }
         const token = liff.getIDToken();
         if (!token) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token);
