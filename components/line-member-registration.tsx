@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, PawPrint, ShieldCheck } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
 import { CustomerBrandHeader } from "./customer-brand-header";
 
 type Member = { memberCode: string; name: string; level: string; points: number };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
-type State = "loading" | "form" | "member" | "login" | "unavailable";
+type State = "loading" | "form" | "member" | "login" | "confirm-line-login" | "unavailable";
 type PreviewScreen = "register" | "login";
 const signedOutKey = "tammy-customer-signed-out";
 
@@ -22,6 +22,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
   const [member, setMember] = useState<Member | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const startLineLogin = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (preview) return;
@@ -38,19 +39,22 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         const config = await configResponse.json() as { liffId?: string; error?: string };
         if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
         const { default: liff } = await import("@line/liff");
-        await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
+        await liff.init({ liffId: config.liffId });
         if (!active) return;
         // LIFF restores rich-menu query parameters only after initialization.
         const finalQuery = new URLSearchParams(window.location.search);
         const finalScreen = finalQuery.get("screen");
         const finalView = finalQuery.get("view");
-        const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
-        if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
-        if (!liff.isLoggedIn()) {
+        startLineLogin.current = () => {
           const validScreen = finalScreen === "register" || finalScreen === "home" || finalScreen === "news" || finalScreen === "rewards";
           const validView = finalView === "points" || finalView === "rewards" || finalView === "news";
           const menuQuery = validScreen ? `?screen=${finalScreen}` : validView ? `?view=${finalView}` : "";
           liff.login({ redirectUri: `${window.location.origin}/customer${menuQuery}` });
+        };
+        const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
+        if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
+        if (!liff.isLoggedIn()) {
+          setState("confirm-line-login");
           return;
         }
         const token = liff.getIDToken();
@@ -78,6 +82,15 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     localStorage.removeItem(signedOutKey);
     window.location.assign("/customer");
+  }
+
+  function confirmLineLogin() {
+    setError("");
+    if (!startLineLogin.current) {
+      setError("เริ่ม LINE Login ไม่สำเร็จ กรุณาปิดหน้านี้แล้วกด Membership อีกครั้ง");
+      return;
+    }
+    startLineLogin.current();
   }
 
   async function logout() {
@@ -119,6 +132,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {state === "loading" && <section className="line-signup-panel line-signup-status" role="status"><div className="line-signup-spinner" /><h1>กำลังตรวจสอบสมาชิก</h1><p>เชื่อมต่อบัญชี LINE ของคุณสักครู่</p></section>}
       {state === "unavailable" && <section className="line-signup-panel line-signup-status" role="alert"><div className="line-signup-icon"><PawPrint /></div><h1>ยังเปิดหน้านี้ไม่ได้</h1><p>{error}</p></section>}
+      {state === "confirm-line-login" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">ยืนยันตัวตน</span><h1>เข้าสู่ระบบด้วย LINE?</h1><p>ระบบจะเปิดหน้า LINE เพื่อยืนยันบัญชีของคุณ ก่อนแสดงข้อมูลสมาชิก</p></div><section className="line-signup-panel line-signup-status"><div className="line-signup-icon"><ShieldCheck /></div><h1>พร้อมเข้าสู่ระบบ</h1><p>ใช้บัญชี LINE ที่ผูกกับสมาชิก Tammy Pet Shop</p>{error && <p className="line-signup-error" role="alert">{error}</p>}<div className="line-login-confirm-actions"><button type="button" onClick={confirmLineLogin}>ยืนยันและไปต่อ<ArrowRight size={18} /></button><button type="button" className="line-login-cancel" onClick={() => setState("login")}>ยกเลิก</button></div></section></>}
       {state === "login" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">เข้าสู่ระบบสมาชิก</span><h1>ยินดีต้อนรับกลับมา</h1><p>เข้าสู่ระบบด้วยบัญชี LINE ที่ใช้สมัครสมาชิก ไม่ต้องใช้รหัสผ่านหรือ SMS</p></div><section className="line-signup-panel"><div className="line-signup-form"><button type="button" onClick={loginWithLine}>เข้าสู่ระบบด้วย LINE<ArrowRight size={18} /></button><p className="line-signup-privacy"><ShieldCheck size={16} /> ข้อมูลสมาชิกของคุณผูกกับบัญชี LINE เดิม</p></div></section></>}
       {state === "form" && <>
         <div className="line-signup-intro"><span className="line-signup-eyebrow">ยินดีต้อนรับสมาชิกใหม่</span><h1>สมัครสมาชิกกับแทมมี่</h1><p>กรอกข้อมูลเพียงครั้งเดียว แล้วกลับมาเช็กแต้มผ่าน LINE ได้เลย</p></div>
