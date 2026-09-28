@@ -15,6 +15,7 @@ const signedOutKey = "tammy-customer-signed-out";
 const emptyForm: Registration = { firstName: "", lastName: "", gender: "", birthDate: "", phone: "" };
 
 export function LineMemberRegistration({ preview }: { preview: boolean }) {
+  const [richMenuView, setRichMenuView] = useState<"points" | "rewards" | "news" | null>(null);
   const [state, setState] = useState<State>(preview ? "form" : "loading");
   const [idToken, setIdToken] = useState("");
   const [otpAccessToken, setOtpAccessToken] = useState("");
@@ -39,6 +40,8 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
 
   useEffect(() => {
     if (preview) return;
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    if (requestedView === "points" || requestedView === "rewards" || requestedView === "news") setRichMenuView(requestedView);
     let active = true;
     void (async () => {
       try {
@@ -59,7 +62,7 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
         const { default: liff } = await import("@line/liff");
         await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
         if (!active) return;
-        if (!liff.isLoggedIn()) { liff.login({ redirectUri: `${window.location.origin}/customer` }); return; }
+        if (!liff.isLoggedIn()) { liff.login({ redirectUri: `${window.location.origin}/customer${window.location.search}` }); return; }
         const token = liff.getIDToken();
         if (!token) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token);
@@ -143,7 +146,7 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
     } finally { setBusy(false); }
   }
 
-  if (state === "member" && member) return <CustomerPortal mode="customer" member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
+  if (state === "member" && member) return <CustomerPortal mode="customer" initialView={richMenuView} member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
 
   return <main className="line-signup customer-home-page">
     <CustomerBrandHeader greeting="ยินดีต้อนรับ" />
