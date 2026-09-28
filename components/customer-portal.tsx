@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase/client";
 import { CouponTicketFace } from "./coupon-ticket-face";
 import { CustomerRewardCard } from "./customer-reward-card";
 import { PopupDetailView } from "./customer-content-detail";
+import { CustomerBrandHeader } from "./customer-brand-header";
 
 type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
@@ -154,13 +155,7 @@ export function CustomerPortal({ initialTab = "home", member, idToken, otpAccess
 
   return (
     <main className="customer-portal customer-home-page customer-catalog-refresh">
-      <header className="customer-home-header">
-        <div className="customer-home-brand">
-          <Image src="/assets/tammy-logo-cat.png" alt="" width={58} height={58} />
-          <span><strong>Tammy</strong><small>Pet Shop</small></span>
-        </div>
-        <div className="customer-home-greeting"><strong>สวัสดี {isMember ? `คุณ${member!.name}` : previewName}</strong><PawPrint size={24} aria-hidden="true" /></div>
-      </header>
+      <CustomerBrandHeader greeting={`สวัสดี ${isMember ? `คุณ${member!.name}` : previewName}`} />
 
       <div className="customer-home-body">
         {tab === "home" ? <>

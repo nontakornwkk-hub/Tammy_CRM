@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, PawPrint, ShieldCheck } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
+import { CustomerBrandHeader } from "./customer-brand-header";
 import { memberAuth } from "@/lib/supabase/member-client";
 import { thaiPhoneToE164 } from "@/lib/line/phone";
 
@@ -144,12 +145,12 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
 
   if (state === "member" && member) return <CustomerPortal member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
 
-  return <main className="line-signup">
-    <div className="line-signup-shell">
-      <header className="line-signup-header">
-        <div className="line-signup-logo"><PawPrint size={23} strokeWidth={2.4} /></div>
-        <div><strong>Tammy</strong><span>Pet Shop Membership</span></div>
-      </header>
+  return <main className="line-signup customer-home-page">
+    <CustomerBrandHeader greeting="ยินดีต้อนรับ" />
+    <div className="line-signup-shell customer-home-body">
+      <div className="line-signup-welcome" aria-hidden="true">
+        <div className="line-signup-welcome-copy"><span>TAMMY PET SHOP</span><strong>MEMBERSHIP</strong><small>เพื่อนซี้ที่อยู่เคียงข้างเสมอ ♡</small></div>
+      </div>
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {state === "loading" && <section className="line-signup-panel line-signup-status" role="status"><div className="line-signup-spinner" /><h1>กำลังตรวจสอบสมาชิก</h1><p>เชื่อมต่อบัญชี LINE ของคุณสักครู่</p></section>}
       {state === "unavailable" && <section className="line-signup-panel line-signup-status" role="alert"><div className="line-signup-icon"><PawPrint /></div><h1>ยังเปิดหน้านี้ไม่ได้</h1><p>{error}</p></section>}
