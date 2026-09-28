@@ -1,35 +1,64 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, Check, Gift, PawPrint, ShieldCheck } from "lucide-react";
+import { ArrowRight, PawPrint, ShieldCheck } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
+import { memberAuth } from "@/lib/supabase/member-client";
+import { thaiPhoneToE164 } from "@/lib/line/phone";
 
 type Member = { memberCode: string; name: string; level: string; points: number };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
-type State = "loading" | "form" | "member" | "unavailable";
+type State = "loading" | "form" | "member" | "phone" | "otp" | "unavailable";
+const signedOutKey = "tammy-customer-signed-out";
 
 const emptyForm: Registration = { firstName: "", lastName: "", gender: "", birthDate: "", phone: "" };
 
 export function LineMemberRegistration({ preview }: { preview: boolean }) {
   const [state, setState] = useState<State>(preview ? "form" : "loading");
   const [idToken, setIdToken] = useState("");
+  const [otpAccessToken, setOtpAccessToken] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
   const [form, setForm] = useState<Registration>(emptyForm);
   const [member, setMember] = useState<Member | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  async function restorePhoneSession(accessToken: string) {
+    const response = await fetch("/api/line/member/phone", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ action: "lookup" }), cache: "no-store",
+    });
+    const data = await response.json() as { member?: Member; error?: string };
+    if (!response.ok || !data.member) throw new Error(data.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
+    setOtpAccessToken(accessToken);
+    setMember(data.member);
+    setState("member");
+  }
 
   useEffect(() => {
     if (preview) return;
     let active = true;
     void (async () => {
       try {
+        if (localStorage.getItem(signedOutKey) === "1") {
+          const session = await memberAuth?.auth.getSession();
+          if (!active) return;
+          const token = session?.data.session?.access_token;
+          if (token) {
+            try { await restorePhoneSession(token); return; }
+            catch { await memberAuth?.auth.signOut(); }
+          }
+          setState("phone");
+          return;
+        }
         const configResponse = await fetch("/api/line/member/config", { cache: "no-store" });
         const config = await configResponse.json() as { liffId?: string; error?: string };
         if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
         const { default: liff } = await import("@line/liff");
         await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
         if (!active) return;
-        if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+        if (!liff.isLoggedIn()) { liff.login({ redirectUri: `${window.location.origin}/customer` }); return; }
         const token = liff.getIDToken();
         if (!token) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token);
@@ -51,6 +80,49 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
     return () => { active = false; };
   }, [preview]);
 
+  useEffect(() => {
+    if (!memberAuth) return;
+    const { data } = memberAuth.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token && localStorage.getItem(signedOutKey) === "1") setOtpAccessToken(session.access_token);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  async function requestOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !thaiPhoneToE164(phone)) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/line/member/phone", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "request", phone }) });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "ส่งรหัส OTP ไม่สำเร็จ");
+      setState("otp");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "ส่งรหัส OTP ไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
+  async function verifyOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !memberAuth) return;
+    const e164 = thaiPhoneToE164(phone);
+    if (!e164 || !/^\d{6}$/.test(otp)) return;
+    setBusy(true); setError("");
+    try {
+      const result = await memberAuth.auth.verifyOtp({ phone: e164, token: otp, type: "sms" });
+      if (result.error || !result.data.session?.access_token) throw new Error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาขอรหัสใหม่");
+      await restorePhoneSession(result.data.session.access_token);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "ยืนยัน OTP ไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
+  async function logout() {
+    localStorage.setItem(signedOutKey, "1");
+    setMember(null); setIdToken(""); setOtpAccessToken(""); setPhone(""); setOtp(""); setError("");
+    setState("phone");
+    await memberAuth?.auth.signOut();
+    try { const { default: liff } = await import("@line/liff"); if (liff.isLoggedIn()) liff.logout(); } catch { /* The local signed-out choice still prevents automatic LINE login. */ }
+  }
+
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (preview || !idToken || busy) return;
@@ -70,7 +142,7 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
     } finally { setBusy(false); }
   }
 
-  if (state === "member" && member) return <CustomerPortal member={member} idToken={idToken} />;
+  if (state === "member" && member) return <CustomerPortal member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
 
   return <main className="line-signup">
     <div className="line-signup-shell">
@@ -81,6 +153,8 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {state === "loading" && <section className="line-signup-panel line-signup-status" role="status"><div className="line-signup-spinner" /><h1>กำลังตรวจสอบสมาชิก</h1><p>เชื่อมต่อบัญชี LINE ของคุณสักครู่</p></section>}
       {state === "unavailable" && <section className="line-signup-panel line-signup-status" role="alert"><div className="line-signup-icon"><PawPrint /></div><h1>ยังเปิดหน้านี้ไม่ได้</h1><p>{error}</p></section>}
+      {state === "phone" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">เข้าสู่ระบบสมาชิก</span><h1>ยินดีต้อนรับกลับมา</h1><p>กรอกเบอร์โทรที่สมัครสมาชิกไว้ เราจะส่งรหัส OTP เพื่อยืนยันตัวตน</p></div><section className="line-signup-panel"><form className="line-signup-form" onSubmit={requestOtp}><label>เบอร์โทรศัพท์<input type="tel" inputMode="numeric" autoComplete="tel" required pattern="0[0-9]{9}" maxLength={10} value={phone} onChange={event => setPhone(event.target.value.replace(/\D/g, ""))} placeholder="0XXXXXXXXX" /></label>{error && <p className="line-signup-error" role="alert">{error}</p>}<button type="submit" disabled={busy}>{busy ? "กำลังส่งรหัส…" : "ส่งรหัส OTP"}<ArrowRight size={18} /></button><p className="line-signup-privacy"><ShieldCheck size={16} /> ส่งรหัสเฉพาะเบอร์สมาชิกที่ร้านมีข้อมูลอยู่แล้ว</p></form></section></>}
+      {state === "otp" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">ยืนยันเบอร์โทร</span><h1>ใส่รหัส OTP</h1><p>หาก {phone} เป็นเบอร์สมาชิก ระบบจะส่งรหัสทาง SMS</p></div><section className="line-signup-panel"><form className="line-signup-form" onSubmit={verifyOtp}><label>รหัส 6 หลัก<input type="text" inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, ""))} placeholder="000000" /></label>{error && <p className="line-signup-error" role="alert">{error}</p>}<button type="submit" disabled={busy}>{busy ? "กำลังยืนยัน…" : "ยืนยันและเข้าสู่ระบบ"}<ArrowRight size={18} /></button><button type="button" className="line-signup-text-button" onClick={() => { setOtp(""); setError(""); setState("phone"); }}>เปลี่ยนเบอร์โทรหรือขอรหัสใหม่</button></form></section></>}
       {state === "form" && <>
         <div className="line-signup-intro"><span className="line-signup-eyebrow">ยินดีต้อนรับสมาชิกใหม่</span><h1>สมัครสมาชิกกับแทมมี่</h1><p>กรอกข้อมูลเพียงครั้งเดียว แล้วกลับมาเช็กแต้มผ่าน LINE ได้เลย</p></div>
         <section className="line-signup-panel">
@@ -95,12 +169,6 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
             <p className="line-signup-privacy"><ShieldCheck size={16} /> ข้อมูลของคุณใช้สำหรับสมาชิก Tammy Pet Shop เท่านั้น</p>
           </form>
         </section>
-      </>}
-      {state === "member" && member && <>
-        <div className="line-signup-intro"><span className="line-signup-eyebrow">TAMMY MEMBER</span><h1>สวัสดี คุณ{member.name}</h1><p>ยินดีต้อนรับกลับมา ไม่ต้องสมัครใหม่แล้วนะ</p></div>
-        <section className="line-signup-member-card"><div className="line-signup-member-top"><span><PawPrint size={17} /> Tammy Pet Shop</span><span>{member.level}</span></div><div className="line-signup-points"><small>แต้มสะสมของคุณ</small><strong>{Number(member.points).toLocaleString("th-TH")} <span>แต้ม</span></strong></div><div className="line-signup-member-bottom"><span>รหัสสมาชิก</span><strong>{member.memberCode}</strong></div></section>
-        <div className="line-signup-success"><Check size={17} /> บัญชี LINE นี้ผูกกับสมาชิกเรียบร้อยแล้ว</div>
-        <div className="line-signup-hint"><Gift size={18} /><span>กลับมาเช็กแต้มและสิทธิพิเศษได้จากเมนู LINE ของร้าน</span></div>
       </>}
     </div>
   </main>;

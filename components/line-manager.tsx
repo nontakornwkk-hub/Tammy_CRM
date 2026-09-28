@@ -34,7 +34,7 @@ function Avatar({ name, picture, size = 42 }: { name: string; picture?: string |
 
 export function LineManager() {
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [tab, setTab] = useState<"chat" | "connection">("chat");
+  const [tab, setTab] = useState<"chat" | "connection" | "webhook">("chat");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -175,7 +175,7 @@ export function LineManager() {
         <span className="linev2-mark"><SiLine /></span><div className="heading-copy"><h1>LINE</h1><p>อ่านข้อความและดูแลลูกค้าจากบัญชีร้าน</p></div>
         {role === "owner" && <span className={`linev2-status${connection?.connected ? " ready" : ""}`}><i />{connection?.connected ? `เชื่อม ${connection.bot?.displayName || "LINE"}` : "รอเชื่อมต่อ"}</span>}
       </header>
-      <nav className="linev2-tabs" aria-label="หน้า LINE"><button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}><MessageCircle size={17} /> แชตและส่งข้อความ</button>{role === "owner" && <button className={tab === "connection" ? "active" : ""} onClick={() => { setTab("connection"); void loadConnection(); }}><Settings2 size={17} /> การเชื่อมต่อ</button>}</nav>
+      <nav className="linev2-tabs" aria-label="หน้า LINE"><button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}><MessageCircle size={17} /> แชตและส่งข้อความ</button>{role === "owner" && <><button className={tab === "connection" ? "active" : ""} onClick={() => { setTab("connection"); void loadConnection(); }}><Settings2 size={17} /> การเชื่อมต่อ</button><button className={tab === "webhook" ? "active" : ""} onClick={() => setTab("webhook")}><Link2 size={17} /> ตั้งค่า Webhook</button></>}</nav>
       {error && <div className="linev2-error" role="alert">{error}<button type="button" onClick={() => setError("")} aria-label="ปิด"><X size={16} /></button></div>}
 
       {tab === "chat" && <section className="linev2-inbox">
@@ -195,6 +195,7 @@ export function LineManager() {
       </section>}
 
       {tab === "connection" && role === "owner" && <LineConnectionPanel />}
+      {tab === "webhook" && role === "owner" && <section className="linev2-webhook-placeholder"><div className="linev2-webhook-heading"><span><Link2 size={23} /></span><div><small>เตรียมไว้สำหรับขั้นต่อไป</small><h2>ตั้งค่า LINE Webhook</h2><p>หน้านี้เป็นโครงสร้างสำหรับวางฟังก์ชัน ยังไม่มีสวิตช์ใดเปลี่ยนการรับข้อความจริง</p></div></div><div className="linev2-webhook-grid"><article><strong>สถานะและ URL</strong><p>สถานะการรับข้อความ, URL HTTPS และการตรวจล่าสุด</p></article><article><strong>เหตุการณ์ที่รับ</strong><p>ข้อความ, การติดตาม/เลิกติดตาม และการกดเมนู</p></article><article><strong>การตอบและส่งต่อ</strong><p>ข้อความต้อนรับ, คำตอบอัตโนมัติ และส่งต่อพนักงาน</p></article><article><strong>บันทึกและแจ้งเตือน</strong><p>ข้อผิดพลาด, การส่งซ้ำ และแจ้งเตือนเมื่อรับข้อความไม่ได้</p></article></div></section>}
     </main>
 
     {preview && selected && <div className="linev2-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(false); }}><section className="linev2-modal" role="dialog" aria-modal="true" aria-label="ดูตัวอย่างข้อความก่อนส่ง"><header><div><small>ดูตัวอย่างก่อนส่ง</small><h2>ข้อความถึง {selected.display_name}</h2></div><button type="button" onClick={() => setPreview(false)} aria-label="ปิด"><X size={19} /></button></header><div className="linev2-preview-phone"><div className="linev2-preview-title"><Avatar name={selected.display_name} picture={selected.picture_url} size={30} />{selected.display_name}</div><div className="linev2-preview-bubble">{draft.trim()}</div></div><p>ระบบจะส่งข้อความนี้ผ่าน LINE และบันทึกในบทสนทนา</p><footer><button type="button" onClick={() => setPreview(false)}>กลับไปแก้ไข</button><button type="button" disabled={sending} onClick={() => void send()}><Send size={16} /> {sending ? "กำลังส่ง…" : "ยืนยันส่งข้อความ"}</button></footer></section></div>}

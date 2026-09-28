@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ChevronRight, Crown, Gift, House, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
+import { Check, ChevronRight, Crown, Gift, House, LogOut, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { normalizeCardDesign, type CardDesign } from "@/lib/card-design";
@@ -32,8 +32,8 @@ const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
 };
 
-export function CustomerPortal({ initialTab = "home", member, idToken }: { initialTab?: "home" | "rewards"; member?: { memberCode: string; name: string; level: string; points: number }; idToken?: string }) {
-  const isMember = Boolean(member && idToken);
+export function CustomerPortal({ initialTab = "home", member, idToken, otpAccessToken, onLogout }: { initialTab?: "home" | "rewards"; member?: { memberCode: string; name: string; level: string; points: number }; idToken?: string; otpAccessToken?: string; onLogout?: () => void }) {
+  const isMember = Boolean(member && (idToken || otpAccessToken));
   const [tab, setTab] = useState<Tab>(initialTab);
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [news, setNews] = useState<PopupDisplay[]>([]);
@@ -57,11 +57,11 @@ export function CustomerPortal({ initialTab = "home", member, idToken }: { initi
   const [redeemError, setRedeemError] = useState("");
 
   async function redeem(kind: "reward" | "coupon", itemId: string) {
-    if (!isMember || !idToken || redeemBusy) return;
+    if (!isMember || redeemBusy) return;
     setRedeemBusy(true);
     setRedeemError("");
     try {
-      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, kind, itemId }) });
+      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, otpAccessToken, kind, itemId }) });
       const data = await response.json() as { success?: boolean; points?: number; error?: string };
       if (!response.ok || !data.success) throw new Error(data.error || "ทำรายการไม่สำเร็จ");
       if (typeof data.points === "number") setMemberPoints(data.points);
@@ -103,7 +103,7 @@ export function CustomerPortal({ initialTab = "home", member, idToken }: { initi
       let active = true;
       void (async () => {
         try {
-          const response = await fetch("/api/line/member/catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }), cache: "no-store" });
+          const response = await fetch("/api/line/member/catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, otpAccessToken }), cache: "no-store" });
           const data = await response.json() as { rewards?: Reward[]; coupons?: Coupon[]; error?: string };
           if (!response.ok) throw new Error(data.error || "โหลดสิทธิพิเศษไม่สำเร็จ");
           if (active) { setRewards(data.rewards || []); setCoupons(data.coupons || []); }
@@ -144,7 +144,7 @@ export function CustomerPortal({ initialTab = "home", member, idToken }: { initi
       }
     })();
     return () => { active = false; };
-  }, [isMember, idToken]);
+  }, [isMember, idToken, otpAccessToken]);
 
   const visibleNews = showAllNews ? news : news.slice(0, 2);
   const rewardCategories = ["ทั้งหมด", ...new Set(rewards.map(item => item.category).filter(Boolean))];
@@ -187,7 +187,7 @@ export function CustomerPortal({ initialTab = "home", member, idToken }: { initi
           {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode={isMember} onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><h1>คูปอง</h1><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} code={item.code} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { setSelectedCoupon(item); setCouponUsed(false); }} /><div className="customer-coupon-ticket-footer"><strong className="customer-coupon-ticket-title">{item.title}</strong></div></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
           {tab === "lucky" && <p className="customer-home-catalog-state">{sectionText.lucky.empty}</p>}
-          {tab === "account" && <div className="customer-home-admin-account"><strong>ข้อมูลบัญชี</strong><span>{isMember ? `คุณ${member!.name} · ${member!.memberCode}` : adminEmail || "กำลังโหลดข้อมูลบัญชี…"}</span><p>ข้อมูลสมาชิกและสิทธิพิเศษของคุณ</p></div>}
+          {tab === "account" && <div className="customer-home-admin-account"><strong>ข้อมูลบัญชี</strong><span>{isMember ? `คุณ${member!.name} · ${member!.memberCode}` : adminEmail || "กำลังโหลดข้อมูลบัญชี…"}</span><p>ข้อมูลสมาชิกและสิทธิพิเศษของคุณ</p>{isMember && onLogout && <button type="button" className="customer-member-logout" onClick={onLogout}><LogOut size={18} /> ออกจากระบบ</button>}</div>}
         </section>}
       </div>
 

@@ -1,6 +1,5 @@
-import { LineMemberRegistration } from "@/components/line-member-registration";
+import { redirect } from "next/navigation";
 
-export default async function LineMembershipPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
-  const { preview } = await searchParams;
-  return <LineMemberRegistration preview={preview === "1"} />;
+export default function LineMembershipPage() {
+  redirect("/customer");
 }

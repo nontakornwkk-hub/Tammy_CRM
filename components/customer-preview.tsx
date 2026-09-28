@@ -28,7 +28,7 @@ export function CustomerPreview() {
         <figure className="customer-preview-fit" style={{ width: PHONE_WIDTH * scale, height: PHONE_HEIGHT * scale }}>
           <div className="customer-preview-device" style={{ transform: `scale(${scale})` }} aria-label="ตัวอย่างหน้าเว็บลูกค้าบน iPhone 18 Pro Max">
             <div className="customer-preview-status" aria-hidden="true"><span>9:41</span><i /><span>●●● ◕ ▰</span></div>
-            <iframe src="/customer" title="ตัวอย่างหน้าลูกค้า" />
+            <iframe src="/customer-preview/portal" title="ตัวอย่างหน้าลูกค้า" />
             <div className="customer-preview-home-indicator" aria-hidden="true" />
           </div>
           <figcaption>พรีวิวแอดมิน · ข้อมูลสมาชิกและการกดใช้คูปอง/แลกรางวัลเป็นการจำลอง ไม่บันทึกจริง</figcaption>

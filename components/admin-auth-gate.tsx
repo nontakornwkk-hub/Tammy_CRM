@@ -5,10 +5,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { crmRole, setVerifiedCrmUser, verifiedCrmUser } from "@/lib/supabase/crm-data";
 
-const publicPaths = new Set(["/login", "/reset-password", "/line-membership"]);
+const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer"]);
 function canOpen(role: ReturnType<typeof crmRole>, pathname: string) {
   if (role === "owner") return true;
-  if (role === "manager") return ["/points", "/members", "/rewards", "/reports", "/settings", "/customer-preview", "/customer", "/line"].includes(pathname) || pathname.startsWith("/customer/");
+  if (role === "manager") return ["/points", "/members", "/rewards", "/reports", "/settings", "/customer-preview", "/line"].includes(pathname) || pathname.startsWith("/customer/") || pathname.startsWith("/customer-preview/");
   return role === "staff" && ["/points", "/settings", "/line"].includes(pathname);
 }
 
