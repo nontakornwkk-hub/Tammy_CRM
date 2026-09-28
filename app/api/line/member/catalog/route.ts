@@ -7,7 +7,7 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 export async function POST(request: Request) {
-  let input: { idToken?: string; otpAccessToken?: string };
+  let input: { idToken?: string };
   try {
     const raw = await request.text();
     if (raw.length > 8192) return json({ error: "ข้อมูลมีขนาดใหญ่เกินไป" }, 413);

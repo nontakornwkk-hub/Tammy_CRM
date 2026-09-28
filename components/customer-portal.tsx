@@ -19,8 +19,8 @@ type Reward = { id: string; title: string; description: string; category: string
 type Coupon = { id: string; title: string; description: string; code: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null };
 type Member = { memberCode: string; name: string; level: string; points: number };
 type PortalProps =
-  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; otpAccessToken?: never; onLogout?: never }
-  | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; otpAccessToken?: string; onLogout: () => void };
+  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; onLogout?: never }
+  | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; onLogout: () => void };
 
 const navigation = [
   { id: "rewards", label: "ของรางวัล", icon: Gift },
@@ -37,7 +37,7 @@ const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
 };
 
-export function CustomerPortal({ mode, initialTab = "home", initialView, member, idToken, otpAccessToken, onLogout }: PortalProps) {
+export function CustomerPortal({ mode, initialTab = "home", initialView, member, idToken, onLogout }: PortalProps) {
   const isMember = mode === "customer";
   const [tab, setTab] = useState<Tab>(initialView === "rewards" ? "rewards" : initialTab);
   const [shop, setShop] = useState<PublicShop | null>(null);
@@ -77,7 +77,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
     setRedeemBusy(true);
     setRedeemError("");
     try {
-      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, otpAccessToken, kind, itemId }) });
+      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, kind, itemId }) });
       const data = await response.json() as { success?: boolean; points?: number; error?: string };
       if (!response.ok || !data.success) throw new Error(data.error || "ทำรายการไม่สำเร็จ");
       if (typeof data.points === "number") setMemberPoints(data.points);
@@ -119,7 +119,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       let active = true;
       void (async () => {
         try {
-          const response = await fetch("/api/line/member/catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, otpAccessToken }), cache: "no-store" });
+          const response = await fetch("/api/line/member/catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }), cache: "no-store" });
           const data = await response.json() as { rewards?: Reward[]; coupons?: Coupon[]; error?: string };
           if (!response.ok) throw new Error(data.error || "โหลดสิทธิพิเศษไม่สำเร็จ");
           if (active) { setRewards(data.rewards || []); setCoupons(data.coupons || []); }
@@ -160,7 +160,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       }
     })();
     return () => { active = false; };
-  }, [isMember, idToken, otpAccessToken]);
+  }, [isMember, idToken]);
 
   const visibleNews = showAllNews ? news : news.slice(0, 2);
   const rewardCategories = ["ทั้งหมด", ...new Set(rewards.map(item => item.category).filter(Boolean))];

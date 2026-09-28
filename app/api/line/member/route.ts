@@ -98,8 +98,8 @@ export async function POST(request: Request) {
       line_picture_url: linePictureUrl, profile_synced_at: new Date().toISOString() })
       .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
     const existing = await db.from("members").select("member_code,name,level,points,birth_date")
-      .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).single();
-    if (existing.error || !existing.data) return json({ error: "ไม่พบข้อมูลสมาชิกที่ผูกไว้" }, 500);
+      .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).eq("status", "active").maybeSingle();
+    if (existing.error || !existing.data) return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
     return json({ registered: true, member: publicMember(existing.data) });
   }
 

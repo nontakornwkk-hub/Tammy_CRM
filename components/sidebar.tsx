@@ -12,7 +12,6 @@ import {
   Gift,
   LogOut,
   Settings,
-  Smartphone,
   Tags,
   Users,
 } from "lucide-react";
@@ -25,7 +24,6 @@ const navigation = [
   { icon: Gift, label: "ลุ้นของรางวัล", detail: "ตั้งค่ากิจกรรมลุ้นรางวัล", art: "lucky", href: null },
   { icon: Gift, label: "LINE", detail: "เชื่อมต่อและตั้งค่า LINE", art: "line", href: "/line" },
   { icon: Settings, label: "ตั้งค่าระบบ", detail: "จัดการระบบและสิทธิ์ผู้ใช้", art: "settings", href: "/settings" },
-  { icon: Smartphone, label: "หน้าสำหรับลูกค้า", detail: "ดูหน้าร้านสำหรับสมาชิก", art: "preview", href: "/customer-preview" },
 ];
 
 type Brand = { logo: string; name: string; subtitle: string; x: number; y: number; zoom: number };
@@ -48,7 +46,7 @@ function sameBrand(a: Brand, b: Brand) {
   return a.logo === b.logo && a.name === b.name && a.subtitle === b.subtitle && a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 }
 
-export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/customer-preview" | "/line" }) {
+export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/line" }) {
   const [brand, setBrand] = useState<Brand>(() => cachedBrand ?? defaultBrand);
   const role = crmRole();
   const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings" || href === "/line"));

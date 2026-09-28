@@ -1,5 +1,6 @@
-import { CustomerPreview } from "@/components/customer-preview";
+import { LineMemberRegistration } from "@/components/line-member-registration";
 
 export default function CustomerPreviewPage() {
-  return <CustomerPreview />;
+  // Legacy LIFF endpoint: render the real member app, never the Admin Preview.
+  return <LineMemberRegistration preview={false} />;
 }
