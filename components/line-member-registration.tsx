@@ -143,7 +143,7 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
     } finally { setBusy(false); }
   }
 
-  if (state === "member" && member) return <CustomerPortal member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
+  if (state === "member" && member) return <CustomerPortal mode="customer" member={member} idToken={idToken} otpAccessToken={otpAccessToken} onLogout={() => void logout()} />;
 
   return <main className="line-signup customer-home-page">
     <CustomerBrandHeader greeting="ยินดีต้อนรับ" />

@@ -17,6 +17,10 @@ type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
 type Reward = { id: string; title: string; description: string; category: string; points_cost: number; stock: number | null; image_url: string | null; active: boolean; starts_at: string | null; ends_at: string | null };
 type Coupon = { id: string; title: string; description: string; code: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null };
+type Member = { memberCode: string; name: string; level: string; points: number };
+type PortalProps =
+  | { mode: "preview"; initialTab?: "home" | "rewards"; member?: never; idToken?: never; otpAccessToken?: never; onLogout?: never }
+  | { mode: "customer"; initialTab?: "home" | "rewards"; member: Member; idToken?: string; otpAccessToken?: string; onLogout: () => void };
 
 const navigation = [
   { id: "rewards", label: "ของรางวัล", icon: Gift },
@@ -33,8 +37,8 @@ const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
 };
 
-export function CustomerPortal({ initialTab = "home", member, idToken, otpAccessToken, onLogout }: { initialTab?: "home" | "rewards"; member?: { memberCode: string; name: string; level: string; points: number }; idToken?: string; otpAccessToken?: string; onLogout?: () => void }) {
-  const isMember = Boolean(member && (idToken || otpAccessToken));
+export function CustomerPortal({ mode, initialTab = "home", member, idToken, otpAccessToken, onLogout }: PortalProps) {
+  const isMember = mode === "customer";
   const [tab, setTab] = useState<Tab>(initialTab);
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [news, setNews] = useState<PopupDisplay[]>([]);
