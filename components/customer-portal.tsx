@@ -19,7 +19,7 @@ type Reward = { id: string; title: string; description: string; category: string
 type Coupon = { id: string; title: string; description: string; code: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null };
 type Member = { memberCode: string; name: string; level: string; points: number };
 type PortalProps =
-  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: never; member?: never; idToken?: never; otpAccessToken?: never; onLogout?: never }
+  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; otpAccessToken?: never; onLogout?: never }
   | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; otpAccessToken?: string; onLogout: () => void };
 
 const navigation = [
@@ -72,7 +72,8 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   }, [initialView]);
 
   async function redeem(kind: "reward" | "coupon", itemId: string) {
-    if (!isMember || redeemBusy) return;
+    if (redeemBusy) return;
+    if (!isMember) { if (kind === "reward") setRewardRedeemed(true); else setCouponUsed(true); return; }
     setRedeemBusy(true);
     setRedeemError("");
     try {
@@ -165,7 +166,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   const rewardCategories = ["ทั้งหมด", ...new Set(rewards.map(item => item.category).filter(Boolean))];
   const visibleRewards = rewardCategory === "ทั้งหมด" ? rewards : rewards.filter(item => item.category === rewardCategory);
 
-  if (isMember && selectedNews) return <PopupDetailView item={selectedNews} onBack={() => setSelectedNews(null)} />;
+  if (selectedNews) return <PopupDetailView item={selectedNews} onBack={() => setSelectedNews(null)} />;
 
   return (
     <main className="customer-portal customer-home-page customer-catalog-refresh">
@@ -186,14 +187,14 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
 
           <section className="customer-home-news" aria-label="ข่าวสารจากร้าน">
             <div className="customer-home-section-heading"><h1>ข่าวสารล่าสุด</h1>{news.length > 0 && <button type="button" onClick={() => setShowAllNews((value) => !value)}>{showAllNews ? "ย่อ" : "ดูทั้งหมด"} <ChevronRight size={18} /></button>}</div>
-            {visibleNews.length ? <div className="customer-home-news-list">{visibleNews.map((item) => <Link className="customer-home-news-card" href={`/customer/content/${encodeURIComponent(`${item.source}:${item.id}`)}`} key={item.id} onClick={event => { if (isMember) { event.preventDefault(); setSelectedNews(item); } }}>
+            {visibleNews.length ? <div className="customer-home-news-list">{visibleNews.map((item) => <Link className="customer-home-news-card" href={`/customer/content/${encodeURIComponent(`${item.source}:${item.id}`)}`} key={item.id} onClick={event => { event.preventDefault(); setSelectedNews(item); }}>
               <div className="customer-home-news-picture">{item.image ? <Image src={item.image} alt="" fill sizes="(max-width: 520px) 36vw, 170px" unoptimized /> : <PawPrint size={48} />}</div>
               <div className="customer-home-news-copy">{item.createdAt && <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" })}</time>}<h2>{item.title}</h2><p>{item.summary}</p></div>
             </Link>)}</div> : <div className="customer-home-empty-news"><PawPrint size={32} /><strong>ยังไม่มีข่าวสารจากร้าน</strong><span>เมื่อร้านเผยแพร่ข่าวหรือโปรโมชั่น จะแสดงตรงนี้ค่ะ</span></div>}
           </section>
         </> : <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
           {(tab === "lucky" || tab === "account") && <div className="customer-home-catalog-heading"><span className="customer-home-subpage-icon">{(() => { const Icon = navigation.find((item) => item.id === tab)?.icon || PawPrint; return <Icon size={28} />; })()}</span><div><small>แทมมี่อาหารสัตว์</small><h1>{sectionText[tab].title}</h1></div></div>}
-          {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode={isMember} onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
+          {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><h1>คูปอง</h1><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} code={item.code} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { setSelectedCoupon(item); setCouponUsed(false); }} /><div className="customer-coupon-ticket-footer"><strong className="customer-coupon-ticket-title">{item.title}</strong></div></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
           {tab === "lucky" && <p className="customer-home-catalog-state">{sectionText.lucky.empty}</p>}
           {tab === "account" && <div className="customer-home-admin-account"><strong>ข้อมูลบัญชี</strong><span>{isMember ? `คุณ${member!.name} · ${member!.memberCode}` : adminEmail || "กำลังโหลดข้อมูลบัญชี…"}</span><p>ข้อมูลสมาชิกและสิทธิพิเศษของคุณ</p>{isMember && onLogout && <button type="button" className="customer-member-logout" onClick={onLogout}><LogOut size={18} /> ออกจากระบบ</button>}</div>}
@@ -201,7 +202,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       </div>
 
       <nav className="customer-nav customer-home-nav" aria-label="เมนูหลัก">{navigation.map(({ id, label, icon: Icon }) => <button type="button" className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "instant" }); }} key={id}><span className="customer-home-nav-icon"><Icon size={23} strokeWidth={2} /></span><span>{label}</span></button>)}</nav>
-      {selectedReward && isMember ? <div className="customer-reward-confirm" role="dialog" aria-modal="true" aria-labelledby="member-reward-title">
+      {selectedReward ? <div className="customer-reward-confirm" role="dialog" aria-modal="true" aria-labelledby="member-reward-title">
         <button type="button" className="customer-reward-confirm-backdrop" onClick={() => setSelectedReward(null)} aria-label="ปิดรายละเอียดของรางวัล" />
         <section className={`customer-reward-confirm-card${rewardRedeemed ? " is-success" : ""}`}>
           <button type="button" className="customer-reward-confirm-close" onClick={() => setSelectedReward(null)} aria-label="ปิด"><X size={20} /></button>

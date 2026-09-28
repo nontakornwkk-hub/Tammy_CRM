@@ -8,6 +8,7 @@ type Registration = {
   gender: "male" | "female" | "other" | "prefer_not_to_say";
   birthDate: string;
   phone: string;
+  termsAccepted: true;
 };
 
 const genders = new Set<Registration["gender"]>(["male", "female", "other", "prefer_not_to_say"]);
@@ -21,6 +22,7 @@ function validRegistration(value: unknown): value is Registration {
   const item = value as Record<string, unknown>;
   if (typeof item.firstName !== "string" || !item.firstName.trim() || item.firstName.trim().length > 80) return false;
   if (typeof item.lastName !== "string" || !item.lastName.trim() || item.lastName.trim().length > 80) return false;
+  if (item.termsAccepted !== true) return false;
   if (!genders.has(item.gender as Registration["gender"])) return false;
   if (typeof item.phone !== "string" || !/^0\d{9}$/.test(item.phone)) return false;
   if (typeof item.birthDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.birthDate)) return false;

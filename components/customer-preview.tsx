@@ -7,16 +7,24 @@ import { Sidebar } from "./sidebar";
 const PHONE_WIDTH = 458;
 const PHONE_HEIGHT = 974;
 const DEFAULT_SCALE = .8;
+const previewScreens = [
+  { id: "register", label: "สมัครสมาชิก" },
+  { id: "login", label: "เข้าสู่ระบบ" },
+  { id: "home", label: "หน้าหลัก" },
+  { id: "news", label: "ข่าวสาร" },
+  { id: "rewards", label: "ของรางวัล" },
+] as const;
 
 export function CustomerPreview() {
   const [zoom, setZoom] = useState(1);
+  const [screen, setScreen] = useState<(typeof previewScreens)[number]["id"]>("home");
   const scale = DEFAULT_SCALE * zoom;
 
   return <div className="app-shell customer-preview-page">
     <div className="sidebar-wrap"><Sidebar activePath="/customer-preview" /></div>
     <main className="main-content customer-preview-main" aria-label="ตัวอย่างหน้าลูกค้า">
       <div className="customer-preview-toolbar" aria-label="เครื่องมือซูมตัวอย่าง">
-        <span>มุมมอง iPhone 18 Pro Max</span>
+        <div className="customer-preview-screens" role="group" aria-label="เลือกหน้าตัวอย่าง">{previewScreens.map(item => <button key={item.id} type="button" className={screen === item.id ? "active" : ""} aria-pressed={screen === item.id} onClick={() => setScreen(item.id)}>{item.label}</button>)}</div>
         <div className="customer-preview-zoom-controls">
           <button type="button" aria-label="ซูมออก" title="ซูมออก" disabled={zoom <= .75} onClick={() => setZoom(current => Math.max(.75, +(current - .25).toFixed(2)))}><Minus size={18} /></button>
           <output aria-live="polite">{Math.round(scale * 100)}%</output>
@@ -28,7 +36,7 @@ export function CustomerPreview() {
         <figure className="customer-preview-fit" style={{ width: PHONE_WIDTH * scale, height: PHONE_HEIGHT * scale }}>
           <div className="customer-preview-device" style={{ transform: `scale(${scale})` }} aria-label="ตัวอย่างหน้าเว็บลูกค้าบน iPhone 18 Pro Max">
             <div className="customer-preview-status" aria-hidden="true"><span>9:41</span><i /><span>●●● ◕ ▰</span></div>
-            <iframe src="/customer-preview/portal" title="ตัวอย่างหน้าลูกค้า" />
+            <iframe key={screen} src={`/customer-preview/portal?screen=${screen}`} title={`ตัวอย่างหน้า${previewScreens.find(item => item.id === screen)?.label}`} />
             <div className="customer-preview-home-indicator" aria-hidden="true" />
           </div>
           <figcaption>พรีวิวแอดมิน · ข้อมูลสมาชิกและการกดใช้คูปอง/แลกรางวัลเป็นการจำลอง ไม่บันทึกจริง</figcaption>
