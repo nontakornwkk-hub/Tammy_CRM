@@ -1,4 +1,5 @@
 import { crmActor, lineConnection, noStore, safeLineUrl, serviceDb } from "@/lib/line/server";
+import { liffMatchesLoginChannel } from "@/lib/line/login-channel";
 
 export const runtime = "nodejs";
 
@@ -51,13 +52,15 @@ export async function GET(request: Request) {
     const token = connection?.access_token || envToken;
     const bot = token ? await botInfo(token) : null;
     const webhook = token && bot ? await webhookStatus(token) : null;
+    const loginChannelId = connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID || "";
+    const liffId = connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID || "";
     return noStore({
       connected: Boolean(connection && bot), source: connection ? "saved" : envToken ? "environment" : "none",
-      channelId: connection?.channel_id || "", loginChannelId: connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID || "",
-      liffId: connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID || "", bot: bot ? { displayName: bot.displayName, basicId: bot.basicId, pictureUrl: bot.pictureUrl?.startsWith("https://") ? bot.pictureUrl : null } : null,
+      channelId: connection?.channel_id || "", loginChannelId,
+      liffId, bot: bot ? { displayName: bot.displayName, basicId: bot.basicId, pictureUrl: bot.pictureUrl?.startsWith("https://") ? bot.pictureUrl : null } : null,
       channelSecret: Boolean(connection?.channel_secret || process.env.LINE_MESSAGING_CHANNEL_SECRET),
       accessToken: Boolean(token), membershipUrl: connection?.membership_url || process.env.LINE_MEMBERSHIP_URL || "",
-      webhook, liff: Boolean((connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID) && (connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID)),
+      webhook, liff: liffMatchesLoginChannel(loginChannelId, liffId),
       server: { supabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL), publishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), secretKey: Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) },
     });
   } catch { return noStore({ error: "อ่านการเชื่อมต่อไม่สำเร็จ ตรวจว่า migration ถูกติดตั้งแล้ว" }, 500); }
@@ -77,6 +80,7 @@ export async function POST(request: Request) {
   if (input.action === "testLogin") {
     const existing = await lineConnection(db, actor.ownerId);
     if (!existing?.liff_id || !existing.login_channel_id) return noStore({ error: "กรุณาบันทึก LINE Login และ LIFF ก่อน" }, 409);
+    if (!liffMatchesLoginChannel(existing.login_channel_id, existing.liff_id)) return noStore({ error: "LINE Login Channel ID ไม่ตรงกับ LIFF ID กรุณาแก้การเชื่อมต่อ LINE" }, 409);
     try {
       const response = await fetch(`https://liff.line.me/${encodeURIComponent(existing.liff_id)}`, {
         redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8000),
@@ -90,6 +94,8 @@ export async function POST(request: Request) {
     const liffId = typeof input.liffId === "string" ? input.liffId.trim() : "";
     if (!/^\d{5,20}$/.test(loginChannelId) || !/^\d{5,20}-[\w-]{4,40}$/.test(liffId))
       return noStore({ error: "ตรวจ LINE Login Channel ID และ LIFF ID อีกครั้ง" }, 400);
+    if (!liffMatchesLoginChannel(loginChannelId, liffId))
+      return noStore({ error: "LINE Login Channel ID ต้องตรงกับตัวเลขก่อนขีดใน LIFF ID (ไม่ใช่ Messaging API Channel ID)" }, 400);
     try {
       const verified = await fetch(`https://liff.line.me/${encodeURIComponent(liffId)}`, {
         redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8000),
@@ -113,6 +119,13 @@ export async function POST(request: Request) {
   const membershipUrl = input.membershipUrl === "" ? null : safeLineUrl(typeof input.membershipUrl === "string" ? input.membershipUrl : null);
   if (channelId && !/^\d{5,20}$/.test(channelId) || !/^[0-9a-f]{32}$/i.test(channelSecret) || !accessToken || accessToken.length > 4096 || input.membershipUrl && !membershipUrl || loginChannelId && !/^\d{5,20}$/.test(loginChannelId) || liffId && !/^[\w-]{5,40}$/.test(liffId))
     return noStore({ error: "ตรวจ Channel ID, Channel Secret, Access Token และลิงก์สมาชิกอีกครั้ง" }, 400);
+  if (loginChannelId || liffId) {
+    const existing = await lineConnection(db, actor.ownerId);
+    const resolvedLoginChannelId = loginChannelId || existing?.login_channel_id || "";
+    const resolvedLiffId = liffId || existing?.liff_id || "";
+    if (resolvedLoginChannelId && resolvedLiffId && !liffMatchesLoginChannel(resolvedLoginChannelId, resolvedLiffId))
+      return noStore({ error: "LINE Login Channel ID ต้องตรงกับตัวเลขก่อนขีดใน LIFF ID (ไม่ใช่ Messaging API Channel ID)" }, 400);
+  }
 
   const bot = await botInfo(accessToken);
   if (!bot) return noStore({ error: "LINE ไม่ยอมรับ Channel Access Token นี้" }, 400);

@@ -179,7 +179,7 @@ export function PointsManager() {
   }), [customers, filter, query]);
 
   function selectByCode(rawCode: string) {
-    const code = rawCode.trim().toUpperCase();
+    const code = rawCode.trim().replace(/^TAMMY-MEMBER:/i, "").trim().toUpperCase();
     const match = customers.find((customer) => customer.memberCode.toUpperCase() === code);
     if (!match) { setScannerError("ไม่พบรหัสสมาชิกนี้ในร้าน กรุณาตรวจ QR หรือรหัสบนบัตร"); return false; }
     setSelectedId(match.id);
