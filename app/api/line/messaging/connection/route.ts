@@ -2,7 +2,7 @@ import { crmActor, lineConnection, noStore, safeLineUrl, serviceDb } from "@/lib
 
 export const runtime = "nodejs";
 
-type Bot = { userId: string; displayName: string; basicId: string };
+type Bot = { userId: string; displayName: string; basicId: string; pictureUrl?: string };
 
 async function botInfo(token: string): Promise<Bot | null> {
   try {
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     return noStore({
       connected: Boolean(connection && bot), source: connection ? "saved" : envToken ? "environment" : "none",
       channelId: connection?.channel_id || "", loginChannelId: connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID || "",
-      liffId: connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID || "", bot: bot ? { displayName: bot.displayName, basicId: bot.basicId } : null,
+      liffId: connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID || "", bot: bot ? { displayName: bot.displayName, basicId: bot.basicId, pictureUrl: bot.pictureUrl?.startsWith("https://") ? bot.pictureUrl : null } : null,
       channelSecret: Boolean(connection?.channel_secret || process.env.LINE_MESSAGING_CHANNEL_SECRET),
       accessToken: Boolean(token), membershipUrl: connection?.membership_url || process.env.LINE_MEMBERSHIP_URL || "",
       webhook, liff: Boolean((connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID) && (connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID)),
@@ -90,13 +90,20 @@ export async function POST(request: Request) {
     const liffId = typeof input.liffId === "string" ? input.liffId.trim() : "";
     if (!/^\d{5,20}$/.test(loginChannelId) || !/^\d{5,20}-[\w-]{4,40}$/.test(liffId))
       return noStore({ error: "ตรวจ LINE Login Channel ID และ LIFF ID อีกครั้ง" }, 400);
+    try {
+      const verified = await fetch(`https://liff.line.me/${encodeURIComponent(liffId)}`, {
+        redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8000),
+      });
+      if (!verified.ok && (verified.status < 300 || verified.status >= 400))
+        return noStore({ error: "LIFF ID ยังเปิดไม่ได้ กรุณาตรวจใน LINE Developers" }, 400);
+    } catch { return noStore({ error: "ติดต่อ LIFF ไม่สำเร็จ กรุณาลองใหม่" }, 502); }
     const existing = await lineConnection(db, actor.ownerId);
     if (!existing) return noStore({ error: "กรุณาเชื่อม Messaging API ก่อน" }, 409);
     const saved = await db.from("line_connections").update({ login_channel_id: loginChannelId, liff_id: liffId,
       updated_at: new Date().toISOString() }).eq("owner_id", actor.ownerId);
     if (saved.error) return noStore({ error: "บันทึก LINE Login ไม่สำเร็จ" }, 500);
     return noStore({ connected: true, loginChannelId, liffId, liff: true,
-      message: "บันทึก LINE Login / LIFF แล้ว กรุณาตรวจ Endpoint URL ใน LINE Developers และทดสอบสมัครผ่าน LINE จริง" });
+      message: "เชื่อมและบันทึก LINE Login / LIFF แล้ว กรุณาเปิดหน้าสมาชิกผ่าน LINE เพื่อยืนยันการเข้าสู่ระบบจริง" });
   }
   const channelId = typeof input.channelId === "string" ? input.channelId.trim() : "";
   const channelSecret = typeof input.channelSecret === "string" ? input.channelSecret.trim() : "";
@@ -147,7 +154,7 @@ export async function POST(request: Request) {
   }
   webhook = await webhookStatus(accessToken);
   return noStore({ connected: true, channelId: resolvedChannelId, loginChannelId, liffId, liff: Boolean(loginChannelId && liffId), source: "saved",
-    bot: { displayName: bot.displayName, basicId: bot.basicId }, channelSecret: true, accessToken: true,
+    bot: { displayName: bot.displayName, basicId: bot.basicId, pictureUrl: bot.pictureUrl?.startsWith("https://") ? bot.pictureUrl : null }, channelSecret: true, accessToken: true,
     membershipUrl: membershipUrl || "", webhook, webhookTested,
     server: { supabaseUrl: true, publishableKey: true, secretKey: true },
     message: webhookTested ? "เชื่อม LINE และทดสอบ Webhook สำเร็จ" : endpoint ? "เชื่อม LINE ได้แล้ว แต่ทดสอบ Webhook ยังไม่ผ่าน ตรวจ URL และเปิด Use webhook ใน LINE Developers" : "เชื่อม LINE ได้แล้ว ตั้งค่า URL HTTPS เพื่อรับข้อความจาก LINE" });

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Check, Gift, PawPrint, ShieldCheck } from "lucide-react";
+import { CustomerPortal } from "./customer-portal";
 
 type Member = { memberCode: string; name: string; level: string; points: number };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
@@ -68,6 +69,8 @@ export function LineMemberRegistration({ preview }: { preview: boolean }) {
       setError(cause instanceof Error ? cause.message : "สมัครสมาชิกไม่สำเร็จ");
     } finally { setBusy(false); }
   }
+
+  if (state === "member" && member) return <CustomerPortal member={member} idToken={idToken} />;
 
   return <main className="line-signup">
     <div className="line-signup-shell">

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Check, CircleHelp, ExternalLink, KeyRound, ShieldCheck } from "lucide-react";
 import { SiLine } from "react-icons/si";
@@ -7,7 +8,7 @@ import { supabase } from "@/lib/supabase/client";
 
 type Connection = { connected: boolean; channelId: string; channelSecret: boolean; accessToken: boolean;
   loginChannelId: string; liffId: string; liff: boolean; membershipUrl: string;
-  bot: { displayName: string; basicId: string } | null; webhook: { endpoint: string; active: boolean } | null;
+  bot: { displayName: string; basicId: string; pictureUrl?: string | null } | null; webhook: { endpoint: string; active: boolean } | null;
   webhookTested?: boolean; message?: string };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -38,6 +39,7 @@ export function LineConnectionPanel() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notices, setNotices] = useState<Record<string, string>>({});
   const [baseUrl, setBaseUrl] = useState("");
+  const [editingMessaging, setEditingMessaging] = useState(false);
 
   async function refresh() {
     try {
@@ -49,6 +51,7 @@ export function LineConnectionPanel() {
       if (!status.configured.secret) return;
       const data = await api<Connection>("/api/line/messaging/connection");
       setConnection(data);
+      setEditingMessaging(false);
       setMessaging(value => ({ ...value, channelId: data.channelId || value.channelId }));
       setLogin(value => ({ loginChannelId: data.loginChannelId || value.loginChannelId, liffId: data.liffId || value.liffId }));
     } catch (cause) { setErrors(value => ({ ...value, server: cause instanceof Error ? cause.message : "ตรวจสถานะไม่สำเร็จ" })); }
@@ -106,22 +109,21 @@ export function LineConnectionPanel() {
     <Step number={1} title="ฐานข้อมูล Supabase" ready={serverReady}>
       <p>Project URL และ Publishable key ตั้งไว้ในระบบแล้ว เหลือเพียง Secret key สำหรับบันทึกแชตและข้อมูลสมาชิก</p>
       <div className="linev2-source"><KeyRound size={17} /><span>เอาจาก <b>Supabase Dashboard → Project Settings → API Keys → Secret keys</b> คัดลอกคีย์ที่ขึ้นต้น <code>sb_secret_</code></span></div>
-      <label className="linev2-setup-field">Supabase Secret key <small>ใช้เฉพาะฝั่งเซิร์ฟเวอร์ · ไม่ใช่ Channel Secret ของ LINE</small><input type="password" autoComplete="new-password" value={serverSecret} onChange={event => setServerSecret(event.target.value)} placeholder={supabaseConfigured.secret ? "ตั้งค่าแล้ว · เว้นว่างเพื่อทดสอบค่าเดิม" : "วาง Secret key"} /></label>
-      <div className="linev2-setup-buttons"><button className="linev2-setup-action secondary" type="button" disabled={busy !== null} onClick={() => void checkSupabase()}>ทดสอบการเชื่อมต่อ</button><button className="linev2-setup-action" type="button" disabled={!localSaveAvailable || busy !== null || !serverSecret || !supabaseConfigured.url || !supabaseConfigured.publishable} onClick={() => void checkSupabase(true)}>บันทึกใน .env.local</button></div>
+      {localSaveAvailable ? <><label className="linev2-setup-field">Supabase Secret key <small>ใช้เฉพาะฝั่งเซิร์ฟเวอร์ · ไม่ใช่ Channel Secret ของ LINE</small><input type="password" autoComplete="new-password" value={serverSecret} onChange={event => setServerSecret(event.target.value)} placeholder={supabaseConfigured.secret ? "ตั้งค่าแล้ว · เว้นว่างเพื่อทดสอบค่าเดิม" : "วาง Secret key"} /></label><div className="linev2-setup-buttons"><button className="linev2-setup-action" type="button" disabled={busy !== null || !serverSecret || !supabaseConfigured.url || !supabaseConfigured.publishable} onClick={() => void checkSupabase(true)}>เชื่อมและบันทึกใน .env.local</button></div></> : <div className="linev2-urlbox"><strong>เว็บจริงต้องตั้งค่าบน Vercel</strong><small>ใส่ SUPABASE_SECRET_KEY ใน Project Settings → Environment Variables แล้ว Redeploy ระบบจะตรวจสถานะให้อัตโนมัติ คีย์จะไม่แสดงในหน้านี้</small><a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">เปิด Vercel Dashboard <ExternalLink size={14} /></a></div>}
       {supabaseChecks && <p className={`linev2-result ${supabaseChecks.url && supabaseChecks.publishable && supabaseChecks.secret ? "success" : "error"}`}>{supabaseChecks.url && supabaseChecks.publishable && supabaseChecks.secret ? "✓ Supabase เชื่อมต่อสำเร็จ" : !supabaseChecks.url || !supabaseChecks.publishable ? "Project URL หรือ Publishable key บนเซิร์ฟเวอร์ยังไม่พร้อม" : "Secret key ยังไม่ผ่านการตรวจสอบ"}</p>}
       {serverReady && <p className="linev2-result success"><Check size={15} /> เซิร์ฟเวอร์ตั้งค่าครบแล้ว</p>}
-      {!localSaveAvailable && <p className="linev2-result">บนเว็บ HTTPS ต้องบันทึกทั้ง 3 ค่าที่ Vercel → Settings → Environment Variables; ปุ่มบันทึก .env.local ใช้ได้เฉพาะ localhost</p>}
+      {!localSaveAvailable && <p className="linev2-result">Project URL และ Publishable key ตั้งไว้แล้ว เหลือเพียง Secret key บน Vercel</p>}
       {serverResult && <p className="linev2-result">{serverResult}</p>}{errors.server && <p className="linev2-result error" role="alert">{errors.server}</p>}
       <small className="linev2-safe-note"><ShieldCheck size={14} /> คีย์ที่กรอกไม่แสดงกลับมา และไฟล์ .env.local ไม่ถูกส่งขึ้น Git</small>
     </Step>
     <Step number={2} title="LINE Messaging API · รับและตอบแชต" ready={Boolean(connection?.connected && connection.webhook?.active)}>
       <p>เปิด <b>LINE Developers → Provider ของร้าน → Messaging API channel</b> แล้วกรอกเฉพาะ Secret และ Access Token ระบบจะอ่าน Channel ID จาก LINE ให้เองเมื่อรองรับ</p>
-      <div className="linev2-setup-fields">
+      {connection?.connected && !editingMessaging ? <div className="linev2-connected-profile">{connection.bot?.pictureUrl ? <Image src={connection.bot.pictureUrl} alt="รูปโปรไฟล์ LINE Official Account" width={56} height={56} unoptimized /> : <span className="linev2-connected-avatar"><SiLine size={26} /></span>}<div><strong>{connection.bot?.displayName || "LINE Official Account"}</strong><small>{connection.bot?.basicId || "เชื่อมต่อแล้ว"}</small><span><Check size={14} /> บันทึกการเชื่อมต่อแล้ว · Secret และ Token ถูกซ่อน</span></div><button type="button" className="linev2-setup-action secondary" onClick={() => setEditingMessaging(true)}>เปลี่ยนการเชื่อมต่อ</button></div> : <><div className="linev2-setup-fields">
         <label className="linev2-setup-field">Channel Secret <small>แท็บ Basic settings → Channel secret</small><input type="password" autoComplete="new-password" value={messaging.channelSecret} onChange={event => setMessaging({ ...messaging, channelSecret: event.target.value })} placeholder={connection?.channelSecret ? "บันทึกแล้ว · เว้นว่างถ้าไม่เปลี่ยน" : "Channel Secret"} /></label>
         <label className="linev2-setup-field">Channel Access Token <small>แท็บ Messaging API → Channel access token → Issue</small><input type="password" autoComplete="new-password" value={messaging.accessToken} onChange={event => setMessaging({ ...messaging, accessToken: event.target.value })} placeholder={connection?.accessToken ? "บันทึกแล้ว · เว้นว่างถ้าไม่เปลี่ยน" : "Channel Access Token"} /></label>
       </div>
       <details className="linev2-optional"><summary>ข้อมูลเพิ่มเติม · Channel ID (กรอกเฉพาะเมื่อระบบขอ)</summary><label className="linev2-setup-field">Channel ID <small>แท็บ Basic settings → Channel ID</small><input inputMode="numeric" value={messaging.channelId} onChange={event => setMessaging({ ...messaging, channelId: event.target.value })} placeholder="ตัวเลข Channel ID" /></label></details>
-      <button className="linev2-setup-action" type="button" disabled={!serverReady || !messaging.channelSecret || !messaging.accessToken || busy !== null} onClick={() => void connectMessaging()}><SiLine /> {busy === "messaging" ? "กำลังทดสอบ…" : "เชื่อม Messaging API"}</button>
+      <button className="linev2-setup-action" type="button" disabled={!serverReady || !messaging.channelSecret || !messaging.accessToken || busy !== null} onClick={() => void connectMessaging()}><SiLine /> {busy === "messaging" ? "กำลังเชื่อมและบันทึก…" : "เชื่อมและบันทึก Messaging API"}</button>{editingMessaging && <button className="linev2-setup-action secondary" type="button" onClick={() => setEditingMessaging(false)}>ยกเลิก</button>}</>}
       {connection?.connected && <button className="linev2-setup-action secondary" type="button" disabled={busy !== null} onClick={() => void refresh()}>ทดสอบสถานะอีกครั้ง</button>}
       {connection?.bot && <p className="linev2-result success"><Check size={15} /> เชื่อมบัญชี {connection.bot.displayName} ({connection.bot.basicId})</p>}
       {notices.messaging && <p className="linev2-result">{notices.messaging}</p>}{errors.messaging && <p className="linev2-result error" role="alert">{errors.messaging}</p>}
