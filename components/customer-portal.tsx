@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ChevronRight, Crown, Gift, House, LogOut, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
+import { Check, ChevronRight, Crown, Gift, House, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { normalizeCardDesign, type CardDesign } from "@/lib/card-design";
@@ -12,6 +12,7 @@ import { CouponTicketFace } from "./coupon-ticket-face";
 import { CustomerRewardCard } from "./customer-reward-card";
 import { PopupDetailView } from "./customer-content-detail";
 import { CustomerBrandHeader } from "./customer-brand-header";
+import { CustomerAccount } from "./customer-account";
 
 type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
@@ -19,8 +20,8 @@ type Reward = { id: string; title: string; description: string; category: string
 type Coupon = { id: string; title: string; description: string; code: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null };
 type Member = { memberCode: string; name: string; level: string; points: number };
 type PortalProps =
-  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; onLogout?: never }
-  | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; onLogout: () => void };
+  | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; onLogout?: never; onMemberUpdated?: never }
+  | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; onLogout: () => void; onMemberUpdated?: (name: string) => void };
 
 const navigation = [
   { id: "rewards", label: "ของรางวัล", icon: Gift },
@@ -37,14 +38,13 @@ const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
 };
 
-export function CustomerPortal({ mode, initialTab = "home", initialView, member, idToken, onLogout }: PortalProps) {
+export function CustomerPortal({ mode, initialTab = "home", initialView, member, idToken, onLogout, onMemberUpdated }: PortalProps) {
   const isMember = mode === "customer";
   const [tab, setTab] = useState<Tab>(initialView === "rewards" ? "rewards" : initialTab);
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [news, setNews] = useState<PopupDisplay[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [adminEmail, setAdminEmail] = useState("");
   const [previewName, setPreviewName] = useState("คุณแอดมิน");
   const [previewQr, setPreviewQr] = useState("");
   const [catalogError, setCatalogError] = useState("");
@@ -151,7 +151,6 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
         if (!active) return;
         setRewards((rewardResult.data || []).filter((item) => withinDates(item) && (item.stock === null || item.stock > 0)));
         setCoupons((couponResult.data || []).filter((item) => withinDates(item) && (item.usage_limit === null || (item.used_count ?? 0) < item.usage_limit)));
-        setAdminEmail(auth.user.email || "");
         setPreviewName(String(auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || "คุณแอดมิน"));
       } catch (error) {
         if (active) setCatalogError(error instanceof Error ? error.message : "โหลดข้อมูลร้านไม่สำเร็จ");
@@ -197,7 +196,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
           {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><h1>คูปอง</h1><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} code={item.code} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { setSelectedCoupon(item); setCouponUsed(false); }} /><div className="customer-coupon-ticket-footer"><strong className="customer-coupon-ticket-title">{item.title}</strong></div></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
           {tab === "lucky" && <p className="customer-home-catalog-state">{sectionText.lucky.empty}</p>}
-          {tab === "account" && <div className="customer-home-admin-account"><strong>ข้อมูลบัญชี</strong><span>{isMember ? `คุณ${member!.name} · ${member!.memberCode}` : adminEmail || "กำลังโหลดข้อมูลบัญชี…"}</span><p>ข้อมูลสมาชิกและสิทธิพิเศษของคุณ</p>{isMember && onLogout && <button type="button" className="customer-member-logout" onClick={onLogout}><LogOut size={18} /> ออกจากระบบ</button>}</div>}
+          {tab === "account" && <CustomerAccount preview={!isMember} member={member} idToken={idToken} onLogout={onLogout} onMemberUpdated={onMemberUpdated} />}
         </section>}
       </div>
 

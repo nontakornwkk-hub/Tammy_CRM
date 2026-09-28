@@ -47,10 +47,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
         if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
         if (!liff.isLoggedIn()) {
-          const validScreen = finalScreen === "register" || finalScreen === "home" || finalScreen === "news" || finalScreen === "rewards";
-          const validView = finalView === "points" || finalView === "rewards" || finalView === "news";
-          const menuQuery = validScreen ? `?screen=${finalScreen}` : validView ? `?view=${finalView}` : "";
-          liff.login({ redirectUri: `${window.location.origin}/customer-preview${menuQuery}` });
+          liff.login();
           return;
         }
         const token = liff.getIDToken();
@@ -74,10 +71,15 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
     return () => { active = false; };
   }, [preview]);
 
-  function loginWithLine() {
+  async function loginWithLine() {
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     localStorage.removeItem(signedOutKey);
-    window.location.assign("/customer-preview");
+    try {
+      const response = await fetch("/api/line/member/config", { cache: "no-store" });
+      const config = await response.json() as { liffId?: string; error?: string };
+      if (!response.ok || !config.liffId) throw new Error(config.error || "ยังไม่พร้อมเข้าสู่ระบบ LINE");
+      window.location.assign(`https://liff.line.me/${encodeURIComponent(config.liffId)}`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "เริ่ม LINE Login ไม่สำเร็จ"); }
   }
 
   async function logout() {
@@ -108,7 +110,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
     } finally { setBusy(false); }
   }
 
-  if (state === "member" && member) return preview ? <CustomerPortal mode="preview" /> : <CustomerPortal mode="customer" initialView={richMenuView} member={member} idToken={idToken} onLogout={() => void logout()} />;
+  if (state === "member" && member) return preview ? <CustomerPortal mode="preview" /> : <CustomerPortal mode="customer" initialView={richMenuView} member={member} idToken={idToken} onLogout={() => void logout()} onMemberUpdated={name => setMember(value => value ? { ...value, name } : value)} />;
 
   return <main className="line-signup customer-home-page">
     <CustomerBrandHeader greeting="ยินดีต้อนรับ" />
@@ -119,7 +121,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {state === "loading" && <section className="line-signup-panel line-signup-status" role="status"><div className="line-signup-spinner" /><h1>กำลังตรวจสอบสมาชิก</h1><p>เชื่อมต่อบัญชี LINE ของคุณสักครู่</p></section>}
       {state === "unavailable" && <section className="line-signup-panel line-signup-status" role="alert"><div className="line-signup-icon"><PawPrint /></div><h1>ยังเปิดหน้านี้ไม่ได้</h1><p>{error}</p></section>}
-      {state === "login" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">เข้าสู่ระบบสมาชิก</span><h1>ยินดีต้อนรับกลับมา</h1><p>เข้าสู่ระบบด้วยบัญชี LINE ที่ใช้สมัครสมาชิก ไม่ต้องใช้รหัสผ่านหรือ SMS</p></div><section className="line-signup-panel"><div className="line-signup-form"><button type="button" onClick={loginWithLine}>เข้าสู่ระบบด้วย LINE<ArrowRight size={18} /></button><p className="line-signup-privacy"><ShieldCheck size={16} /> ข้อมูลสมาชิกของคุณผูกกับบัญชี LINE เดิม</p></div></section></>}
+      {state === "login" && <><div className="line-signup-intro"><span className="line-signup-eyebrow">เข้าสู่ระบบสมาชิก</span><h1>ยินดีต้อนรับกลับมา</h1><p>เข้าสู่ระบบด้วยบัญชี LINE ที่ใช้สมัครสมาชิก ไม่ต้องใช้รหัสผ่านหรือ SMS</p></div><section className="line-signup-panel"><div className="line-signup-form"><button type="button" onClick={() => void loginWithLine()}>เข้าสู่ระบบด้วย LINE<ArrowRight size={18} /></button>{error && <p className="line-signup-error" role="alert">{error}</p>}<p className="line-signup-privacy"><ShieldCheck size={16} /> ข้อมูลสมาชิกของคุณผูกกับบัญชี LINE เดิม</p></div></section></>}
       {state === "form" && <>
         <div className="line-signup-intro"><span className="line-signup-eyebrow">ยินดีต้อนรับสมาชิกใหม่</span><h1>สมัครสมาชิกกับแทมมี่</h1><p>กรอกข้อมูลเพียงครั้งเดียว แล้วกลับมาเช็กแต้มผ่าน LINE ได้เลย</p></div>
         <section className="line-signup-panel">
