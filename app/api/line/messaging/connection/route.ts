@@ -74,6 +74,17 @@ export async function POST(request: Request) {
     if (raw.length > 12_000) return noStore({ error: "ข้อมูลมีขนาดใหญ่เกินไป" }, 413);
     input = JSON.parse(raw) as Record<string, unknown>;
   } catch { return noStore({ error: "ข้อมูลไม่ถูกต้อง" }, 400); }
+  if (input.action === "testLogin") {
+    const existing = await lineConnection(db, actor.ownerId);
+    if (!existing?.liff_id || !existing.login_channel_id) return noStore({ error: "กรุณาบันทึก LINE Login และ LIFF ก่อน" }, 409);
+    try {
+      const response = await fetch(`https://liff.line.me/${encodeURIComponent(existing.liff_id)}`, {
+        redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8000),
+      });
+      const reachable = response.ok || response.status >= 300 && response.status < 400;
+      return noStore({ reachable, message: reachable ? "LIFF URL เปิดได้ กรุณาเปิดหน้าสมาชิกใน LINE เพื่อยืนยันการเข้าสู่ระบบจริง" : "LIFF ID ยังเปิดไม่ได้ ตรวจ ID และ Endpoint URL ใน LINE Developers" });
+    } catch { return noStore({ error: "ติดต่อ LIFF ไม่สำเร็จ กรุณาลองอีกครั้ง" }, 502); }
+  }
   if (input.action === "login") {
     const loginChannelId = typeof input.loginChannelId === "string" ? input.loginChannelId.trim() : "";
     const liffId = typeof input.liffId === "string" ? input.liffId.trim() : "";
@@ -93,17 +104,20 @@ export async function POST(request: Request) {
   const loginChannelId = typeof input.loginChannelId === "string" ? input.loginChannelId.trim() : "";
   const liffId = typeof input.liffId === "string" ? input.liffId.trim() : "";
   const membershipUrl = input.membershipUrl === "" ? null : safeLineUrl(typeof input.membershipUrl === "string" ? input.membershipUrl : null);
-  if (!/^\d{5,20}$/.test(channelId) || !/^[0-9a-f]{32}$/i.test(channelSecret) || !accessToken || accessToken.length > 4096 || input.membershipUrl && !membershipUrl || loginChannelId && !/^\d{5,20}$/.test(loginChannelId) || liffId && !/^[\w-]{5,40}$/.test(liffId))
+  if (channelId && !/^\d{5,20}$/.test(channelId) || !/^[0-9a-f]{32}$/i.test(channelSecret) || !accessToken || accessToken.length > 4096 || input.membershipUrl && !membershipUrl || loginChannelId && !/^\d{5,20}$/.test(loginChannelId) || liffId && !/^[\w-]{5,40}$/.test(liffId))
     return noStore({ error: "ตรวจ Channel ID, Channel Secret, Access Token และลิงก์สมาชิกอีกครั้ง" }, 400);
 
   const bot = await botInfo(accessToken);
   if (!bot) return noStore({ error: "LINE ไม่ยอมรับ Channel Access Token นี้" }, 400);
   const verifiedChannelId = await tokenChannelId(accessToken);
-  if (verifiedChannelId && verifiedChannelId !== channelId)
+  if (channelId && verifiedChannelId && verifiedChannelId !== channelId)
     return noStore({ error: "Channel ID ไม่ตรงกับ Access Token ที่ให้มา" }, 400);
+  const resolvedChannelId = channelId || verifiedChannelId;
+  if (!resolvedChannelId || !/^\d{5,20}$/.test(resolvedChannelId))
+    return noStore({ error: "LINE ไม่ส่ง Channel ID กลับมา กรุณาเปิด 'ข้อมูลเพิ่มเติม' แล้วกรอก Channel ID จาก Basic settings" }, 400);
 
   const saved = await db.from("line_connections").upsert({
-    owner_id: actor.ownerId, channel_id: channelId, channel_secret: channelSecret,
+    owner_id: actor.ownerId, channel_id: resolvedChannelId, channel_secret: channelSecret,
     access_token: accessToken, bot_user_id: bot.userId, bot_display_name: bot.displayName,
     bot_basic_id: bot.basicId, membership_url: membershipUrl,
     ...(loginChannelId ? { login_channel_id: loginChannelId } : {}), ...(liffId ? { liff_id: liffId } : {}),
@@ -132,7 +146,7 @@ export async function POST(request: Request) {
     }
   }
   webhook = await webhookStatus(accessToken);
-  return noStore({ connected: true, channelId, loginChannelId, liffId, liff: Boolean(loginChannelId && liffId), source: "saved",
+  return noStore({ connected: true, channelId: resolvedChannelId, loginChannelId, liffId, liff: Boolean(loginChannelId && liffId), source: "saved",
     bot: { displayName: bot.displayName, basicId: bot.basicId }, channelSecret: true, accessToken: true,
     membershipUrl: membershipUrl || "", webhook, webhookTested,
     server: { supabaseUrl: true, publishableKey: true, secretKey: true },
