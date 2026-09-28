@@ -111,6 +111,7 @@ export function LineConnectionPanel() {
   const publicBaseUrl = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") ? "https://tammy-crm.vercel.app" : baseUrl;
   const webhookUrl = `${publicBaseUrl}/api/line/messaging/webhook`;
   const membershipUrl = `${publicBaseUrl}/customer`;
+  const richMenuUrl = connection?.liffId ? `https://liff.line.me/${connection.liffId}` : "";
   const publicUrl = publicBaseUrl.startsWith("https://") && !publicBaseUrl.includes("localhost");
   const hasSavedMessaging = Boolean(connection?.channelSecret && connection?.accessToken);
   return <div className="linev2-setup"><div className="linev2-setup-intro"><div><h2>การเชื่อมต่อ</h2></div><a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers <ExternalLink size={15} /></a></div>
@@ -143,7 +144,9 @@ export function LineConnectionPanel() {
       <button className="linev2-setup-action" type="button" disabled={!serverReady || !connection?.connected || !login.loginChannelId || !login.liffId || busy !== null} onClick={() => void connectLogin()}>{busy === "login" ? "กำลังบันทึก…" : "เชื่อม LINE Login / LIFF"}</button>{editingLogin && <button type="button" className="linev2-setup-action secondary" onClick={() => setEditingLogin(false)}>ยกเลิก</button>}</>}
       {connection?.liff && <div className="linev2-setup-buttons"><button className="linev2-setup-action secondary" type="button" disabled={busy !== null} onClick={() => void testLogin()}>ทดสอบ LIFF URL</button><a className="linev2-setup-action secondary" href="/customer" target="_blank" rel="noreferrer">เปิดหน้าสมาชิกทดสอบจริง</a></div>}
       {notices.login && !connection?.liff && <p className="linev2-result success">{notices.login}</p>}{errors.login && <p className="linev2-result error" role="alert">{errors.login}</p>}
-      <div className="linev2-urlbox"><strong>ลิงก์หน้าสมาชิก · ใช้เป็น LIFF Endpoint</strong><code>{membershipUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(membershipUrl)}>คัดลอก URL</button></div>
+      <div className="linev2-urlbox"><strong>1 · ลิงก์สำหรับ Rich Menu ช่อง MEMBERSHIP</strong><code>{richMenuUrl || "เชื่อม LINE Login / LIFF ก่อนเพื่อสร้างลิงก์"}</code><button type="button" disabled={!richMenuUrl} onClick={() => void navigator.clipboard.writeText(richMenuUrl)}>คัดลอกลิงก์ Rich Menu</button><small>นำไปใส่เป็น URL Action ของปุ่ม MEMBERSHIP ใน LINE Official Account · ลูกค้ากดแล้วเปิด LIFF</small></div>
+      <div className="linev2-urlbox"><strong>2 · LIFF Endpoint URL สำหรับหน้าลูกค้าจริง</strong><code>{membershipUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(membershipUrl)}>คัดลอก Endpoint</button><small>LINE Developers → LINE Login channel → LIFF → Edit → Endpoint URL · ต้องเป็น /customer ไม่ใช่ /customer-preview หรือ /login</small></div>
+      <p className="linev2-customer-flow">ลูกค้าเพิ่มเพื่อน OA → กด MEMBERSHIP ใน Rich Menu → LINE Login → สมัครครั้งแรกเพียงครั้งเดียว → เข้าหน้าสมาชิก /customer · หน้าแอดมิน /customer-preview แยกต่างหาก</p>
     </Step>
   </div>;
 }
