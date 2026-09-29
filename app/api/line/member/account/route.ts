@@ -3,7 +3,7 @@ import { verifiedMemberSession } from "@/lib/line/member-session";
 export const runtime = "nodejs";
 
 type Input = {
-  action?: string; idToken?: string; memberCode?: string;
+  action?: string; idToken?: string; memberCode?: string; offset?: number; consent?: boolean;
   profile?: { firstName?: string; lastName?: string; gender?: string; birthDate?: string; phone?: string; email?: string };
 };
 
@@ -27,36 +27,44 @@ export async function POST(request: Request) {
     if (raw.length > 12_000) return json({ error: "ข้อมูลมีขนาดใหญ่เกินไป" }, 413);
     input = JSON.parse(raw) as Input;
   } catch { return json({ error: "คำขอไม่ถูกต้อง" }, 400); }
-  if (!input || !["load", "update", "delete"].includes(input.action || "")) return json({ error: "คำขอไม่ถูกต้อง" }, 400);
+  if (!input || !["load", "history", "consent", "update", "delete"].includes(input.action || "")) return json({ error: "คำขอไม่ถูกต้อง" }, 400);
 
   const session = await verifiedMemberSession(input);
   if ("error" in session) return json({ error: session.error }, session.status);
   const { db, ownerId, memberId } = session;
 
+  if (input.action === "history") {
+    const offset = input.offset ?? 0;
+    if (!Number.isSafeInteger(offset) || offset < 0) return json({ error: "ลำดับรายการไม่ถูกต้อง" }, 400);
+    const result = await db.from("points_transactions").select("id,points_delta,transaction_type,note,created_at")
+      .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + 20);
+    if (result.error) return json({ error: "โหลดประวัติไม่สำเร็จ" }, 500);
+    return json({ pointsHistory: result.data.slice(0, 20), hasMore: result.data.length > 20 });
+  }
+
+  if (input.action === "consent") {
+    if (typeof input.consent !== "boolean") return json({ error: "กรุณาเลือกความยินยอม" }, 400);
+    const updated = await db.from("members").update({
+      newsletter_opt_in: input.consent,
+      privacy_consent_updated_at: new Date().toISOString(),
+      privacy_consent_version: "2026-09-29",
+    }).eq("owner_id", ownerId).eq("id", memberId).eq("status", "active")
+      .select("newsletter_opt_in,privacy_consent_updated_at").single();
+    if (updated.error) return json({ error: "บันทึกความยินยอมไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
+    return json({ consent: updated.data.newsletter_opt_in, consentUpdatedAt: updated.data.privacy_consent_updated_at });
+  }
+
   if (input.action === "load") {
-    const [memberResult, linkResult, pointsResult, redemptionResult] = await Promise.all([
-      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,phone,email,level,points")
+    const [memberResult, linkResult, pointsResult] = await Promise.all([
+      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at")
         .eq("owner_id", ownerId).eq("id", memberId).single(),
       db.from("line_member_links").select("line_display_name,line_picture_url")
         .eq("owner_id", ownerId).eq("member_id", memberId).maybeSingle(),
       db.from("points_transactions").select("id,points_delta,transaction_type,note,created_at")
-        .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).limit(50),
-      db.from("redemptions").select("id,reward_id,coupon_id,points_spent,status,redeemed_at")
-        .eq("owner_id", ownerId).eq("member_id", memberId).order("redeemed_at", { ascending: false }).limit(50),
+        .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(21),
     ]);
-    if (memberResult.error || !memberResult.data || linkResult.error || pointsResult.error || redemptionResult.error)
+    if (memberResult.error || !memberResult.data || linkResult.error || pointsResult.error)
       return json({ error: "โหลดข้อมูลสมาชิกไม่สำเร็จ" }, 500);
-
-    const redemptions = redemptionResult.data || [];
-    const rewardIds = redemptions.map(item => item.reward_id).filter((id): id is string => Boolean(id));
-    const couponIds = redemptions.map(item => item.coupon_id).filter((id): id is string => Boolean(id));
-    const [rewardResult, couponResult] = await Promise.all([
-      rewardIds.length ? db.from("rewards").select("id,title").eq("owner_id", ownerId).in("id", rewardIds) : Promise.resolve({ data: [], error: null }),
-      couponIds.length ? db.from("coupons").select("id,title").eq("owner_id", ownerId).in("id", couponIds) : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (rewardResult.error || couponResult.error) return json({ error: "โหลดประวัติการแลกไม่สำเร็จ" }, 500);
-    const rewardTitles = new Map((rewardResult.data || []).map(item => [item.id, item.title]));
-    const couponTitles = new Map((couponResult.data || []).map(item => [item.id, item.title]));
     const member = memberResult.data;
     return json({
       profile: {
@@ -65,14 +73,11 @@ export async function POST(request: Request) {
         lastName: member.last_name || member.name.split(" ").slice(1).join(" "),
         gender: member.gender || "", birthDate: member.birth_date || "", phone: member.phone || "", email: member.email || "",
         level: member.level, points: member.points,
+        privacyConsent: Boolean(member.newsletter_opt_in), consentUpdatedAt: member.privacy_consent_updated_at || "",
         lineDisplayName: linkResult.data?.line_display_name || "", linePictureUrl: linkResult.data?.line_picture_url || "",
       },
-      pointsHistory: pointsResult.data || [],
-      redemptions: redemptions.map(item => ({
-        id: item.id, kind: item.coupon_id ? "coupon" : "reward", title: item.coupon_id
-          ? couponTitles.get(item.coupon_id) || "คูปอง" : rewardTitles.get(item.reward_id || "") || "ของรางวัล",
-        pointsSpent: item.points_spent, status: item.status, redeemedAt: item.redeemed_at,
-      })),
+      pointsHistory: (pointsResult.data || []).slice(0, 20),
+      hasMore: (pointsResult.data || []).length > 20,
     });
   }
 

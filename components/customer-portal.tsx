@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { Check, ChevronRight, Crown, Gift, House, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
+import { Noto_Sans_Thai } from "next/font/google";
+import { Check, Gift, House, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { normalizeCardDesign, type CardDesign } from "@/lib/card-design";
@@ -13,12 +13,15 @@ import { CustomerRewardCard } from "./customer-reward-card";
 import { PopupDetailView } from "./customer-content-detail";
 import { CustomerBrandHeader } from "./customer-brand-header";
 import { CustomerAccount } from "./customer-account";
+import { CustomerMemberCard } from "./customer-member-card";
+import { CustomerNewsCarousel } from "./customer-news-carousel";
 
 type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
+const memberFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], display: "swap" });
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
 type Reward = { id: string; title: string; description: string; category: string; points_cost: number; stock: number | null; image_url: string | null; active: boolean; starts_at: string | null; ends_at: string | null };
 type Coupon = { id: string; title: string; description: string; code: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null };
-type Member = { memberCode: string; name: string; level: string; points: number };
+type Member = { memberCode: string; name: string; level: string; points: number; linePictureUrl?: string | null };
 type PortalProps =
   | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; onLogout?: never; onMemberUpdated?: never }
   | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; onLogout: () => void; onMemberUpdated?: (name: string) => void };
@@ -49,7 +52,6 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   const [previewQr, setPreviewQr] = useState("");
   const [catalogError, setCatalogError] = useState("");
   const [catalogLoading, setCatalogLoading] = useState(true);
-  const [showAllNews, setShowAllNews] = useState(initialView === "news");
   const [selectedNews, setSelectedNews] = useState<PopupDisplay | null>(null);
   const [rewardCategory, setRewardCategory] = useState("ทั้งหมด");
 
@@ -65,7 +67,6 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
     if (initialView === "rewards") setTab("rewards");
     else if (initialView === "news" || initialView === "points") setTab("home");
     if (initialView === "news") {
-      setShowAllNews(true);
       const frame = requestAnimationFrame(() => document.querySelector(".customer-home-news")?.scrollIntoView({ block: "start" }));
       return () => cancelAnimationFrame(frame);
     }
@@ -161,41 +162,28 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
     return () => { active = false; };
   }, [isMember, idToken]);
 
-  const visibleNews = showAllNews ? news : news.slice(0, 2);
   const rewardCategories = ["ทั้งหมด", ...new Set(rewards.map(item => item.category).filter(Boolean))];
   const visibleRewards = rewardCategory === "ทั้งหมด" ? rewards : rewards.filter(item => item.category === rewardCategory);
 
   if (selectedNews) return <PopupDetailView item={selectedNews} onBack={() => setSelectedNews(null)} />;
 
   return (
-    <main className="customer-portal customer-home-page customer-catalog-refresh">
-      <CustomerBrandHeader greeting={`สวัสดี ${isMember ? `คุณ${member!.name}` : previewName}`} />
+    <main className={`customer-portal customer-home-page customer-catalog-refresh ${memberFont.className}`}>
+      <CustomerBrandHeader greeting={isMember ? `คุณ${member!.name}` : previewName} pictureUrl={member?.linePictureUrl} logoUrl={shop?.logo_url} shopName={shop?.shop_name_en || "Tammy"} />
 
       <div className="customer-home-body">
         {tab === "home" ? <>
-          <section className="customer-home-member reference-member-card" aria-label="บัตรสมาชิก Gold">
-            <div className="reference-member-copy">
-              <div className="reference-card-brand">TAMMY PET SHOP <PawPrint size={14} /><small>MEMBERSHIP CARD</small></div>
-              <span className="reference-card-rank"><Crown size={24} /> {isMember ? member!.level : "Gold"}</span>
-              <strong className="reference-card-name">{isMember ? `คุณ${member!.name}` : previewName}</strong>
-              <div className="reference-card-balance"><div><span>คะแนนสะสม</span><strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"} <small>แต้ม</small></strong></div><div className="reference-card-qr">{previewQr ? <Image src={previewQr} alt={isMember ? "QR รหัสสมาชิก" : "QR ตัวอย่างบัตรสมาชิก"} width={70} height={70} unoptimized /> : <span className="reference-qr-placeholder" />}<small>{isMember ? member!.memberCode : "สมาชิก"}</small></div></div>
-              <div className="reference-card-progress"><i><span /></i><small>{isMember ? `สมาชิกระดับ ${member!.level}` : "อีก 1,500 บาท ถึง Platinum"}</small></div>
-            </div>
-            <span className="reference-card-slogan">เพื่อนซี้<br />ที่อยู่เคียงข้าง<br />เสมอ ♡</span>
-          </section>
+          <CustomerMemberCard name={isMember ? `คุณ${member!.name}` : previewName} level={member?.level || "Gold"} points={isMember ? memberPoints : 90} memberCode={member?.memberCode || "PREVIEW"} qr={previewQr} preview={!isMember} />
 
           <section className="customer-home-news" aria-label="ข่าวสารจากร้าน">
-            <div className="customer-home-section-heading"><h1>ข่าวสารล่าสุด</h1>{news.length > 0 && <button type="button" onClick={() => setShowAllNews((value) => !value)}>{showAllNews ? "ย่อ" : "ดูทั้งหมด"} <ChevronRight size={18} /></button>}</div>
-            {visibleNews.length ? <div className="customer-home-news-list">{visibleNews.map((item) => <Link className="customer-home-news-card" href={`/customer/content/${encodeURIComponent(`${item.source}:${item.id}`)}`} key={item.id} onClick={event => { event.preventDefault(); setSelectedNews(item); }}>
-              <div className="customer-home-news-picture">{item.image ? <Image src={item.image} alt="" fill sizes="(max-width: 520px) 36vw, 170px" unoptimized /> : <PawPrint size={48} />}</div>
-              <div className="customer-home-news-copy">{item.createdAt && <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" })}</time>}<h2>{item.title}</h2><p>{item.summary}</p></div>
-            </Link>)}</div> : <div className="customer-home-empty-news"><PawPrint size={32} /><strong>ยังไม่มีข่าวสารจากร้าน</strong><span>เมื่อร้านเผยแพร่ข่าวหรือโปรโมชั่น จะแสดงตรงนี้ค่ะ</span></div>}
+            <div className="customer-home-section-heading"><h1>ข่าวสารล่าสุด</h1>{news.length > 1 && <span className="customer-news-hint">เลื่อนดูข่าวสาร</span>}</div>
+            {news.length ? <CustomerNewsCarousel news={news} onSelect={setSelectedNews} /> : <div className="customer-home-empty-news"><PawPrint size={32} /><strong>ยังไม่มีข่าวสารจากร้าน</strong></div>}
           </section>
         </> : <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
-          {(tab === "lucky" || tab === "account") && <div className="customer-home-catalog-heading"><span className="customer-home-subpage-icon">{(() => { const Icon = navigation.find((item) => item.id === tab)?.icon || PawPrint; return <Icon size={28} />; })()}</span><div><small>แทมมี่อาหารสัตว์</small><h1>{sectionText[tab].title}</h1></div></div>}
+          {tab === "account" && <div className="customer-home-catalog-heading"><h1>ข้อมูลของฉัน</h1></div>}
           {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><h1>คูปอง</h1><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} code={item.code} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { setSelectedCoupon(item); setCouponUsed(false); }} /><div className="customer-coupon-ticket-footer"><strong className="customer-coupon-ticket-title">{item.title}</strong></div></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
-          {tab === "lucky" && <p className="customer-home-catalog-state">{sectionText.lucky.empty}</p>}
+          {tab === "lucky" && <div className="customer-lucky-placeholder"><div className="customer-lucky-art" aria-hidden="true"><Star className="lucky-star-one" /><Gift size={82} strokeWidth={1.2} /><PawPrint className="lucky-paw" /><Star className="lucky-star-two" /></div><h1>ลุ้นรางวัล</h1><span>เร็ว ๆ นี้</span><p>เตรียมพบกับกิจกรรมและของรางวัลพิเศษ<br />จาก Tammy Pet Shop</p></div>}
           {tab === "account" && <CustomerAccount preview={!isMember} member={member} idToken={idToken} onLogout={onLogout} onMemberUpdated={onMemberUpdated} />}
         </section>}
       </div>

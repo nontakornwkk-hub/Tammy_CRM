@@ -17,6 +17,7 @@ import "./sidebar-reference.css";
 import "./line-manager.css";
 import "./line-inbox.css";
 import "./line-membership.css";
+import "./customer-design-refresh.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

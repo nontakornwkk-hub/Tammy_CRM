@@ -31,13 +31,14 @@ function validRegistration(value: unknown): value is Registration {
     && item.birthDate >= "1900-01-01" && item.birthDate <= new Date().toISOString().slice(0, 10);
 }
 
-function publicMember(member: Record<string, unknown>) {
+function publicMember(member: Record<string, unknown>, linePictureUrl: string | null) {
   return {
     memberCode: member.member_code,
     name: member.name,
     level: member.level,
     points: member.points,
     birthDate: member.birth_date,
+    linePictureUrl,
   };
 }
 
@@ -90,17 +91,19 @@ export async function POST(request: Request) {
     return json({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
   }
 
-  const linked = await db.from("line_member_links").select("member_id")
+  const linked = await db.from("line_member_links").select("member_id,line_picture_url")
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject).maybeSingle();
   if (linked.error) return json({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
-    if (lineDisplayName) await db.from("line_member_links").update({ line_display_name: lineDisplayName,
-      line_picture_url: linePictureUrl, profile_synced_at: new Date().toISOString() })
+    if (lineDisplayName || linePictureUrl) await db.from("line_member_links").update({
+      ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
+      ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
+      profile_synced_at: new Date().toISOString() })
       .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
     const existing = await db.from("members").select("member_code,name,level,points,birth_date")
       .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).eq("status", "active").maybeSingle();
     if (existing.error || !existing.data) return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
-    return json({ registered: true, member: publicMember(existing.data) });
+    return json({ registered: true, member: publicMember(existing.data, linePictureUrl || linked.data.line_picture_url) });
   }
 
   if (input.action === "lookup") return json({ registered: false });
@@ -123,5 +126,5 @@ export async function POST(request: Request) {
   if (lineDisplayName) await db.from("line_member_links").update({ line_display_name: lineDisplayName,
     line_picture_url: linePictureUrl, profile_synced_at: new Date().toISOString() })
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
-  return json({ registered: true, member: publicMember(result.data as Record<string, unknown>) }, 201);
+  return json({ registered: true, member: publicMember(result.data as Record<string, unknown>, linePictureUrl) }, 201);
 }

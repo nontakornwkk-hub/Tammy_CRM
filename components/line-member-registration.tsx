@@ -5,7 +5,7 @@ import { ArrowRight, PawPrint, ShieldCheck } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
 import { CustomerBrandHeader } from "./customer-brand-header";
 
-type Member = { memberCode: string; name: string; level: string; points: number };
+type Member = { memberCode: string; name: string; level: string; points: number; linePictureUrl?: string | null };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
 type State = "loading" | "form" | "member" | "login" | "unavailable";
 type PreviewScreen = "register" | "login";
