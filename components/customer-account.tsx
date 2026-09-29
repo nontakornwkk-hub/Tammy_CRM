@@ -24,10 +24,11 @@ function genderLabel(value: string) {
   return { female: "หญิง", male: "ชาย", other: "อื่น ๆ", prefer_not_to_say: "ไม่ประสงค์ระบุ" }[value] || "ยังไม่ระบุ";
 }
 
-export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUpdated }: {
+export function CustomerAccount({ preview, member, idToken, accessToken, onLogout, onMemberUpdated }: {
   preview: boolean;
   member?: { memberCode: string; name: string; level: string; points: number };
   idToken?: string;
+  accessToken?: string;
   onLogout?: () => void;
   onMemberUpdated?: (name: string) => void;
 }) {
@@ -47,11 +48,17 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (preview || !idToken) return;
+    if (!editing) return;
+    const frame = requestAnimationFrame(() => document.querySelector(".customer-account-form")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    return () => cancelAnimationFrame(frame);
+  }, [editing]);
+
+  useEffect(() => {
+    if (preview || (!idToken && !accessToken)) return;
     let active = true;
     void (async () => {
       try {
-        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "load", idToken }) });
+        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "load", idToken, accessToken }) });
         const data = await response.json() as { profile?: Profile; pointsHistory?: PointEntry[]; hasMore?: boolean; error?: string };
         if (!response.ok || !data.profile) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
         if (active) { setProfile(data.profile); setForm(data.profile); setConsent(data.profile.privacyConsent); setPointsHistory(data.pointsHistory || []); setHasMore(Boolean(data.hasMore)); }
@@ -59,13 +66,13 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
       finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [preview, idToken]);
+  }, [preview, idToken, accessToken]);
 
   async function loadHistory() {
     if (historyBusy || !hasMore) return;
     setHistoryBusy(true); setError("");
     try {
-      const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "history", idToken, offset: pointsHistory.length }) });
+      const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "history", idToken, accessToken, offset: pointsHistory.length }) });
       const data = await response.json() as { pointsHistory?: PointEntry[]; hasMore?: boolean; error?: string };
       if (!response.ok) throw new Error(data.error || "โหลดประวัติไม่สำเร็จ");
       setPointsHistory(items => [...items, ...(data.pointsHistory || []).filter(entry => !items.some(item => item.id === entry.id))]);
@@ -78,7 +85,7 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
     if (consentBusy || preview) return;
     setConsentBusy(true); setError(""); setMessage("");
     try {
-      const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "consent", idToken, consent }) });
+      const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "consent", idToken, accessToken, consent }) });
       const data = await response.json() as { consent: boolean; consentUpdatedAt: string; error?: string };
       if (!response.ok) throw new Error(data.error || "บันทึกความยินยอมไม่สำเร็จ");
       setProfile(value => value ? { ...value, privacyConsent: data.consent, consentUpdatedAt: data.consentUpdatedAt } : value);
@@ -95,7 +102,7 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
     try {
       let savedName = `${form.firstName.trim()} ${form.lastName.trim()}`;
       if (!preview) {
-        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", idToken, profile: form }) });
+        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", idToken, accessToken, profile: form }) });
         const data = await response.json() as { name?: string; error?: string };
         if (!response.ok || !data.name) throw new Error(data.error || "บันทึกข้อมูลไม่สำเร็จ");
         savedName = data.name;
@@ -112,7 +119,7 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
     setBusy(true); setError("");
     try {
       if (!preview) {
-        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", idToken, memberCode: deleteCode }) });
+        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", idToken, accessToken, memberCode: deleteCode }) });
         const data = await response.json() as { success?: boolean; error?: string };
         if (!response.ok || !data.success) throw new Error(data.error || "ลบบัญชีไม่สำเร็จ");
         onLogout?.();
@@ -124,7 +131,7 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
   const shown = profile || (member ? { ...previewProfile, ...member, firstName: member.name, memberCode: member.memberCode } : null);
 
   return <div className="customer-account">
-    {loading && <p className="customer-home-catalog-state" role="status">กำลังโหลดข้อมูลสมาชิก…</p>}
+    {loading && !shown && <p className="customer-home-catalog-state" role="status">กำลังโหลดข้อมูลสมาชิก…</p>}
     {error && <p className="line-signup-error" role="alert">{error}</p>}
     {message && <p className="customer-account-success" role="status"><Check size={17} />{message}</p>}
     {shown && <>
@@ -149,7 +156,7 @@ export function CustomerAccount({ preview, member, idToken, onLogout, onMemberUp
         {hasMore && <button type="button" className="customer-history-more" disabled={historyBusy} onClick={() => void loadHistory()}>{historyBusy ? "กำลังโหลด…" : "ดูรายการก่อนหน้า"}</button>}
       </section>
 
-      <section className="customer-account-card customer-account-actions"><div className="customer-account-section-head"><h2>จัดการบัญชี</h2><ShieldCheck size={19} /></div><button type="button" onClick={() => { setForm(profile); setEditing(true); document.querySelector(".customer-account-details")?.scrollIntoView({ behavior: "smooth", block: "center" }); }}><Pencil size={18} />แก้ไขข้อมูลและเบอร์โทร<ChevronRight size={17} /></button><div className="customer-account-line-status"><Check size={18} />{preview ? "บัญชี LINE" : "เชื่อมต่อ LINE แล้ว"}</div><button type="button" onClick={onLogout} disabled={!onLogout}><LogOut size={18} />ออกจากระบบ<ChevronRight size={17} /></button><button type="button" className="is-danger" onClick={() => { setDeleting(true); setError(""); }}><Trash2 size={18} />ลบบัญชี<ChevronRight size={17} /></button></section>
+      <section className="customer-account-card customer-account-actions"><div className="customer-account-section-head"><h2>จัดการบัญชี</h2><ShieldCheck size={19} /></div><div className="customer-account-line-status"><Check size={18} />{preview ? "บัญชี LINE" : "เชื่อมต่อ LINE แล้ว"}</div><button type="button" onClick={onLogout} disabled={!onLogout}><LogOut size={18} />ออกจากระบบ<ChevronRight size={17} /></button><button type="button" className="is-danger" onClick={() => { setDeleting(true); setError(""); }}><Trash2 size={18} />ลบบัญชี<ChevronRight size={17} /></button></section>
       <section className="customer-account-card customer-account-privacy">
         <h2>ข้อมูลส่วนบุคคล (PDPA)</h2>
         <details className="customer-privacy-details"><summary>อ่านรายละเอียดการใช้ข้อมูล</summary><h3>ข้อมูลสำหรับการเป็นสมาชิก</h3><p>ร้าน Tammy Pet Shop ใช้ข้อมูลบัญชี LINE ชื่อ เบอร์โทร และข้อมูลที่คุณกรอก เพื่อระบุตัวสมาชิก จัดการแต้มและสิทธิพิเศษ และแสดงประวัติการใช้งานของคุณ</p><h3>ความยินยอมรับข่าวสาร</h3><p>เมื่อเลือกยินยอม ร้านจะใช้ข้อมูลติดต่อและข้อมูลสมาชิกเพื่อส่งข่าวสาร โปรโมชั่น และสิทธิพิเศษผ่าน LINE คุณเปลี่ยนตัวเลือกนี้ได้ทุกเมื่อ โดยยังใช้บัญชีสมาชิกและแต้มได้ตามปกติ</p><p>คุณแก้ไขข้อมูลหรือลบบัญชีได้ในเมนูจัดการบัญชี หากต้องการสอบถามการใช้ข้อมูล ติดต่อร้านผ่าน LINE Official Account</p></details>

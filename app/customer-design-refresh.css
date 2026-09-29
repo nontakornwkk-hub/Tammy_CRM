@@ -57,18 +57,24 @@
 .customer-catalog-refresh .coupon-ticket-spark { top:12px; right:8px; transform:scale(.75); }
 .customer-catalog-refresh .coupon-ticket-dots { bottom:12px; }
 .customer-catalog-refresh .coupon-ticket-paw { bottom:7px; width:21px; }
-.customer-card-flip { width:100%; aspect-ratio:1.64; perspective:1200px; flex:none; }
-.customer-card-flip-inner { position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.25,1); }
+.customer-card-flip { width:100%; flex:none; perspective:1200px; }
+.customer-card-flip-inner { position:relative; display:block; width:100%; aspect-ratio:1.64; padding:0; border:0; border-radius:21px; background:transparent; color:inherit; text-align:left; cursor:pointer; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.25,1); }
+.customer-card-flip-inner:focus-visible { outline:3px solid #e87858; outline-offset:4px; }
 .customer-card-flip.is-flipped .customer-card-flip-inner { transform:rotateY(180deg); }
 .customer-card-flip .customer-card-front,.customer-card-back { position:absolute; inset:0; width:100%; height:100%; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
 .customer-card-flip .customer-card-front { min-height:0; padding:0; }
+.customer-card-flip-hint { display:flex; justify-content:center; align-items:center; gap:5px; margin:8px 0 0; color:#776a5f; font-size:11px; }
 .customer-card-flip-button { display:grid; justify-items:center; align-content:center; gap:3px; flex:0 0 31%; padding:8px 4px; border:1px solid #ddbd7e; border-radius:10px; background:#fff8e4bd; color:#996a2f; cursor:pointer; font:inherit; font-size:10px; }
 .customer-card-back { transform:rotateY(180deg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:1px solid #e2c17c; border-radius:21px; background:radial-gradient(ellipse at 0 0,#f5dda1,transparent 65%),#fff9e9; box-shadow:0 6px 16px #76532818; color:#664726; }
 .customer-card-back > div { display:flex; gap:8px; align-items:center; font-size:11px; max-width:90%; }
 .customer-card-back > div > span { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .customer-card-back > img { width:auto; height:56%; aspect-ratio:1; padding:8px; background:white; border-radius:9px; }
 .customer-card-code { font-size:10px; letter-spacing:.06em; }
-.customer-card-back > button { display:flex; align-items:center; gap:5px; min-height:30px; padding:4px 10px; border:1px solid #ddc591; border-radius:99px; background:#fffaf0; color:#7f582e; font:inherit; font-size:11px; cursor:pointer; }
+.customer-card-back-hint { font-size:10px; color:#8a6a44; }
+.customer-catalog-refresh .customer-home-brand { max-width:none; flex:0 0 auto; }
+.customer-reward-horizontal.is-interactive { cursor:pointer; transition:transform .18s ease,box-shadow .18s ease; }
+.customer-reward-horizontal.is-interactive:hover { transform:translateY(-2px); box-shadow:0 8px 20px #9d6c4a24; }
+.customer-reward-horizontal.is-interactive:focus-visible { outline:3px solid #ec7352; outline-offset:3px; }
 .customer-catalog-refresh .customer-home-news { margin-top:24px; flex:none; }
 .customer-catalog-refresh .customer-home-section-heading h1 { font-size:21px; color:#563629; }
 .customer-news-hint { font-size:11px; color:#9b8676; }
@@ -126,6 +132,24 @@
 .customer-catalog-refresh .customer-home-nav { height:77px; border-radius:23px; bottom:calc(8px + env(safe-area-inset-bottom,0px)); }
 .customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon { border-radius:12px; background:#ffede1; color:#eb6c48; }
 .customer-catalog-refresh .customer-home-nav button > span:last-child { font-size:10px; }
+.customer-catalog-refresh .customer-home-nav button.active { transform:translateY(-10px)!important; z-index:2; }
+.customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon { width:46px; height:46px; border:3px solid #fffefa; border-radius:17px; background:linear-gradient(145deg,#ffe6ce,#ffbda8); box-shadow:0 8px 14px #bf735c38; color:#bd533e; }
+.customer-catalog-refresh .customer-home-nav button.active::after { bottom:-3px; }
+.customer-reward-detail-page { min-height:calc(100dvh - 110px); padding:8px 2px 30px; }
+.customer-reward-detail-back { display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; color:#8b5d49; font:inherit; font-weight:700; cursor:pointer; padding:8px 0 16px; }
+.customer-reward-detail-hero { position:relative; display:grid; place-items:center; width:100%; aspect-ratio:1.4; overflow:hidden; border-radius:22px; background:#f7e7d6; color:#d58b60; }
+.customer-reward-detail-hero img { object-fit:cover; }
+.customer-reward-detail-category { margin:18px 0 4px; color:#c27655; font-size:12px; }
+.customer-reward-detail-page h1 { margin:0 0 9px; color:#51382d; font-size:23px; }
+.customer-reward-detail-page > p { color:#75695f; line-height:1.7; }
+.customer-reward-detail-points { display:flex; justify-content:space-between; margin:20px 0; padding:16px; border-radius:16px; background:#fff8ed; color:#745a46; }
+.customer-reward-detail-points strong { color:#df6549; }
+.customer-reward-detail-submit { width:100%; min-height:48px; border:0; border-radius:15px; background:#eb7051; color:white; font:inherit; font-weight:800; cursor:pointer; }
+.customer-reward-detail-submit:disabled { opacity:.55; cursor:default; }
+.customer-account-form { animation:customer-form-reveal .24s ease-out; scroll-margin-block:24px; }
+@keyframes customer-form-reveal { from { opacity:.5; transform:translateY(-7px); } to { opacity:1; transform:translateY(0); } }
+.line-signup-status > button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; margin:12px 0 0; padding:10px 18px; border:0; border-radius:13px; background:#06c755; color:#fff; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }
+.line-signup-status .line-signup-privacy { margin-top:13px; line-height:1.5; }
 @media (max-width:360px) {
   .customer-catalog-refresh .customer-home-brand strong { max-width:90px; font-size:17px; }
   .customer-catalog-refresh .customer-home-body { padding-inline:12px; }

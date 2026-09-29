@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { verifyMemberIdentity } from "@/lib/line/verify-member-identity";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   } catch {
     return json({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, 400);
   }
-  if (typeof input.idToken !== "string" || input.idToken.length < 20 || input.idToken.length > 8192)
+  if ((!input.idToken || typeof input.idToken !== "string") && (!input.accessToken || typeof input.accessToken !== "string"))
     return json({ error: "กรุณาเข้าสู่ระบบผ่าน LINE อีกครั้ง" }, 401);
   if (input.action !== "lookup" && input.action !== "register") return json({ error: "คำขอไม่ถูกต้อง" }, 400);
   if (input.action === "register" && !validRegistration(input.registration))
@@ -73,17 +74,8 @@ export async function POST(request: Request) {
   let lineDisplayName: string | null = null;
   let linePictureUrl: string | null = null;
   try {
-    const verified = await fetch("https://api.line.me/oauth2/v2.1/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ id_token: input.idToken, client_id: channelId }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!verified.ok) return json({ error: "ยืนยันบัญชี LINE ไม่สำเร็จ กรุณาเปิดหน้าใหม่" }, 401);
-    const identity = await verified.json() as { sub?: string; aud?: string; name?: string; picture?: string };
-    if (identity.aud !== channelId || !identity.sub || !/^U[0-9a-f]{32}$/.test(identity.sub))
-      return json({ error: "ข้อมูลบัญชี LINE ไม่ถูกต้อง" }, 401);
+    const identity = await verifyMemberIdentity({ idToken: typeof input.idToken === "string" ? input.idToken : undefined, accessToken: typeof input.accessToken === "string" ? input.accessToken : undefined }, channelId);
+    if (!identity) return json({ error: "เซสชัน LINE หมดอายุหรือไม่ตรงกับช่องทางที่เชื่อมไว้ กรุณาเข้าสู่ LINE อีกครั้ง", errorCode: "LINE_ID_TOKEN_REJECTED" }, 401);
     lineSubject = identity.sub;
     lineDisplayName = identity.name?.slice(0, 120) || null;
     linePictureUrl = identity.picture?.startsWith("https://") ? identity.picture : null;

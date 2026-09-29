@@ -3,7 +3,7 @@ import { verifiedMemberSession } from "@/lib/line/member-session";
 export const runtime = "nodejs";
 
 type Input = {
-  action?: string; idToken?: string; memberCode?: string; offset?: number; consent?: boolean;
+  action?: string; idToken?: string; accessToken?: string; memberCode?: string; offset?: number; consent?: boolean;
   profile?: { firstName?: string; lastName?: string; gender?: string; birthDate?: string; phone?: string; email?: string };
 };
 
