@@ -172,7 +172,7 @@ export function RewardsGallery() {
   const load = useCallback(async (force = false) => {
     const client = supabase;
     if (!client) { setError("ยังไม่ได้ตั้งค่า Supabase"); setLoading(false); return; }
-    if (!cachedData<RewardsData>("rewards")) setLoading(true);
+    setLoading(true);
     setError("");
     const { data: auth, error: authError } = await client.auth.getUser();
     if (authError || !auth.user) { setError("กรุณาเข้าสู่ระบบก่อนโหลดรายการ"); setLoading(false); return; }
@@ -184,7 +184,7 @@ export function RewardsGallery() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "โหลดข้อมูลไม่สำเร็จ"); }
     setLoading(false);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(true); }, [load]);
 
   const matchesView = (item: CatalogItem) => item.kind === kind;
   const categories = [...new Set(items.filter(matchesView).map((item) => item.category))];

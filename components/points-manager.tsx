@@ -44,6 +44,7 @@ type Customer = {
 
 const levelClass: Record<MemberLevel, string> = { Platinum: "platinum", Gold: "gold", Silver: "silver", Member: "member" };
 type PointTransaction = { id: string; created_at: string; member_id: string; sale_amount: number; points_delta: number; transaction_type: string; note: string };
+type LineProfile = { member_id: string; line_picture_url: string | null };
 const ALIAS_KEY = "tammy-member-staff-aliases-v1";
 type PointsData = Awaited<ReturnType<typeof fetchPointsData>>;
 
@@ -77,6 +78,8 @@ export function PointsManager() {
   const [query, setQuery] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
+  const [scannedId, setScannedId] = useState("");
+  const [linePictures, setLinePictures] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"ทั้งหมด" | "ปักหมุด" | "ใช้งานล่าสุด">("ทั้งหมด");
   const [saleInput, setSaleInput] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -131,6 +134,17 @@ export function PointsManager() {
     setSelectedId((current) => current || mapped[0]?.id || "");
     setTransactions(result.transactions);
     setBirthdayClaims(new Set(result.birthdays.map((row) => row.member_id)));
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (token) {
+        const response = await fetch("/api/line/messaging/member-profiles", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json() as { profiles: LineProfile[] };
+          setLinePictures(Object.fromEntries(data.profiles.filter((profile) => profile.line_picture_url?.startsWith("https://")).map((profile) => [profile.member_id, profile.line_picture_url!])));
+        }
+      }
+    } catch { /* Member data remains usable when LINE profiles are unavailable. */ }
     } catch (error) { setError(error instanceof Error ? error.message : "โหลดข้อมูลไม่สำเร็จ"); }
     setLoading(false);
   })(); }, []);
@@ -173,16 +187,18 @@ export function PointsManager() {
   const shownTransactions = historyDate ? dailyTransactions : transactions.slice(0, 5);
 
   const visible = useMemo(() => customers.filter((customer) => {
+    if (scannedId && customer.id !== scannedId) return false;
     const searchMatch = `${customer.name} ${customer.nickname} ${customer.phone} ${customer.memberCode}`.toLowerCase().includes(query.trim().toLowerCase());
     const filterMatch = filter === "ทั้งหมด" || filter === "ใช้งานล่าสุด" || customer.pinned;
     return searchMatch && filterMatch;
-  }), [customers, filter, query]);
+  }), [customers, filter, query, scannedId]);
 
   function selectByCode(rawCode: string) {
     const code = rawCode.trim().replace(/^TAMMY-MEMBER:/i, "").trim().toUpperCase();
     const match = customers.find((customer) => customer.memberCode.toUpperCase() === code);
     if (!match) { setScannerError("ไม่พบรหัสสมาชิกนี้ในร้าน กรุณาตรวจ QR หรือรหัสบนบัตร"); return false; }
     setSelectedId(match.id);
+    setScannedId(match.id);
     setQuery("");
     setFilter("ทั้งหมด");
     setScannerError("");
@@ -231,7 +247,8 @@ export function PointsManager() {
         <div className="points-workspace">
           <section className="panel customer-panel">
             <div className="step-heading"><span>1</span><h2>เลือกลูกค้า</h2></div>
-            <div className="points-customer-lookup"><label className="customer-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหาชื่อ เบอร์โทร หรือรหัสสมาชิก" /></label><button type="button" className="points-scan-button" onClick={() => { setScannerError(""); setScannerOpen(true); }} disabled={loading || customers.length === 0}><ScanLine size={18} /> สแกน QR</button></div>
+            <div className="points-customer-lookup"><label className="customer-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} disabled={!!scannedId} placeholder="ค้นหาชื่อ เบอร์โทร หรือรหัสสมาชิก" /></label><button type="button" className="points-scan-button" onClick={() => { setScannerError(""); setScannerOpen(true); }} disabled={loading || customers.length === 0}><ScanLine size={18} /> สแกน QR</button></div>
+            {scannedId ? <div className="points-scan-lock"><span>เลือกสมาชิกจาก QR แล้ว · {selected.name}</span><button type="button" onClick={() => { setScannedId(""); setQuery(""); }}>เปลี่ยนสมาชิก</button></div> : null}
             <div className="customer-filters">
               {([
                 ["ทั้งหมด", Pin],
@@ -244,7 +261,7 @@ export function PointsManager() {
               <div>
                 {loading ? <p className="rewards-gallery-empty">กำลังโหลดสมาชิก...</p> : !customers.length ? <p className="rewards-gallery-empty">ยังไม่มีสมาชิกที่ให้แต้มได้</p> : null}
                 {visible.map((customer) => <article key={customer.id} className={`customer-row${selectedId === customer.id ? " selected" : ""}`} role="button" tabIndex={0} aria-pressed={selectedId === customer.id} aria-label={`เลือก ${customer.name}${customer.nickname ? ` ชื่อที่จำ ${customer.nickname}` : ""}`} onClick={() => setSelectedId(customer.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(customer.id); } }}>
-                  <span className="customer-identity"><span className="pet-avatar"><Image src="/assets/tammy-logo-cat.png" alt="" width={44} height={44} /></span><span className="customer-name">{customer.name}</span></span>
+                  <span className="customer-identity"><span className="pet-avatar">{linePictures[customer.id] ? <img src={linePictures[customer.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-logo-cat.png" alt="" width={44} height={44} />}</span><span className="customer-name">{customer.name}</span></span>
                   <strong className="customer-alias">{customer.nickname || "—"}</strong>
                   <span>{customer.phone}</span>
                   <span className={`member-badge ${levelClass[customer.level]}`}>{customer.level === "Gold" ? <Crown size={14} /> : <PawPrint size={14} />}{customer.level}</span>
@@ -260,7 +277,7 @@ export function PointsManager() {
             <section className="panel points-summary">
               <div className="step-heading"><span>2</span><h2>ให้แต้มและสรุป</h2></div>
               <div className="selected-customer">
-                <span className="pet-avatar large"><Image src="/assets/tammy-logo-cat.png" alt="" width={58} height={58} /></span>
+                <span className="pet-avatar large">{linePictures[selected.id] ? <img src={linePictures[selected.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-logo-cat.png" alt="" width={58} height={58} />}</span>
                 <div><strong>{selected.name}</strong><small>{selected.nickname ? `${selected.nickname} · ` : ""}☎ {selected.phone}</small></div>
                 <span className={`member-badge ${levelClass[selected.level]}`}><Crown size={15} />{selected.level}</span>
               </div>
