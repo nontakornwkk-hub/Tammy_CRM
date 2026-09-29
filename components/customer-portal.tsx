@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Noto_Sans_Thai } from "next/font/google";
 import { ArrowLeft, Check, Gift, House, PawPrint, Star, Tag, Trophy, TicketPercent, UserRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { normalizeCardDesign, type CardDesign } from "@/lib/card-design";
 import { normalizePopupDisplay, type PopupDisplay } from "@/lib/popup-content";
@@ -57,6 +57,9 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
 
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
+  const [confirmRewardOpen, setConfirmRewardOpen] = useState(false);
+  const rewardRequestId = useRef<string | null>(null);
+  const redeemLock = useRef(false);
   const [couponUsed, setCouponUsed] = useState(false);
   const [rewardRedeemed, setRewardRedeemed] = useState(false);
   const [memberPoints, setMemberPoints] = useState(Number(member?.points || 0));
@@ -73,19 +76,22 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   }, [initialView]);
 
   async function redeem(kind: "reward" | "coupon", itemId: string) {
-    if (redeemBusy) return;
+    if (redeemLock.current) return;
     if (!isMember) { if (kind === "reward") setRewardRedeemed(true); else setCouponUsed(true); return; }
+    redeemLock.current = true;
     setRedeemBusy(true);
     setRedeemError("");
     try {
-      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, accessToken, kind, itemId }) });
+      const requestId = kind === "reward" ? rewardRequestId.current || crypto.randomUUID() : crypto.randomUUID();
+      if (kind === "reward") rewardRequestId.current = requestId;
+      const response = await fetch("/api/line/member/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, accessToken, kind, itemId, requestId }) });
       const data = await response.json() as { success?: boolean; points?: number; error?: string };
       if (!response.ok || !data.success) throw new Error(data.error || "ทำรายการไม่สำเร็จ");
       if (typeof data.points === "number") setMemberPoints(data.points);
       if (kind === "coupon") { setCouponUsed(true); setCoupons(items => items.filter(item => item.id !== itemId)); }
       else { setRewardRedeemed(true); setRewards(items => items.map(item => item.id === itemId && item.stock !== null ? { ...item, stock: Math.max(0, item.stock - 1) } : item)); }
     } catch (cause) { setRedeemError(cause instanceof Error ? cause.message : "ทำรายการไม่สำเร็จ"); }
-    finally { setRedeemBusy(false); }
+    finally { redeemLock.current = false; setRedeemBusy(false); }
   }
 
   useEffect(() => {
@@ -173,14 +179,15 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
 
       <div className="customer-home-body">
         {selectedReward ? <section className="customer-reward-detail-page" aria-labelledby="member-reward-title">
-          <button type="button" className="customer-reward-detail-back" onClick={() => { setSelectedReward(null); setRewardRedeemed(false); }}><ArrowLeft size={18} />กลับไปของรางวัล</button>
+          <button type="button" className="customer-reward-detail-back" onClick={() => { setSelectedReward(null); setRewardRedeemed(false); setConfirmRewardOpen(false); rewardRequestId.current = null; }}><ArrowLeft size={18} />กลับไปของรางวัล</button>
           <div className="customer-reward-detail-hero">{selectedReward.image_url ? <Image src={selectedReward.image_url} alt={selectedReward.title} fill sizes="(max-width:520px) 100vw, 480px" unoptimized /> : <Gift size={75} strokeWidth={1.3} />}</div>
           <p className="customer-reward-detail-category">{selectedReward.category || "ของรางวัล"}</p>
           <h1 id="member-reward-title">{rewardRedeemed ? "แลกสำเร็จแล้ว" : selectedReward.title}</h1>
           <p>{rewardRedeemed ? "แสดงหน้านี้ให้พนักงานตรวจสอบเพื่อรับของรางวัล" : selectedReward.description || "ของรางวัลพิเศษจาก Tammy Pet Shop"}</p>
           <div className="customer-reward-detail-points"><span>{selectedReward.points_cost.toLocaleString("th-TH")} แต้ม</span><strong>แต้มของคุณ {memberPoints.toLocaleString("th-TH")}</strong></div>
           {redeemError && <p role="alert" className="line-signup-error">{redeemError}</p>}
-          <button className="customer-reward-detail-submit" type="button" disabled={redeemBusy || (!rewardRedeemed && memberPoints < selectedReward.points_cost)} onClick={() => rewardRedeemed ? setSelectedReward(null) : void redeem("reward", selectedReward.id)}>{rewardRedeemed ? "เสร็จสิ้น" : redeemBusy ? "กำลังแลก…" : memberPoints < selectedReward.points_cost ? `ขาดอีก ${(selectedReward.points_cost - memberPoints).toLocaleString("th-TH")} แต้ม` : "ยืนยันแลกรางวัล"}</button>
+          <button className="customer-reward-detail-submit" type="button" disabled={redeemBusy || (!rewardRedeemed && memberPoints < selectedReward.points_cost)} onClick={() => rewardRedeemed ? setSelectedReward(null) : setConfirmRewardOpen(true)}>{rewardRedeemed ? "เสร็จสิ้น" : redeemBusy ? "กำลังแลก…" : memberPoints < selectedReward.points_cost ? "แต้มไม่เพียงพอ" : "แลกรางวัล"}</button>
+          {confirmRewardOpen && !rewardRedeemed && <div className="customer-redeem-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-redeem-confirm-title"><button type="button" className="customer-redeem-confirm-backdrop" aria-label="ปิด" onClick={() => { if (!redeemBusy) setConfirmRewardOpen(false); }} /><section className="customer-redeem-confirm-card"><span className="customer-redeem-confirm-icon"><Gift size={25} /></span><h2 id="customer-redeem-confirm-title">ยืนยันแลกรางวัล</h2><p>ยืนยันใช้ <strong>{selectedReward.points_cost.toLocaleString("th-TH")} แต้ม</strong><br />เพื่อแลก {selectedReward.title}?</p><div className="customer-redeem-confirm-actions"><button type="button" disabled={redeemBusy} onClick={() => setConfirmRewardOpen(false)}>ยกเลิก</button><button type="button" disabled={redeemBusy || memberPoints < selectedReward.points_cost} onClick={() => void redeem("reward", selectedReward.id)}>{redeemBusy ? "กำลังตรวจสอบ…" : "ยืนยันแลกรางวัล"}</button></div></section></div>}
         </section> : tab === "home" ? <>
           <CustomerMemberCard name={isMember ? `คุณ${member!.name}` : previewName} level={member?.level || "Gold"} points={isMember ? memberPoints : 90} memberCode={member?.memberCode || "PREVIEW"} qr={previewQr} preview={!isMember} />
 
@@ -189,7 +196,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
             {news.length ? <CustomerNewsCarousel news={news} onSelect={setSelectedNews} /> : <div className="customer-home-empty-news"><PawPrint size={32} /><strong>ยังไม่มีข่าวสารจากร้าน</strong></div>}
           </section>
         </> : tab !== "account" ? <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
-          {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setSelectedReward(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
+          {tab === "rewards" && <><div className="customer-catalog-intro"><h1>ของรางวัล</h1><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => { setRedeemError(""); setRewardRedeemed(false); setConfirmRewardOpen(false); rewardRequestId.current = crypto.randomUUID(); setSelectedReward(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><h1>คูปอง</h1><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} code={item.code} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { setSelectedCoupon(item); setCouponUsed(false); }} /><div className="customer-coupon-ticket-footer"><strong className="customer-coupon-ticket-title">{item.title}</strong></div></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
           {tab === "lucky" && <div className="customer-lucky-placeholder"><div className="customer-lucky-art" aria-hidden="true"><Star className="lucky-star-one" /><Gift size={82} strokeWidth={1.2} /><PawPrint className="lucky-paw" /><Star className="lucky-star-two" /></div><h1>ลุ้นรางวัล</h1><span>เร็ว ๆ นี้</span><p>เตรียมพบกับกิจกรรมและของรางวัลพิเศษ<br />จาก Tammy Pet Shop</p></div>}
         </section> : null}

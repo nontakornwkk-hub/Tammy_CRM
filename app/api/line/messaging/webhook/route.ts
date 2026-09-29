@@ -4,10 +4,52 @@ import { noStore, serviceDb } from "@/lib/line/server";
 export const runtime = "nodejs";
 
 type LineEvent = {
-  type?: string; webhookEventId?: string;
+  type?: string; webhookEventId?: string; replyToken?: string;
   source?: { type?: string; userId?: string };
   message?: { id?: string; type?: string; text?: string };
+  postback?: { data?: string };
 };
+
+function isPointsRequest(event: LineEvent) {
+  if (event.type === "postback") return new URLSearchParams(event.postback?.data || "").get("action") === "check_points";
+  return event.type === "message" && event.message?.type === "text" &&
+    /^(เช็กแต้ม|เช็คแต้ม|ตรวจสอบแต้ม|เช็กคะแนน|เช็คคะแนน)$/u.test(event.message.text?.trim() || "");
+}
+
+async function replyPoints(db: NonNullable<ReturnType<typeof serviceDb>>, ownerId: string, subject: string, replyToken: string, accessToken: string) {
+  const link = await db.from("line_member_links").select("member_id")
+    .eq("owner_id", ownerId).eq("line_user_id", subject).maybeSingle();
+  if (link.error) throw link.error;
+  let message: Record<string, unknown> = { type: "text", text: "ไม่พบข้อมูลสมาชิก กรุณาเชื่อมบัญชีสมาชิกก่อน" };
+  if (link.data) {
+    const member = await db.from("members").select("name,points,level,status")
+      .eq("owner_id", ownerId).eq("id", link.data.member_id).maybeSingle();
+    if (member.error) throw member.error;
+    if (member.data?.status === "active") {
+      const points = Number(member.data.points || 0).toLocaleString("th-TH");
+      const name = String(member.data.name || "สมาชิก").trim().replace(/^คุณ\s*/u, "").slice(0, 80);
+      message = {
+        type: "flex", altText: `Tammy Petshop · คุณ ${name} · ${points} แต้ม`,
+        contents: { type: "bubble", size: "mega", styles: { body: { backgroundColor: "#FFF9F8" } }, body: {
+          type: "box", layout: "vertical", paddingAll: "24px", spacing: "lg", contents: [
+            { type: "text", text: "Tammy Petshop", weight: "bold", size: "xl", color: "#D94768" },
+            { type: "separator", color: "#F5DCE0" },
+            { type: "text", text: `คุณ ${name}`, weight: "bold", size: "lg", color: "#342A32", wrap: true },
+            { type: "box", layout: "horizontal", backgroundColor: "#FFE8ED", cornerRadius: "18px", paddingAll: "18px", contents: [
+              { type: "text", text: `⭐ ${points} แต้ม`, weight: "bold", size: "xxl", color: "#D94768", align: "center", wrap: true },
+            ] },
+          ],
+        } },
+      };
+    } else if (member.data) message = { type: "text", text: "บัญชีสมาชิกนี้ยังไม่พร้อมใช้งาน กรุณาติดต่อร้าน Tammy Petshop" };
+  }
+  const response = await fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ replyToken, messages: [message] }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) console.error("[line-webhook] points reply failed", { status: response.status });
+}
 
 function verified(raw: string, signature: string, secret: string) {
   const expected = createHmac("sha256", secret).update(raw, "utf8").digest();
@@ -34,6 +76,13 @@ export async function POST(request: Request) {
   for (const event of payload.events) {
     const subject = event.source?.type === "user" ? event.source.userId : null;
     if (!subject || !/^U[0-9a-f]{32}$/.test(subject)) continue;
+    if (event.type === "postback") {
+      if (isPointsRequest(event) && event.replyToken) {
+        try { await replyPoints(db, result.data.owner_id, subject, event.replyToken, result.data.access_token); }
+        catch (error) { console.error("[line-webhook] points lookup failed", error); return noStore({ error: "ตรวจสอบแต้มไม่สำเร็จ" }, 500); }
+      }
+      continue;
+    }
     if (event.type === "unfollow") {
       await db.from("line_conversations").update({ blocked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("owner_id", result.data.owner_id).eq("line_user_id", subject);
@@ -69,6 +118,10 @@ export async function POST(request: Request) {
     }
     if (name) await db.from("line_member_links").update({ line_display_name: name, line_picture_url: picture, profile_synced_at: new Date().toISOString() })
       .eq("owner_id", result.data.owner_id).eq("line_user_id", subject);
+    if (isPointsRequest(event) && event.replyToken) {
+      try { await replyPoints(db, result.data.owner_id, subject, event.replyToken, result.data.access_token); }
+      catch (error) { console.error("[line-webhook] points lookup failed", error); return noStore({ error: "ตรวจสอบแต้มไม่สำเร็จ" }, 500); }
+    }
   }
   return noStore({ ok: true });
 }

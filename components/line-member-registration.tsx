@@ -24,13 +24,13 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [liffUrl, setLiffUrl] = useState("");
+  const [connectRequested, setConnectRequested] = useState(false);
 
   useEffect(() => {
     if (preview) return;
     const query = new URLSearchParams(window.location.search);
-    const lineBrowser = /\bLine\/\d/i.test(navigator.userAgent);
-    const liffCallback = [...query.keys()].some(key => key.startsWith("liff.")) || query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
-    if (lineBrowser || liffCallback) setState("loading");
+    const liffCallback = query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
+    if (connectRequested || liffCallback) setState("loading");
     let active = true;
     void (async () => {
       try {
@@ -40,8 +40,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}`;
         setLiffUrl(canonicalUrl);
-        if (signedOut) { setState("login"); return; }
-        if (!lineBrowser && !liffCallback) { setState("entry"); return; }
+        if (signedOut && !connectRequested) { setState("login"); return; }
+        if (!connectRequested && !liffCallback) { setState("entry"); return; }
         const { default: liff } = await import("@line/liff");
         await Promise.race([
           liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: false }),
@@ -59,7 +59,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
         if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
         if (!liff.isLoggedIn()) {
-          setState("entry");
+          liff.login();
           return;
         }
         const token = liff.getIDToken();
@@ -83,7 +83,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       }
     })();
     return () => { active = false; };
-  }, [preview]);
+  }, [preview, connectRequested]);
 
   function loginWithLine() {
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
@@ -94,6 +94,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
 
   async function logout() {
     localStorage.setItem(signedOutKey, "1");
+    setConnectRequested(false);
     setMember(null); setIdToken(""); setAccessToken(""); setError("");
     setState("login");
     try { const { default: liff } = await import("@line/liff"); if (liff.isLoggedIn()) liff.logout(); } catch { /* The local signed-out choice still prevents automatic LINE login. */ }
@@ -129,7 +130,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       {(state === "entry" || state === "login" || state === "unavailable" || state === "loading") && <section className="line-entry-hero" role={state === "loading" ? "status" : undefined}>
         <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><Image src="/assets/tammy-member-entry-logo.png" width={240} height={240} alt="" priority /></div></div>
         <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเชื่อมต่อ LINE" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "เข้าสู่ระบบสมาชิก"}</h1><p>{state === "loading" ? "ตรวจสอบบัญชีของคุณสักครู่" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "สมาชิกใหม่จะกรอกข้อมูลสมัครหลังเชื่อม LINE"}</p></div>
-        {state === "loading" ? <div className="line-entry-line-button is-waiting" aria-hidden="true">กำลังเชื่อมต่ออย่างปลอดภัย…</div> : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { if (!liffUrl) { event.preventDefault(); return; } loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
+        {state === "loading" ? <div className="line-entry-line-button is-waiting" aria-hidden="true">กำลังเชื่อมต่อ LINE…</div> : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { if (!liffUrl) { event.preventDefault(); return; } loginWithLine(); if (/\bLine\/\d/i.test(navigator.userAgent)) { event.preventDefault(); setConnectRequested(true); } }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
         {error && state !== "unavailable" && <p className="line-entry-error" role="alert">{error}</p>}
       </section>}
       {state === "form" && <>

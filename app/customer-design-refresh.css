@@ -82,14 +82,25 @@
 .customer-news-track { position:relative; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-radius:19px; box-shadow:0 4px 14px #77542b10; }
 .customer-news-track::-webkit-scrollbar { display:none; }
 .customer-news-slide { flex:0 0 100%; min-width:0; padding:0; border:1px solid #f2e3d4; border-radius:19px; background:#fffefa; text-align:left; font:inherit; scroll-snap-align:start; overflow:hidden; cursor:pointer; color:var(--member-ink); }
-.customer-news-slide-picture { position:relative; aspect-ratio:2/1; background:#f6e5d6; display:grid; place-items:center; color:#d49d73; }
-.customer-news-slide-picture img { object-fit:cover; }
+.customer-news-slide-picture { position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; background:linear-gradient(145deg,#fff0e8,#f9dfe3); display:grid; place-items:center; color:#d49d73; }
+.customer-news-slide-picture img { object-fit:cover; object-position:center; }
 .customer-news-slide-copy { padding:12px 15px 14px; }
 .customer-news-slide-copy time { font-size:10px; color:#958678; }
 .customer-news-slide-copy h2 { font-size:17px; line-height:1.45; margin:4px 0; }
 .customer-news-slide-copy p { color:#827b75; font-size:12px; line-height:1.5; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .customer-news-slide-copy > span { margin-top:10px; display:flex; gap:3px; align-items:center; font-size:12px; color:#d46044; }
 .customer-news-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 3px 0; }
+.customer-redeem-confirm-dialog { position:fixed; z-index:100; inset:0; display:grid; place-items:center; padding:20px; }
+.customer-redeem-confirm-backdrop { position:absolute; inset:0; border:0; background:#1c243b99; }
+.customer-redeem-confirm-card { position:relative; width:min(100%,370px); display:grid; justify-items:center; gap:12px; padding:25px 22px 20px; border:1px solid #f4d8d4; border-radius:24px; background:#fffaf7; box-shadow:0 20px 55px #291a2038; text-align:center; }
+.customer-redeem-confirm-icon { width:52px; height:52px; display:grid; place-items:center; border-radius:17px; background:#ffebe6; color:#db684c; }
+.customer-redeem-confirm-card h2 { margin:0; color:#563629; font-size:21px; }
+.customer-redeem-confirm-card p { margin:0; color:#776b68; font-size:14px; line-height:1.7; }
+.customer-redeem-confirm-card p strong { color:#cf5748; }
+.customer-redeem-confirm-actions { width:100%; display:grid; grid-template-columns:1fr 1.35fr; gap:9px; margin-top:7px; }
+.customer-redeem-confirm-actions button { min-height:44px; padding:8px 10px; border:1px solid #ecd8ce; border-radius:13px; background:#fff; color:#795d51; font:inherit; font-size:13px; font-weight:750; cursor:pointer; }
+.customer-redeem-confirm-actions button:last-child { border-color:#db6548; background:linear-gradient(120deg,#f27c68,#db594a); color:#fff; box-shadow:0 5px 12px #db604533; }
+.customer-redeem-confirm-actions button:disabled { opacity:.6; cursor:wait; }
 .customer-news-controls > button { display:grid; place-items:center; width:34px; height:34px; border:1px solid #eedccc; border-radius:50%; background:#fffdfa; color:#997053; cursor:pointer; }
 .customer-news-dots { display:flex; flex-wrap:wrap; justify-content:center; max-width:75%; }
 .customer-news-dots button { position:relative; width:23px; height:30px; padding:0; background:none; border:0; cursor:pointer; }
