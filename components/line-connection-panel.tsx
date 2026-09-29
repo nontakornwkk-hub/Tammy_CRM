@@ -112,8 +112,8 @@ export function LineConnectionPanel() {
   const webhookUrl = `${publicBaseUrl}/api/line/messaging/webhook`;
   const membershipUrl = `${publicBaseUrl}/customer`;
   const adminLoginUrl = `${publicBaseUrl}/login`;
-  const memberLoginUrl = `${publicBaseUrl}/customer?screen=login`;
   const richMenuUrl = connection?.liffId ? `https://liff.line.me/${connection.liffId}` : "";
+  const memberLoginUrl = richMenuUrl || `${publicBaseUrl}/customer`;
   const publicUrl = publicBaseUrl.startsWith("https://") && !publicBaseUrl.includes("localhost");
   const hasSavedMessaging = Boolean(connection?.channelSecret && connection?.accessToken);
   return <div className="linev2-setup"><div className="linev2-setup-intro"><div><h2>การเชื่อมต่อ</h2></div><a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers <ExternalLink size={15} /></a></div>
