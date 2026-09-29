@@ -72,7 +72,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
   return (
     <aside className="sidebar sidebar-reference">
       <div className="brand">
-        <Image src={brand.logo || "/assets/tammy-logo-cat.png"} alt="โลโก้ร้าน" width={114} height={104} preload unoptimized={Boolean(brand.logo)} style={{ objectPosition: `${brand.x}% ${brand.y}%`, transform: `scale(${brand.zoom})` }} />
+        <Image src={brand.logo || "/assets/tammy-member-entry-logo.png"} alt="โลโก้ร้าน" width={114} height={104} preload unoptimized={Boolean(brand.logo)} style={{ objectPosition: `${brand.x}% ${brand.y}%`, transform: `scale(${brand.zoom})` }} />
         <div className="brand-name">{brand.name}</div>
         <div className="brand-subtitle">{brand.subtitle}</div>
       </div>
@@ -95,7 +95,7 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
 
       <div className="sidebar-art" aria-hidden="true">
         <p>เพราะทุกความสุข<br />เริ่มต้นที่น้องแมว 🐾</p>
-        <Image src="/assets/member-mascot-cat.png" alt="" width={188} height={224} loading="eager" />
+        <Image src="/assets/tammy-member-entry-logo.png" alt="" width={188} height={224} loading="eager" />
       </div>
 
       <div className="account-card">

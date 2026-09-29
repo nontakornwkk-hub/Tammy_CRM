@@ -261,7 +261,7 @@ export function PointsManager() {
               <div>
                 {loading ? <p className="rewards-gallery-empty">กำลังโหลดสมาชิก...</p> : !customers.length ? <p className="rewards-gallery-empty">ยังไม่มีสมาชิกที่ให้แต้มได้</p> : null}
                 {visible.map((customer) => <article key={customer.id} className={`customer-row${selectedId === customer.id ? " selected" : ""}`} role="button" tabIndex={0} aria-pressed={selectedId === customer.id} aria-label={`เลือก ${customer.name}${customer.nickname ? ` ชื่อที่จำ ${customer.nickname}` : ""}`} onClick={() => setSelectedId(customer.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(customer.id); } }}>
-                  <span className="customer-identity"><span className="pet-avatar">{linePictures[customer.id] ? <img src={linePictures[customer.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-logo-cat.png" alt="" width={44} height={44} />}</span><span className="customer-name">{customer.name}</span></span>
+                  <span className="customer-identity"><span className="pet-avatar">{linePictures[customer.id] ? <img src={linePictures[customer.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-member-entry-logo.png" alt="" width={44} height={44} />}</span><span className="customer-name">{customer.name}</span></span>
                   <strong className="customer-alias">{customer.nickname || "—"}</strong>
                   <span>{customer.phone}</span>
                   <span className={`member-badge ${levelClass[customer.level]}`}>{customer.level === "Gold" ? <Crown size={14} /> : <PawPrint size={14} />}{customer.level}</span>
@@ -277,7 +277,7 @@ export function PointsManager() {
             <section className="panel points-summary">
               <div className="step-heading"><span>2</span><h2>ให้แต้มและสรุป</h2></div>
               <div className="selected-customer">
-                <span className="pet-avatar large">{linePictures[selected.id] ? <img src={linePictures[selected.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-logo-cat.png" alt="" width={58} height={58} />}</span>
+                <span className="pet-avatar large">{linePictures[selected.id] ? <img src={linePictures[selected.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-member-entry-logo.png" alt="" width={58} height={58} />}</span>
                 <div><strong>{selected.name}</strong><small>{selected.nickname ? `${selected.nickname} · ` : ""}☎ {selected.phone}</small></div>
                 <span className={`member-badge ${levelClass[selected.level]}`}><Crown size={15} />{selected.level}</span>
               </div>
@@ -309,7 +309,7 @@ export function PointsManager() {
               <h2 id="confirm-points-title">ยืนยันการให้แต้ม?</h2>
               <p>กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนทำรายการ</p>
               <div className="confirm-customer">
-                <span className="pet-avatar"><Image src="/assets/tammy-logo-cat.png" alt="" width={44} height={44} /></span>
+                <span className="pet-avatar"><Image src="/assets/tammy-member-entry-logo.png" alt="" width={44} height={44} /></span>
                 <span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span>
               </div>
               <div className="confirm-summary">
@@ -334,7 +334,7 @@ export function PointsManager() {
               <span className="success-icon"><CheckCircle2 /></span>
               <h2 id="points-success-title">ให้แต้มสำเร็จ!</h2>
               <p>ระบบบันทึกรายการเรียบร้อยแล้ว</p>
-              <div className="success-customer"><span className="pet-avatar"><Image src="/assets/tammy-logo-cat.png" alt="" width={44} height={44} /></span><span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span></div>
+              <div className="success-customer"><span className="pet-avatar"><Image src="/assets/tammy-member-entry-logo.png" alt="" width={44} height={44} /></span><span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span></div>
               <div className="success-points"><span>ได้รับ</span><strong>+{successReceipt.earned} แต้ม</strong><small>แต้มคงเหลือใหม่ {successReceipt.total.toLocaleString()} แต้ม</small></div>
               <button className="success-done" type="button" onClick={() => setSuccessOpen(false)}>เสร็จสิ้น</button>
             </section>

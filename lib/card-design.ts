@@ -37,11 +37,11 @@ export function paletteFromTone(base: string) {
 }
 
 export const defaultCardMascots: CardMascot[] = [
-  { id: "Tammy Cat", name: "แทมมี่", image: "/assets/member-mascot-cat.png" },
-  { id: "Happy Dog", name: "น้องหมา", image: "/assets/member-mascot-dog.png" },
-  { id: "Taco Cat", name: "ทาโก้", image: "/assets/member-mascot-taco.png" },
-  { id: "Bunny", name: "กระต่าย", image: "/assets/member-mascot-bunny.png" },
-  { id: "Poodle", name: "พุดเดิล", image: "/assets/member-mascot-poodle.png" },
+  { id: "Tammy Cat", name: "แทมมี่", image: "/assets/tammy-member-entry-logo.png" },
+  { id: "Happy Dog", name: "น้องหมา", image: "/assets/tammy-member-entry-logo.png" },
+  { id: "Taco Cat", name: "ทาโก้", image: "/assets/tammy-member-entry-logo.png" },
+  { id: "Bunny", name: "กระต่าย", image: "/assets/tammy-member-entry-logo.png" },
+  { id: "Poodle", name: "พุดเดิล", image: "/assets/tammy-member-entry-logo.png" },
 ];
 
 export const defaultCardDesign: CardDesign = {
@@ -57,8 +57,8 @@ export function normalizeCardDesign(value: unknown): CardDesign {
   const source = value as Partial<CardDesign>;
   const themes = Array.isArray(source.themes) && source.themes.length ? source.themes.filter((item) => item && typeof item.id === "string" && typeof item.from === "string" && typeof item.to === "string") : defaultCardThemes;
   const mascots = Array.isArray(source.mascots) && source.mascots.length ? source.mascots.filter((item) => item && typeof item.id === "string" && typeof item.image === "string").map((item) => {
-    if (item.id === "Tammy Cat" && item.image === "/assets/tammy-sidebar-cat.png") return { ...item, name: "แทมมี่", image: "/assets/member-mascot-cat.png" };
-    if (item.id === "Mochi Cat" && item.image === "/assets/member-mascot-cat.png") return { ...item, id: "Taco Cat", name: "ทาโก้", image: "/assets/member-mascot-taco.png" };
+    if (item.id === "Tammy Cat" && item.image === "/assets/tammy-sidebar-cat.png") return { ...item, name: "แทมมี่", image: "/assets/tammy-member-entry-logo.png" };
+    if (item.id === "Mochi Cat" && item.image === "/assets/tammy-member-entry-logo.png") return { ...item, id: "Taco Cat", name: "ทาโก้", image: "/assets/tammy-member-entry-logo.png" };
     return item;
   }) : defaultCardMascots;
   const selectedMascot = source.selectedMascot === "Mochi Cat"
