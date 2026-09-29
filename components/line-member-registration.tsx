@@ -28,7 +28,6 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
   useEffect(() => {
     if (preview) return;
     const query = new URLSearchParams(window.location.search);
-    const requestedScreen = query.get("screen");
     const lineBrowser = /\bLine\/\d/i.test(navigator.userAgent);
     const liffCallback = [...query.keys()].some(key => key.startsWith("liff.")) || query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
     if (lineBrowser || liffCallback) setState("loading");
@@ -41,7 +40,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}`;
         setLiffUrl(canonicalUrl);
-        if (signedOut || requestedScreen === "login") { setState("login"); return; }
+        if (signedOut) { setState("login"); return; }
         if (!lineBrowser && !liffCallback) { setState("entry"); return; }
         const { default: liff } = await import("@line/liff");
         await Promise.race([
@@ -128,11 +127,10 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       <header className="line-entry-brand"><PawPrint size={34} fill="currentColor" /><div><strong>Tammy</strong><span>Pet Shop</span></div></header>
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {(state === "entry" || state === "login" || state === "unavailable" || state === "loading") && <section className="line-entry-hero" role={state === "loading" ? "status" : undefined}>
-        <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw first" size={29} fill="currentColor" /><PawPrint className="line-entry-orbit-paw second" size={22} fill="currentColor" /><span className="line-entry-orbit-spark">✦</span></div><div className="line-entry-logo"><Image src="/assets/tammy-member-entry-logo.png" width={240} height={240} alt="" priority /></div></div>
-        <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเชื่อมต่อ LINE" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "สมัครสมาชิก"}</h1><p>{state === "loading" ? "ตรวจสอบบัญชีของคุณสักครู่" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "เริ่มต้นเป็นสมาชิกกับแทมมี่"}</p></div>
-        {state === "loading" ? <div className="line-entry-line-button is-waiting" aria-hidden="true">กำลังเชื่อมต่ออย่างปลอดภัย…</div> : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>{state === "login" ? "เข้าสู่ระบบด้วย LINE" : "สมัครสมาชิกผ่าน LINE"}</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { if (!liffUrl) { event.preventDefault(); return; } loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "login" ? "เข้าสู่ระบบด้วย LINE" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "สมัครสมาชิกผ่าน LINE"}</a>}
+        <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><Image src="/assets/tammy-member-entry-logo.png" width={240} height={240} alt="" priority /></div></div>
+        <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเชื่อมต่อ LINE" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "เข้าสู่ระบบสมาชิก"}</h1><p>{state === "loading" ? "ตรวจสอบบัญชีของคุณสักครู่" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "สมาชิกใหม่จะกรอกข้อมูลสมัครหลังเชื่อม LINE"}</p></div>
+        {state === "loading" ? <div className="line-entry-line-button is-waiting" aria-hidden="true">กำลังเชื่อมต่ออย่างปลอดภัย…</div> : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { if (!liffUrl) { event.preventDefault(); return; } loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
         {error && state !== "unavailable" && <p className="line-entry-error" role="alert">{error}</p>}
-        {state === "entry" && <p className="line-entry-help">หากเปิดจาก Messenger แล้ว LINE ไม่ทำงาน ให้เปิดลิงก์นี้ใน Chrome หรือ Safari</p>}
       </section>}
       {state === "form" && <>
         <div className="line-entry-form-heading"><h1>ข้อมูลสมาชิก</h1><p>กรอกข้อมูลเพื่อเป็นสมาชิกกับแทมมี่</p></div>
