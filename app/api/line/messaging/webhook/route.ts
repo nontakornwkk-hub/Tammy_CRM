@@ -29,17 +29,28 @@ async function replyPoints(db: NonNullable<ReturnType<typeof serviceDb>>, ownerI
       const points = Number(member.data.points || 0).toLocaleString("th-TH");
       const name = String(member.data.name || "สมาชิก").trim().replace(/^คุณ\s*/u, "").slice(0, 80);
       message = {
-        type: "flex", altText: `Tammy Petshop · คุณ ${name} · ${points} แต้ม`,
-        contents: { type: "bubble", size: "mega", styles: { body: { backgroundColor: "#FFF9F8" } }, body: {
-          type: "box", layout: "vertical", paddingAll: "24px", spacing: "lg", contents: [
-            { type: "text", text: "Tammy Petshop", weight: "bold", size: "xl", color: "#D94768" },
-            { type: "separator", color: "#F5DCE0" },
-            { type: "text", text: `คุณ ${name}`, weight: "bold", size: "lg", color: "#342A32", wrap: true },
-            { type: "box", layout: "horizontal", backgroundColor: "#FFE8ED", cornerRadius: "18px", paddingAll: "18px", contents: [
-              { type: "text", text: `⭐ ${points} แต้ม`, weight: "bold", size: "xxl", color: "#D94768", align: "center", wrap: true },
-            ] },
-          ],
-        } },
+        type: "flex", altText: `Tammy Pet Shop · คุณ ${name} · ${points} แต้ม`,
+        contents: {
+          type: "bubble", size: "kilo",
+          header: {
+            type: "box", layout: "horizontal", justifyContent: "center", alignItems: "center",
+            backgroundColor: "#A9886D", paddingAll: "12px", spacing: "sm", contents: [
+              { type: "text", text: "Tammy Pet Shop", weight: "bold", size: "md", color: "#FFFFFF", flex: 0 },
+              { type: "text", text: "🐾", size: "sm", flex: 0 },
+            ],
+          },
+          body: {
+            type: "box", layout: "vertical", backgroundColor: "#FFFDF8",
+            paddingAll: "16px", spacing: "md", contents: [
+              { type: "separator", color: "#DCC8B2" },
+              { type: "text", text: `คุณ ${name}`, weight: "bold", size: "md", color: "#4A352B", align: "center", wrap: true },
+              { type: "box", layout: "vertical", backgroundColor: "#F4E8D9", cornerRadius: "20px", paddingAll: "12px", contents: [
+                { type: "text", text: `⭐ ${points} แต้ม`, weight: "bold", size: "xl", color: "#4A352B", align: "center", wrap: true },
+              ] },
+              { type: "text", text: "คะแนนสะสมของคุณ", size: "xs", color: "#907A6B", align: "center" },
+            ],
+          },
+        },
       };
     } else if (member.data) message = { type: "text", text: "บัญชีสมาชิกนี้ยังไม่พร้อมใช้งาน กรุณาติดต่อร้าน Tammy Petshop" };
   }
