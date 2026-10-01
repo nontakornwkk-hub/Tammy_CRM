@@ -24,9 +24,10 @@ export async function POST(request: Request) {
   if (rewardResult.error || couponResult.error || usedResult.error) return json({ error: "โหลดสิทธิพิเศษไม่สำเร็จ" }, 500);
   const now = Date.now();
   const usedCoupons = new Set((usedResult.data || []).map(item => item.coupon_id));
-  const claims = await db.from("member_coupon_claims").select("coupon_id,campaign_id,status").eq("owner_id", ownerId).eq("member_id", memberId);
+  const claims = await db.from("member_coupon_claims").select("coupon_id,campaign_id,status,activated_at,qr_expires_at").eq("owner_id", ownerId).eq("member_id", memberId);
   if (claims.error) return json({ error: "โหลดสิทธิ์คูปองไม่สำเร็จ" }, 500);
-  const targetedClaims = (claims.data || []).filter(item => item.status === "available" && item.campaign_id);
+  const exhaustedCoupons = new Set((claims.data || []).filter(item => item.activated_at && (!item.qr_expires_at || Date.parse(item.qr_expires_at) <= now)).map(item => item.coupon_id));
+  const targetedClaims = (claims.data || []).filter(item => item.status === "available" && !exhaustedCoupons.has(item.coupon_id) && item.campaign_id);
   const campaigns = targetedClaims.length ? await db.from("line_coupon_campaigns").select("id,status").in("id", targetedClaims.map(item => item.campaign_id!)) : null;
   if (campaigns?.error) return json({ error: "โหลดสิทธิ์คูปองไม่สำเร็จ" }, 500);
   const sentCampaigns = new Set((campaigns?.data || []).filter(item => item.status === "sent").map(item => item.id));
@@ -34,6 +35,6 @@ export async function POST(request: Request) {
   const withinDates = (item: { starts_at: string | null; ends_at: string | null }) => (!item.starts_at || Date.parse(item.starts_at) <= now) && (!item.ends_at || Date.parse(item.ends_at) >= now);
   return json({
     rewards: (rewardResult.data || []).filter(item => withinDates(item) && (item.stock === null || item.stock > 0)),
-    coupons: (couponResult.data || []).filter(item => withinDates(item) && !usedCoupons.has(item.id) && (item.audience_mode === "public" || grantedCoupons.has(item.id)) && (item.usage_limit === null || item.used_count < item.usage_limit)),
+    coupons: (couponResult.data || []).filter(item => withinDates(item) && !usedCoupons.has(item.id) && !exhaustedCoupons.has(item.id) && (item.audience_mode === "public" || grantedCoupons.has(item.id)) && (item.usage_limit === null || item.used_count < item.usage_limit)),
   });
 }

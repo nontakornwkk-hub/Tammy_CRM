@@ -259,11 +259,18 @@ export function RewardsGallery() {
     finally { setSaving(false); }
   }
   async function remove() {
-    if (!supabase || !editing?.id || !window.confirm(`ลบ "${editing.title}" ใช่ไหม?`)) return;
+    if (!supabase || !editing?.id || !window.confirm(editing.kind === "coupons"
+      ? `ลบคูปอง "${editing.title}" ออกจากรายการใช่ไหม? ประวัติการใช้ที่เกิดขึ้นแล้วจะยังอยู่`
+      : `ลบ "${editing.title}" ใช่ไหม?`)) return;
     setSaving(true); setError("");
-    const { error: deleteError } = await supabase.from(editing.kind).delete().eq("id", editing.id);
+    const ownerId = crmOwnerId();
+    if (!ownerId) { setSaving(false); setError("ยังไม่พบสิทธิ์ของร้าน"); return; }
+    const { error: deleteError } = editing.kind === "coupons"
+      ? await supabase.from("coupons").update({ active: false, archived_at: new Date().toISOString() })
+          .eq("owner_id", ownerId).eq("id", editing.id).is("archived_at", null).select("id").single()
+      : await supabase.from(editing.kind).delete().eq("owner_id", ownerId).eq("id", editing.id);
     setSaving(false);
-    if (deleteError) { setError(deleteError.message); return; }
+    if (deleteError) { setError(deleteError.code === "23503" ? "รายการนี้มีประวัติการใช้งานอยู่ จึงลบถาวรไม่ได้" : deleteError.message); return; }
     try { await refreshPublishedPopupContent(); } catch { setError("ลบรายการแล้ว แต่ปรับ Popup ไม่สำเร็จ กรุณาบันทึกหน้าตั้งค่า Popup อีกครั้ง"); }
     clearCachedData("rewards");
     clearNewsPreviews(); setNewsImages([]); setEditing(null); await load(true);

@@ -88,7 +88,9 @@ export async function fetchRewardsData(ownerId: string) {
   const db = client();
   const tables = ["rewards", "coupons", "news"] as const;
   const results = await Promise.all(tables.map(async (table) => {
-    const result = await db.from(table).select("*").eq("owner_id", ownerId).order("created_at", { ascending: false }).order("id", { ascending: true });
+    const query = db.from(table).select("*").eq("owner_id", ownerId);
+    const result = await (table === "coupons" ? query.is("archived_at", null) : query)
+      .order("created_at", { ascending: false }).order("id", { ascending: true });
     if (result.error) throw result.error;
     return { table, rows: result.data ?? [] };
   }));

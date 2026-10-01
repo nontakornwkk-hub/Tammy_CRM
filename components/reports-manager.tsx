@@ -7,6 +7,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { ReportMonthPicker } from "./report-month-picker";
 import { supabase } from "@/lib/supabase/client";
 import { cachedData, crmOwnerId, fetchReportsData, loadCachedData } from "@/lib/supabase/crm-data";
+import { CouponUsagePanel } from "./coupon-usage-panel";
 
 type Member = { id:string; name:string; member_code:string; level:string; created_at:string; last_visit:string|null };
 type Transaction = { id:string; member_id:string; sale_amount:number; points_delta:number; created_at:string; transaction_type:string };
@@ -167,6 +168,7 @@ export function ReportsManager() {
           const before=report.previous[i],now=report.current[i];
           return <article key={label}><Icon size={26}/><div><span>{label}</span><strong>{i===0?"฿":""}{number(now)}{i===1||i===3?" คน":""}</strong><small className={before>now?"down":""}>{percentLabel(now,before,compareName)}</small><span className="report-sr">{unit}</span></div></article>;
         })}</div>
+        <CouponUsagePanel start={range.start} end={range.end} reload={reload} />
         <section className="panel report-chart"><div className="report-section-head"><div><h2>แนวโน้มรายวัน</h2><p>{dateLabel(range.start)} – {dateLabel(range.end)}</p></div><div className="report-segment"><button aria-pressed={metric==="sales"} onClick={()=>{setMetric("sales");setHover(null);}}>ยอดซื้อ</button><button aria-pressed={metric==="points"} onClick={()=>{setMetric("points");setHover(null);}}>แต้มที่ให้</button></div></div>
           <div className="report-chart-value" aria-live="polite">{point?dateLabel(point.day):"เลือกจุดบนกราฟเพื่อดูรายละเอียด"}<strong>{point?(metric==="sales"?"฿":"")+number(point[metric])+(metric==="points"?" แต้ม":""):" "}</strong></div>
           {pointBefore!==null?<p className="report-point-compare">{percentLabel(point?.[metric]??0,pointBefore,compareName)}</p>:null}

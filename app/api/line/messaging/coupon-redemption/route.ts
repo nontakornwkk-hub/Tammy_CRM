@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if (input.action === "inspect") return noStore({ claim: { status: claim.data.status, member: member.data, coupon: coupon.data } });
   const result = await db.rpc("redeem_member_coupon_qr", { p_owner_id: ownerId, p_token: token });
   if (result.error) {
-    const errors: Record<string, string> = { ALREADY_USED: "คูปองนี้ใช้ไปแล้ว", QR_EXPIRED: "QR คูปองหมดเวลาแล้ว ให้ลูกค้าเปิด QR ใหม่", ITEM_UNAVAILABLE: "คูปองหมดอายุหรือปิดใช้งาน", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว", MEMBER_NOT_FOUND: "สมาชิกไม่พร้อมใช้งาน" };
+    const errors: Record<string, string> = { ALREADY_USED: "คูปองนี้ใช้ไปแล้ว", QR_EXPIRED: "QR คูปองหมดเวลาแล้ว ไม่สามารถเปิดใหม่ได้", ITEM_UNAVAILABLE: "คูปองหมดอายุหรือปิดใช้งาน", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว", MEMBER_NOT_FOUND: "สมาชิกไม่พร้อมใช้งาน" };
     return noStore({ error: errors[result.error.message] || "ใช้สิทธิ์ไม่สำเร็จ" }, errors[result.error.message] ? 409 : 500);
   }
   return noStore({ success: true, member: member.data, coupon: coupon.data });

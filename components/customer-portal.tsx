@@ -64,6 +64,9 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   const [couponQrExpiresAt, setCouponQrExpiresAt] = useState("");
   const [couponNow, setCouponNow] = useState(Date.now());
   const [couponQrBusy, setCouponQrBusy] = useState(false);
+  const [usedCouponTitle, setUsedCouponTitle] = useState("");
+  const [couponStatusError, setCouponStatusError] = useState("");
+  const [couponToWatch, setCouponToWatch] = useState<{ id: string; title: string; expiresAt: string } | null>(null);
   const [rewardRedeemed, setRewardRedeemed] = useState(false);
   const [memberPoints, setMemberPoints] = useState(Number(member?.points || 0));
   const [redeemBusy, setRedeemBusy] = useState(false);
@@ -97,8 +100,56 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   }
 
   function openCoupon(item: Coupon) {
-    setSelectedCoupon(item); setCouponQr(""); setCouponQrExpiresAt(""); setRedeemError("");
+    setSelectedCoupon(item); setCouponQr(""); setCouponQrExpiresAt(""); setRedeemError(""); setCouponStatusError("");
   }
+
+  useEffect(() => {
+    if (!isMember || !couponToWatch) return;
+    const coupon = couponToWatch;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    let pending = false;
+    let finished = false;
+    async function checkStatus() {
+      if (pending || finished || controller.signal.aborted) return;
+      clearTimeout(timer);
+      if (document.visibilityState === "hidden") return;
+      pending = true;
+      let delay = 1500;
+      try {
+        const response = await fetch("/api/line/member/coupon-qr", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", idToken, accessToken, couponId: coupon.id }),
+          cache: "no-store", signal: controller.signal,
+        });
+        const result = await response.json() as { used?: boolean };
+        if (!response.ok) throw new Error("ตรวจสถานะไม่สำเร็จ");
+        if (controller.signal.aborted) return;
+        setCouponStatusError("");
+        if (result.used) {
+          finished = true;
+          setCoupons(items => items.filter(item => item.id !== coupon.id));
+          setSelectedCoupon(null); setCouponQr(""); setCouponQrExpiresAt("");
+          setCouponToWatch(null);
+          setUsedCouponTitle(coupon.title);
+        } else if (Date.parse(coupon.expiresAt) <= Date.now()) {
+          finished = true;
+          setCouponToWatch(null);
+        }
+      } catch {
+        if (!controller.signal.aborted) setCouponStatusError("กำลังเชื่อมต่อเพื่อตรวจสถานะอีกครั้ง…");
+        delay = 5000;
+      } finally {
+        pending = false;
+        if (!finished && !controller.signal.aborted) timer = setTimeout(() => void checkStatus(), delay);
+      }
+    }
+    const resume = () => { if (document.visibilityState === "visible") void checkStatus(); };
+    void checkStatus();
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => { controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
+  }, [isMember, couponToWatch, idToken, accessToken]);
 
   async function activateCoupon() {
     if (!selectedCoupon) return;
@@ -110,6 +161,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       if (!response.ok || !data.qrPayload) throw new Error(data.error || "เปิด QR ไม่สำเร็จ");
       setCouponQr(await QRCode.toDataURL(data.qrPayload, { width: 240, margin: 2, errorCorrectionLevel: "M" }));
       setCouponQrExpiresAt(data.expiresAt || ""); setCouponNow(Date.now());
+      if (data.expiresAt) setCouponToWatch({ id: selectedCoupon.id, title: selectedCoupon.title, expiresAt: data.expiresAt });
     } catch (cause) { setRedeemError(cause instanceof Error ? cause.message : "เปิด QR ไม่สำเร็จ"); }
     finally { setCouponQrBusy(false); }
   }
@@ -244,7 +296,9 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
         <section className="customer-home-catalog customer-account-mounted" aria-label="ข้อมูลของฉัน" style={{ display: tab === "account" && !selectedReward ? undefined : "none" }}><CustomerAccount preview={!isMember} member={member} idToken={idToken} accessToken={accessToken} onLogout={onLogout} onMemberUpdated={onMemberUpdated} /></section>
       </div>
 
+      {couponStatusError && selectedCoupon && <p className="customer-coupon-status-notice" role="status">{couponStatusError}</p>}
+      {usedCouponTitle && <div className="customer-coupon-use-dialog" role="dialog" aria-modal="true" aria-labelledby="coupon-used-title"><button type="button" className="customer-coupon-use-backdrop" aria-label="ปิด" onClick={() => setUsedCouponTitle("")} /><section className="customer-coupon-used"><span className="customer-coupon-use-icon"><Check size={32} /></span><h2 id="coupon-used-title">ใช้คูปองสำเร็จแล้ว</h2><p role="status">ร้านยืนยันใช้สิทธิ์ของคุณเรียบร้อยแล้ว</p><strong>{usedCouponTitle}</strong><button className="customer-coupon-copy-button" type="button" autoFocus onClick={() => setUsedCouponTitle("")}>เรียบร้อย</button></section></div>}
       {!selectedReward && <nav className="customer-nav customer-home-nav" aria-label="เมนูหลัก">{navigation.map(({ id, label, icon: Icon }) => <button type="button" className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "instant" }); }} key={id}><span className="customer-home-nav-icon"><Icon size={23} strokeWidth={2} /></span><span>{label}</span></button>)}</nav>}
-      {selectedCoupon ? <div className="customer-coupon-use-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-coupon-use-title"><button type="button" className="customer-coupon-use-backdrop" onClick={() => setSelectedCoupon(null)} aria-label="ปิดหน้าคูปอง"/><section><button type="button" className="customer-coupon-use-close" onClick={() => setSelectedCoupon(null)} aria-label="ปิด"><X size={19}/></button><span className="customer-coupon-use-icon"><TicketPercent size={27}/></span><p>คูปองเฉพาะของคุณ</p><h2 id="customer-coupon-use-title">{selectedCoupon.title}</h2><strong className="customer-coupon-use-value">{selectedCoupon.discount_type === "percent" ? `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")}%` : `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")} บาท`}</strong>{!couponQr ? <><div className="customer-coupon-terms"><strong>เงื่อนไขก่อนใช้สิทธิ์</strong><ul>{selectedCoupon.description ? <li>{selectedCoupon.description}</li> : null}<li>{selectedCoupon.min_spend > 0 ? `ใช้เมื่อซื้อครบ ${Number(selectedCoupon.min_spend).toLocaleString("th-TH")} บาท` : "ไม่มีขั้นต่ำ"}</li><li>ใช้ได้ 1 ครั้งต่อสมาชิก และให้พนักงานสแกน QR เพื่อยืนยันที่หน้าร้าน</li>{selectedCoupon.ends_at ? <li>คูปองใช้ได้ถึง {new Date(selectedCoupon.ends_at).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" })}</li> : null}<li>QR ใช้ได้ {selectedCoupon.qr_valid_minutes || 15} นาทีหลังยืนยัน หากหมดเวลาสามารถเปิดใหม่ได้ตราบใดที่คูปองยังไม่ถูกใช้</li></ul></div>{redeemError ? <p role="alert" className="line-signup-error">{redeemError}</p> : null}<button className="customer-coupon-copy-button" type="button" disabled={couponQrBusy} onClick={() => void activateCoupon()}>{couponQrBusy ? "กำลังเตรียม QR…" : "ยืนยันใช้คูปอง"}</button></> : couponSecondsLeft > 0 ? <><div className="customer-coupon-personal-qr"><Image src={couponQr} alt="QR คูปองส่วนตัวสำหรับให้พนักงานสแกน" width={224} height={224} unoptimized /><small>ให้พนักงานสแกนและยืนยันใช้สิทธิ์ที่หน้าร้าน</small></div><div className="customer-coupon-countdown" role="timer">QR ใช้ได้อีก <strong>{String(Math.floor(couponSecondsLeft / 60)).padStart(2, "0")}:{String(couponSecondsLeft % 60).padStart(2, "0")}</strong> นาที</div></> : <><div className="customer-coupon-expired">QR หมดเวลาแล้ว หากยังไม่ได้ใช้สิทธิ์สามารถยืนยันเพื่อเปิด QR ใหม่</div><button className="customer-coupon-copy-button" type="button" onClick={() => { setCouponQr(""); setCouponQrExpiresAt(""); }}>ดูเงื่อนไขและเปิดใหม่</button></>}</section></div> : null}</main>
+      {selectedCoupon ? <div className="customer-coupon-use-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-coupon-use-title"><button type="button" className="customer-coupon-use-backdrop" onClick={() => setSelectedCoupon(null)} aria-label="ปิดหน้าคูปอง"/><section><button type="button" className="customer-coupon-use-close" onClick={() => setSelectedCoupon(null)} aria-label="ปิด"><X size={19}/></button><span className="customer-coupon-use-icon"><TicketPercent size={27}/></span><p>คูปองเฉพาะของคุณ</p><h2 id="customer-coupon-use-title">{selectedCoupon.title}</h2><strong className="customer-coupon-use-value">{selectedCoupon.discount_type === "percent" ? `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")}%` : `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")} บาท`}</strong>{!couponQr ? <><div className="customer-coupon-terms"><strong>เงื่อนไขก่อนใช้สิทธิ์</strong><ul>{selectedCoupon.description ? <li>{selectedCoupon.description}</li> : null}<li>{selectedCoupon.min_spend > 0 ? `ใช้เมื่อซื้อครบ ${Number(selectedCoupon.min_spend).toLocaleString("th-TH")} บาท` : "ไม่มีขั้นต่ำ"}</li><li>ใช้ได้ 1 ครั้งต่อสมาชิก และให้พนักงานสแกน QR เพื่อยืนยันที่หน้าร้าน</li>{selectedCoupon.ends_at ? <li>คูปองใช้ได้ถึง {new Date(selectedCoupon.ends_at).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" })}</li> : null}<li>QR ใช้ได้ {selectedCoupon.qr_valid_minutes || 15} นาทีหลังยืนยัน เมื่อหมดเวลา QR จะปิดและไม่สามารถเปิดใหม่ได้ กรุณาใช้สิทธิ์ภายในเวลาที่กำหนด</li></ul></div>{redeemError ? <p role="alert" className="line-signup-error">{redeemError}</p> : null}<button className="customer-coupon-copy-button" type="button" disabled={couponQrBusy} onClick={() => void activateCoupon()}>{couponQrBusy ? "กำลังเตรียม QR…" : "ยืนยันใช้คูปอง"}</button></> : couponSecondsLeft > 0 ? <><div className="customer-coupon-personal-qr"><Image src={couponQr} alt="QR คูปองส่วนตัวสำหรับให้พนักงานสแกน" width={224} height={224} unoptimized /><small>ให้พนักงานสแกนและยืนยันใช้สิทธิ์ที่หน้าร้าน</small></div><div className="customer-coupon-countdown" role="timer">QR ใช้ได้อีก <strong>{String(Math.floor(couponSecondsLeft / 60)).padStart(2, "0")}:{String(couponSecondsLeft % 60).padStart(2, "0")}</strong> นาที</div></> : <div className="customer-coupon-expired" role="status">QR หมดเวลาแล้ว สิทธิ์นี้ไม่สามารถเปิดใหม่ได้</div>}</section></div> : null}</main>
   );
 }

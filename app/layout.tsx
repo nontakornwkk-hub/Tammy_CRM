@@ -30,6 +30,7 @@ import "./reward-redemption-dock.css";
 import "./line-member-transfer.css";
 import "./customer-test-mode.css";
 import "./customer-account-polish.css";
+import "./coupon-analytics.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {
