@@ -1,0 +1,69 @@
+/* Keep report calendars above the animated report panels. */
+.reports-page .page-header { position: relative; z-index: 30; }
+.reports-page .report-controls { position: relative; z-index: 31; }
+.reports-page .date-range-panel { z-index: 40; }
+
+/* Legible point policy and promotion controls at desktop and phone widths. */
+.points-settings-grid .settings-card h2 { font-size: 22px; line-height: 1.35; }
+.points-settings-grid .card-heading p,
+.points-settings-grid .settings-card p,
+.points-settings-grid .points-policy-switch,
+.points-settings-grid .points-expiry-row label,
+.points-settings-grid .promotion-name-field,
+.points-settings-grid .promotion-editor-grid > label,
+.points-settings-grid .promotion-editor-grid > .promotion-range { font-size: 15px !important; line-height: 1.55; color: #344b68 !important; }
+.points-settings-grid .points-expiry-row p,
+.points-settings-grid .welcome-bonus-note,
+.points-settings-grid .rank-card-note { font-size: 14px !important; line-height: 1.55; color: #425c78 !important; }
+.points-settings-grid .promotion-row-copy strong { font-size: 16px; line-height: 1.35; }
+.points-settings-grid .promotion-row-copy small { font-size: 14px; line-height: 1.4; color: #4a617d; }
+.points-settings-grid .promotion-row-copy strong,
+.points-settings-grid .promotion-row-copy small { white-space: normal; overflow: visible; text-overflow: clip; }
+.points-settings-grid .promotion-row-state { font-size: 13px; }
+.points-settings-grid .promotion-edit-title small,
+.points-settings-grid .promotion-preview-head,
+.points-settings-grid .promotion-type-options button small { font-size: 14px; color: #465d79; }
+.points-settings-grid .promotion-type-options button strong { font-size: 15px; }
+.points-settings-grid .promotion-display-copy strong { font-size: clamp(16px, 1.5vw, 20px); white-space: normal; }
+.points-settings-grid .promotion-display-copy small { font-size: 14px; white-space: normal; opacity: 1; }
+.points-settings-grid .promotion-manage-select .promotion-display,
+.points-settings-grid .promotion-edit-panel > .promotion-display { aspect-ratio: auto; min-height: 94px !important; }
+.points-settings-grid .promotion-display-reference { background-size: auto 430%; background-position-x: left; }
+.points-settings-grid .promotion-display-reference.promotion-pattern-0 { background-position-y: 15%; }
+.points-settings-grid .promotion-display-reference.promotion-pattern-1 { background-position-y: 51%; }
+.points-settings-grid .promotion-display-reference.promotion-pattern-2 { background-position-y: 87%; }
+.points-settings-grid .promotion-display-copy-overprint { inset-inline-start: 32%; width: 66%; }
+.points-settings-grid .promotion-display-copy-overprint strong,
+.points-settings-grid .promotion-display:not(.promotion-display-reference) .promotion-display-copy strong { font-size: clamp(15px, 2.8cqw, 19px); line-height: 1.3; }
+.points-settings-grid .promotion-display-copy-overprint small,
+.points-settings-grid .promotion-display:not(.promotion-display-reference) .promotion-display-copy small { font-size: clamp(13px, 2.4cqw, 15px); line-height: 1.35; }
+.points-settings-grid .promotion-display:not(.promotion-display-reference) .promotion-display-copy { max-width: 72%; }
+
+.points-settings-grid .points-expiry-row { align-items: start; }
+.points-settings-grid .points-select-wrap { position: relative; display: block; }
+.points-settings-grid .points-select-wrap select { appearance: none; width: 100%; min-height: 48px; padding: 9px 42px 9px 14px; border: 1.5px solid #a9c4e4; border-radius: 12px; background: #fff; color: #17395e; font-size: 15px; font-weight: 700; cursor: pointer; }
+.points-settings-grid .points-select-wrap select:focus-visible { outline: 3px solid #b9dbff; outline-offset: 2px; }
+.points-settings-grid .points-select-wrap svg { position: absolute; right: 14px; top: 50%; translate: 0 -50%; color: #4679af; pointer-events: none; }
+.points-settings-grid .points-reset-date { display: grid; gap: 9px; padding: 13px; border: 1px solid #cfe3fa; border-radius: 13px; background: #eef7ff; }
+.points-settings-grid .points-reset-date > span { color: #294b70; font-size: 15px; font-weight: 700; }
+.points-settings-grid .points-reset-date > div { display: grid; grid-template-columns: minmax(88px, .55fr) minmax(145px, 1.45fr); gap: 8px; }
+.points-settings-grid .points-reset-date p { padding: 0; margin: 0; background: transparent; }
+
+.app-shell .rank-tier-card { padding: 18px; }
+.app-shell .rank-tier-card > strong { font-size: 18px; line-height: 1.35; }
+.app-shell .rank-tier-card > div.rank-rate-fields,
+.app-shell .rank-tier-card > div.rank-extra-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.app-shell .rank-tier-card label { font-size: 14px; font-weight: 700; line-height: 1.4; color: inherit; }
+.app-shell .rank-tier-card input { min-height: 46px; border-color: currentColor; color: #172648; font-size: 18px; }
+.app-shell .rank-tier-card.member { border-color: #3185d1; background: #d9edff; color: #154d7d; }
+.app-shell .rank-tier-card.silver { border-color: #69798e; background: #e5eaf0; color: #2b3b50; }
+.app-shell .rank-tier-card.gold { border-color: #bd8715; background: #fff0b0; color: #684600; }
+.app-shell .rank-tier-card.platinum { border-color: #7845bd; background: #ead7ff; color: #4a2481; }
+@media (max-width: 520px) {
+  .reports-page .date-range-panel { left: 0; right: auto; width: min(340px, calc(100vw - 36px)); }
+  .app-shell .rank-tier-card > div.rank-rate-fields,
+  .app-shell .rank-tier-card > div.rank-extra-fields { grid-template-columns: 1fr 1fr; gap: 9px; }
+  .points-settings-grid .promotion-manage-row { align-items: flex-start; }
+  .points-settings-grid .promotion-manage-select .promotion-display { min-height: 88px !important; }
+  .points-settings-grid .promotion-display-copy-overprint { inset-inline-start: 32%; width: 66%; }
+}

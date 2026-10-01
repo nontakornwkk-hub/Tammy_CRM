@@ -1,0 +1,30 @@
+.customer-catalog-refresh .customer-reward-actions{justify-content:flex-end;padding-top:3px}
+.customer-catalog-refresh .customer-reward-actions .customer-reward-horizontal-link{font-size:11px;color:#98705c}
+.customer-catalog-refresh .customer-reward-horizontal.is-interactive{cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}
+.customer-catalog-refresh .customer-reward-horizontal.is-interactive:hover{transform:translateY(-2px);box-shadow:0 8px 22px #73533816}
+.customer-catalog-refresh .customer-reward-horizontal.is-interactive:active{transform:scale(.99)}
+.customer-reward-detail-page{padding-bottom:155px}
+.customer-reward-detail-page>p{margin:12px 0 0}
+.customer-reward-point-story{display:flex;align-items:stretch;gap:5px;margin:22px 0;padding:12px 10px;border:1px solid #eedbc6;border-radius:19px;background:#fffaf3;box-shadow:0 5px 16px #8c604812}
+.customer-reward-point-story>div{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 2px;border-radius:13px;background:#fff;color:#755e51;text-align:center}
+.customer-reward-point-story>div:first-child{background:#fff0e4}
+.customer-reward-point-story>div.customer-reward-point-story-result{background:#e9f5e9;color:#326b51}
+.customer-reward-point-story span:not(.customer-reward-point-story-symbol){font-size:10px;line-height:1.3}
+.customer-reward-point-story strong{font-size:21px;line-height:1.1;color:#4d352a;font-variant-numeric:tabular-nums}
+.customer-reward-point-story-result strong{color:#26734c}
+.customer-reward-point-story small{font-size:10px}
+.customer-reward-point-story-symbol{align-self:center;color:#b89d88;font-size:18px;font-weight:700}
+.customer-reward-point-story.is-complete>div{width:100%;padding:14px}
+.customer-redeem-confirm-balance{display:flex;justify-content:space-between;gap:10px;width:100%;padding:11px 13px;border:1px dashed #e7bda5;border-radius:12px;background:#fff5ea;color:#806455;font-size:12px}
+.customer-redeem-confirm-balance strong{color:#bc6044}
+.customer-reward-redeem-dock{position:fixed;z-index:25;left:50%;bottom:0;width:min(520px,100%);transform:translateX(-50%);padding:0 12px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,#fffaf1 18%);filter:drop-shadow(0 -6px 18px #5e3e2516)}
+.customer-reward-redeem-dock-inner{padding:12px;border:1px solid #efdac5;border-radius:19px;background:#fffdfa}
+.customer-reward-redeem-dock-caption{display:flex;align-items:center;gap:7px;margin:1px 2px 9px;color:#8d644d;font-size:11px}
+.customer-reward-redeem-dock-caption svg{color:#e07b5d}
+.customer-reward-redeem-dock-caption strong{margin-left:auto;color:#cc5f45;font-size:13px;white-space:nowrap}
+.customer-reward-redeem-dock .customer-reward-detail-submit{min-height:49px;border-radius:13px;background:#e86f55;box-shadow:0 5px 0 #be533e;color:#fff;font-size:15px;transition:transform .15s ease,box-shadow .15s ease}
+.customer-reward-redeem-dock .customer-reward-detail-submit:not(:disabled):active{transform:translateY(3px);box-shadow:0 2px 0 #be533e}
+.customer-reward-redeem-dock .customer-reward-detail-submit:disabled{background:#d8cbc0;box-shadow:none;opacity:1}
+.customer-reward-redeem-dock .customer-reward-detail-submit:focus-visible,.customer-reward-actions button:focus-visible{outline:3px solid #245f9d;outline-offset:3px}
+@media(max-width:380px){.customer-reward-point-story{gap:3px;padding:8px 6px}.customer-reward-point-story strong{font-size:18px}.customer-reward-point-story span:not(.customer-reward-point-story-symbol){font-size:9px}}
+@media(prefers-reduced-motion:reduce){.customer-catalog-refresh .customer-reward-horizontal.is-interactive,.customer-reward-redeem-dock .customer-reward-detail-submit{transition:none}}

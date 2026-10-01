@@ -1,0 +1,17 @@
+.customer-account .customer-account-card:has(.customer-account-form) { background:linear-gradient(160deg,#fffdfa,#fff8f1); border-color:#f0dbc9; box-shadow:0 10px 28px #8c614017; }
+.customer-account .customer-account-form { display:grid; gap:14px; padding-top:7px; }
+.customer-account .customer-account-form > label,.customer-account .customer-account-form-row label { display:grid; gap:6px; color:#674d3e; font-size:12px; font-weight:700; }
+.customer-account .customer-account-form input,.customer-account .customer-account-form select { width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid #e9d9cb; border-radius:12px; background:#fff; color:#3e322d; font:inherit; font-size:14px; outline:none; box-shadow:0 1px 2px #69503a0a; }
+.customer-account .customer-account-form input:focus,.customer-account .customer-account-form select:focus { border-color:#e88b67; box-shadow:0 0 0 3px #e88b6724; }
+.customer-account .customer-account-form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.customer-account .customer-account-form label > small { color:#9b8577; font-size:10px; font-weight:400; line-height:1.5; }
+.customer-birthday-field { min-width:0; margin:0; padding:11px 12px 13px; border:1px solid #f0ded0; border-radius:15px; background:#fff7ef; }
+.customer-birthday-field legend { padding:0 5px; color:#674d3e; font-size:12px; font-weight:800; }
+.customer-birthday-field legend span { margin-left:5px; color:#a48a78; font-size:10px; font-weight:400; }
+.customer-birthday-inputs { display:grid; grid-template-columns:.8fr 1.5fr 1fr; gap:8px; }
+.customer-birthday-inputs label { display:grid; gap:5px; color:#927866; font-size:10px; font-weight:700; }
+.customer-account .customer-birthday-inputs select { padding:8px 7px; font-size:12px; }
+.customer-account .customer-account-save { min-height:46px; border-radius:13px; background:linear-gradient(130deg,#ed8963,#e66a54); box-shadow:0 6px 14px #d26b4933; font-weight:800; }
+@media(max-width:380px){.customer-account .customer-account-form-row{grid-template-columns:1fr}.customer-birthday-inputs{gap:5px}.customer-birthday-field{padding-inline:9px}}
+.customer-reward-success{display:flex;align-items:center;gap:12px;margin:0 0 15px;padding:13px 15px;border:1px solid #b8e5cb;border-radius:16px;background:linear-gradient(115deg,#e5f8ec,#f7fff8);color:#176d42;box-shadow:0 8px 19px #319c5820;animation:customer-form-reveal .25s ease-out}.customer-reward-success>span{flex:none;display:grid;place-items:center;width:43px;height:43px;border-radius:50%;background:#28a565;color:white}.customer-reward-success>div{display:grid;gap:2px}.customer-reward-success strong{font-size:15px}.customer-reward-success small{font-size:11px;color:#438261}
+.customer-reward-stock{display:inline-flex;align-self:start;margin:3px 0 2px;padding:3px 8px;border-radius:99px;background:#eaf5e8;color:#367547;font-size:10px;font-weight:750}.customer-reward-detail-stock{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:7px 11px;border:1px solid #d9ead0;border-radius:99px;background:#eff8eb;color:#3d7848;font-size:12px;font-weight:750}

@@ -1,11 +1,20 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { verifyMemberIdentity } from "./verify-member-identity";
+import { testAdminContext, testMemberMarker } from "./test-member-session";
 
 type Session = { db: SupabaseClient; ownerId: string; memberId: string };
 type Failure = { error: string; status: number };
 
 export async function verifiedMemberSession(input: { idToken?: string; accessToken?: string }): Promise<Session | Failure> {
+  if (input.accessToken?.startsWith("test:")) {
+    const test = await testAdminContext(input.accessToken.slice(5));
+    if (!test) return { error: "โหมดทดสอบไม่พร้อมใช้งานหรือเซสชันแอดมินหมดอายุ", status: 403 };
+    const member = await test.db.from("members").select("id").eq("owner_id", test.ownerId)
+      .eq("notes", testMemberMarker).eq("status", "active").maybeSingle();
+    if (!member.data) return { error: "ไม่พบสมาชิกทดสอบ กรุณาเปิดหน้าทดสอบใหม่", status: 404 };
+    return { db: test.db, ownerId: test.ownerId, memberId: member.data.id };
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !secret) return { error: "ระบบสมาชิกยังตั้งค่าเซิร์ฟเวอร์ไม่ครบ", status: 503 };

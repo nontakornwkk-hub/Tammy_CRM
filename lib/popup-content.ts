@@ -1,4 +1,5 @@
 import { supabase } from "./supabase/client";
+import { crmOwnerId } from "./supabase/crm-data";
 
 export type PopupSource = "news" | "coupons";
 export type PopupContent = { id: string; source: PopupSource; active: boolean };
@@ -14,6 +15,28 @@ export type PopupCatalogRow = {
 };
 export type PopupCatalog = { news: PopupCatalogRow[]; coupons: PopupCatalogRow[] };
 export const defaultPopupContent: PopupContent[] = [];
+let popupCatalogCache: PopupCatalog | null = null;
+let popupCatalogUpdatedAt = 0;
+let popupCatalogRequest: Promise<PopupCatalog> | null = null;
+let popupCatalogRequestOwner = "";
+let popupCatalogOwner = "";
+
+export function peekPopupCatalog(): PopupCatalog | null {
+  if (typeof window === "undefined") return null;
+  const owner = crmOwnerId();
+  if (!owner) return null;
+  if (popupCatalogOwner !== owner) { popupCatalogOwner = owner; popupCatalogCache = null; popupCatalogUpdatedAt = 0; }
+  if (popupCatalogCache) return popupCatalogCache;
+  try {
+    const saved = window.sessionStorage.getItem(`tammy-popup-catalog:${owner}`);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as { value: PopupCatalog; at: number };
+    if (!Array.isArray(parsed.value?.news) || !Array.isArray(parsed.value?.coupons)) return null;
+    popupCatalogCache = parsed.value;
+    popupCatalogUpdatedAt = parsed.at;
+    return popupCatalogCache;
+  } catch { return null; }
+}
 
 export function normalizePopupDisplay(value: unknown): PopupDisplay[] {
   if (!Array.isArray(value)) return [];
@@ -67,14 +90,31 @@ export function formatCurrentPopupPeriod(start: string | null, end: string | nul
   return formatPopupDateRange(start, end);
 }
 
-export async function loadPopupCatalog(): Promise<PopupCatalog> {
+export async function loadPopupCatalog(force = false): Promise<PopupCatalog> {
   if (!supabase) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
-  const [news, coupons] = await Promise.all([
-    supabase.from("news").select("id,title,summary,content,category,image_url,image_urls,status,created_at,starts_at,expires_at").eq("status", "published"),
-    supabase.from("coupons").select("id,title,description,image_url,active,discount_type,discount_value,min_spend,starts_at,ends_at,created_at").eq("active", true),
-  ]);
-  if (news.error || coupons.error) throw news.error || coupons.error;
-  return { news: news.data || [], coupons: coupons.data || [] };
+  const owner = crmOwnerId();
+  if (owner) peekPopupCatalog();
+  if (!force && popupCatalogCache && Date.now() - popupCatalogUpdatedAt < 60_000) return popupCatalogCache;
+  if (popupCatalogRequest && popupCatalogRequestOwner === owner) return popupCatalogRequest;
+  const request = (async () => {
+    const [news, coupons] = await Promise.all([
+      supabase.from("news").select("id,title,summary,content,category,image_url,image_urls,status,created_at,starts_at,expires_at").eq("status", "published"),
+      supabase.from("coupons").select("id,title,description,image_url,active,discount_type,discount_value,min_spend,starts_at,ends_at,created_at").eq("active", true),
+    ]);
+    if (news.error || coupons.error) throw news.error || coupons.error;
+    const value = { news: news.data || [], coupons: coupons.data || [] };
+    if (owner !== crmOwnerId()) return value;
+    popupCatalogCache = value;
+    popupCatalogUpdatedAt = Date.now();
+    if (owner && typeof window !== "undefined") {
+      try { window.sessionStorage.setItem(`tammy-popup-catalog:${owner}`, JSON.stringify({ value: popupCatalogCache, at: popupCatalogUpdatedAt })); } catch { /* Storage may be unavailable. */ }
+    }
+    return popupCatalogCache;
+  })();
+  popupCatalogRequest = request;
+  popupCatalogRequestOwner = owner || "";
+  void request.then(() => { if (popupCatalogRequest === request) popupCatalogRequest = null; }, () => { if (popupCatalogRequest === request) popupCatalogRequest = null; });
+  return request;
 }
 
 export async function refreshPublishedPopupContent(): Promise<void> {

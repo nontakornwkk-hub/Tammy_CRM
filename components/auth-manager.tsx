@@ -47,7 +47,7 @@ export function AuthManager() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) { setMessage("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); return; }
-    router.replace(destination()); router.refresh();
+    router.replace(destination());
   }
 
   async function signInWithGoogle() {

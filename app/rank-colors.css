@@ -1,0 +1,43 @@
+/* Clear rank colors within the original card and badge shapes. */
+.app-shell .member-badge.member,
+.app-shell .member-card-rank.rank-member { border: 1px solid #4da2ff; background: #dceeff; color: #174c78; }
+.app-shell .member-badge.silver,
+.app-shell .member-card-rank.rank-silver { border: 1px solid #8b99aa; background: #e9edf2; color: #39495d; }
+.app-shell .member-badge.gold,
+.app-shell .member-card-rank.rank-gold { border: 1px solid #dbab24; background: #fff1ac; color: #6a4600; }
+.app-shell .member-badge.platinum,
+.app-shell .member-card-rank.rank-platinum { border: 1px solid #8256cb; background: #e9ccff; color: #4b2688; }
+.app-shell .member-level-filter button.rank-filter-member.active { border-color: #4da2ff; background: #dceeff; color: #174c78; }
+.app-shell .member-level-filter button.rank-filter-silver.active { border-color: #8b99aa; background: #e9edf2; color: #39495d; }
+.app-shell .member-level-filter button.rank-filter-gold.active { border-color: #dbab24; background: #fff1ac; color: #6a4600; }
+.app-shell .member-level-filter button.rank-filter-platinum.active { border-color: #8256cb; background: #e9ccff; color: #4b2688; }
+.app-shell .rank-tier-card.member { border-color: #4da2ff; background: #dceeff; color: #174c78; }
+.app-shell .rank-tier-card.silver { border-color: #8b99aa; background: #e9edf2; color: #39495d; }
+.app-shell .rank-tier-card.gold { border-color: #dbab24; background: #fff1ac; color: #6a4600; }
+.app-shell .rank-tier-card.platinum { border-color: #8256cb; background: #e9ccff; color: #4b2688; }
+.app-shell .rank-tier-card > span { color: inherit; }
+
+.reference-member-card.rank-member { border-color: #e5d6c6; background-image: url("/assets/membership-gold-cat.png"); background-color: #fff3d1; }
+.reference-member-card.rank-silver { border-color: #8b99aa; background-image: linear-gradient(#e9edf2b8, #e9edf2b8), url("/assets/membership-gold-cat.png"); background-color: #e9edf2; }
+.reference-member-card.rank-gold { border-color: #dbab24; }
+.reference-member-card.rank-platinum { border-color: #8256cb; background-image: linear-gradient(#e9ccffb0, #e9ccffb0), url("/assets/membership-gold-cat.png"); background-color: #e9ccff; }
+.reference-card-rank.rank-member { background: #dceeff; color: #174c78; }
+.reference-card-rank.rank-silver { background: #e9edf2; color: #39495d; }
+.reference-card-rank.rank-gold { background: #fff1ac; color: #6a4600; }
+.reference-card-rank.rank-platinum { background: #e9ccff; color: #4b2688; }
+.reference-card-rank.rank-member svg,
+.reference-card-rank.rank-silver svg,
+.reference-card-rank.rank-gold svg,
+.reference-card-rank.rank-platinum svg { color: currentColor; fill: none; }
+.reference-member-card.rank-member .reference-card-progress > i > span { background: #4da2ff; }
+.reference-member-card.rank-silver .reference-card-progress > i > span { background: #8b99aa; }
+.reference-member-card.rank-gold .reference-card-progress > i > span { background: #dbab24; }
+.reference-member-card.rank-platinum .reference-card-progress > i > span { background: #8256cb; }
+.reference-member-card.rank-member .reference-card-balance strong { color: #174c78; }
+.reference-member-card.rank-silver .reference-card-balance strong { color: #39495d; }
+.reference-member-card.rank-gold .reference-card-balance strong { color: #8a5a00; }
+.reference-member-card.rank-platinum .reference-card-balance strong { color: #4b2688; }
+.customer-card-back.rank-member { border-color: #e5d6c6; background: #dceeff; color: #174c78; }
+.customer-card-back.rank-silver { border-color: #8b99aa; background: #e9edf2; color: #39495d; }
+.customer-card-back.rank-gold { border-color: #dbab24; background: #fff1ac; color: #6a4600; }
+.customer-card-back.rank-platinum { border-color: #8256cb; background: #e9ccff; color: #4b2688; }

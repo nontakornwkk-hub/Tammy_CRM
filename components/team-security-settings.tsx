@@ -4,7 +4,8 @@ import { Check, KeyRound, LockKeyhole, LogOut, Mail, MonitorSmartphone, Plus, Re
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { googleProviderEnabled } from "@/lib/supabase/google-provider";
-import { crmOwnerId } from "@/lib/supabase/crm-data";
+import { crmOwnerId, verifiedCrmUser } from "@/lib/supabase/crm-data";
+import { cachedAdminExtras } from "@/lib/supabase/admin-preload";
 
 type TeamAccount = { id: string; name: string; email: string; role: "manager" | "staff"; active: boolean; user_id: string | null };
 type DeviceSession = { id: string; created_at: string; last_seen_at: string; user_agent: string | null; ip: string | null; is_current: boolean };
@@ -30,6 +31,7 @@ const permissionRows = [
 ] as const;
 
 export function TeamSecuritySettings({ ownerMode }: { ownerMode: boolean }) {
+  const preloaded = cachedAdminExtras(verifiedCrmUser() || "", crmOwnerId() || "");
   const [email, setEmail] = useState("");
   const [lastSignIn, setLastSignIn] = useState<string | null>(null);
   const [googleLinked, setGoogleLinked] = useState(false);
@@ -37,13 +39,13 @@ export function TeamSecuritySettings({ ownerMode }: { ownerMode: boolean }) {
   const [busy, setBusy] = useState<"password" | "sessions" | "logout" | "google" | "">("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [sessions, setSessions] = useState<DeviceSession[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessions, setSessions] = useState<DeviceSession[]>(() => preloaded?.sessions as DeviceSession[] ?? []);
+  const [sessionsLoading, setSessionsLoading] = useState(() => !preloaded?.sessions);
   const [sessionBusy, setSessionBusy] = useState("");
   const [sessionError, setSessionError] = useState("");
-  const [team, setTeam] = useState<TeamAccount[]>([]);
-  const [teamLoading, setTeamLoading] = useState(true);
-  const [teamReady, setTeamReady] = useState(false);
+  const [team, setTeam] = useState<TeamAccount[]>(() => ownerMode ? preloaded?.team as TeamAccount[] ?? [] : []);
+  const [teamLoading, setTeamLoading] = useState(() => ownerMode && !preloaded?.team);
+  const [teamReady, setTeamReady] = useState(() => ownerMode && Boolean(preloaded?.team));
   const [teamBusy, setTeamBusy] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<TeamAccount["role"]>("staff");

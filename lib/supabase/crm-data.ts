@@ -1,4 +1,4 @@
-import type { MemberRow } from "@/lib/database.types";
+import type { MemberRow, MemberTagDefinition } from "@/lib/database.types";
 import { supabase } from "./client";
 
 type CacheEntry = { value: unknown; updatedAt: number };
@@ -62,20 +62,21 @@ function client() {
 
 export async function fetchMembersData(ownerId: string) {
   const db = client();
-  const [members, pets] = await Promise.all([
-    db.from("members").select("*").eq("owner_id", ownerId).order("member_code"),
+  const [members, pets, tags] = await Promise.all([
+    db.from("members").select("*").eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
     db.from("pets").select("member_id,name,species,breed,sex,birth_date").eq("owner_id", ownerId).order("created_at"),
+    db.from("member_tag_definitions").select("*").eq("owner_id", ownerId).order("created_at"),
   ]);
-  if (members.error || pets.error) throw members.error ?? pets.error;
-  return { members: members.data as MemberRow[], pets: pets.data ?? [] };
+  if (members.error || pets.error || tags.error) throw members.error ?? pets.error ?? tags.error;
+  return { members: members.data as MemberRow[], pets: pets.data ?? [], tags: (tags.data ?? []) as MemberTagDefinition[] };
 }
 
 export async function fetchPointsData(ownerId: string) {
   const db = client();
   const year = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric" }).format(new Date()));
   const [members, transactions, settings, birthdays] = await Promise.all([
-    db.from("members").select("id,member_code,name,phone,level,points,spending,birth_date,created_at").eq("owner_id", ownerId).order("member_code"),
-    db.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(100),
+    db.from("members").select("*").eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
+    db.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").eq("owner_id", ownerId).eq("transaction_type", "earn").gt("points_delta", 0).order("created_at", { ascending: false }).limit(100),
     db.from("store_settings").select("extra,points_spend,points_earned").eq("owner_id", ownerId).maybeSingle(),
     db.from("points_transactions").select("member_id,birthday_bonus_year").eq("owner_id", ownerId).eq("birthday_bonus_year", year),
   ]);
@@ -113,7 +114,7 @@ export async function fetchReportsData(ownerId: string) {
   return { members, transactions };
 }
 
-export function prefetchCrmPage(path: string) {
+export function prefetchCrmPage(path: string): Promise<unknown> | undefined {
   if (!supabase || !verifiedOwnerId || !verifiedRole) return;
   if (verifiedRole === "staff" && path !== "/points") return;
   const ownerId = verifiedOwnerId;
@@ -123,5 +124,10 @@ export function prefetchCrmPage(path: string) {
     "/rewards": () => loadCachedData(ownerId, "rewards", () => fetchRewardsData(ownerId)),
     "/reports": () => loadCachedData(ownerId, "reports", () => fetchReportsData(ownerId)),
   };
-  void queries[path]?.().catch(() => undefined);
+  return queries[path]?.().catch(() => undefined);
+}
+
+export async function prefetchCrmPages() {
+  const paths = verifiedRole === "staff" ? ["/points"] : ["/points", "/members", "/rewards", "/reports"];
+  await Promise.all(paths.map((path) => prefetchCrmPage(path)));
 }

@@ -1,0 +1,67 @@
+.coupon-ticket {
+  --ticket:#ffe1d5;
+  --ticket-dark:#db725b;
+  --ticket-ink:#7b3d30;
+  --ticket-number:#9d3e2c;
+  --ticket-stub:#fffaf5;
+  display:grid;
+  grid-template-columns:minmax(0,59%) minmax(0,41%);
+  min-height:174px;
+  border:1.5px solid var(--ticket-dark);
+  border-radius:19px;
+  background:var(--ticket-stub);
+  box-shadow:0 7px 19px #85543817;
+}
+.coupon-ticket--honey{--ticket:#fff0b8;--ticket-dark:#cd9221;--ticket-ink:#6b4715;--ticket-number:#66400d;--ticket-stub:#fffaf0}
+.coupon-ticket--rose{--ticket:#ffe0e5;--ticket-dark:#d56979;--ticket-ink:#763746;--ticket-number:#983b50;--ticket-stub:#fff9f8}
+.coupon-ticket:before,.coupon-ticket:after{display:none}
+.coupon-ticket-main{
+  justify-content:space-between;
+  gap:10px;
+  padding:15px 14px 20px;
+  border-radius:17px 0 0 17px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--ticket) 76%,white),var(--ticket));
+  color:var(--ticket-ink);
+}
+.coupon-ticket-main:before{background:radial-gradient(circle at 10% 95%,#fff9 0,transparent 48%)}
+.coupon-ticket-top{position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:5px 8px;width:100%}
+.coupon-ticket-kicker{gap:4px;min-height:23px;padding:2px 8px;background:var(--ticket-dark);color:#fff;font-size:10px;letter-spacing:.01em}
+.coupon-ticket-member{color:var(--ticket-ink);font-size:10px;font-weight:750;opacity:.85}
+.coupon-ticket-value{margin:2px 0 0;gap:3px;text-shadow:none}
+.coupon-ticket-value>span{font-size:19px;color:var(--ticket-ink)}
+.coupon-ticket-value>b{font-size:clamp(40px,5vw,57px);font-weight:950;letter-spacing:-.055em;color:var(--ticket-number)}
+.coupon-ticket-value>small{font-size:20px;color:var(--ticket-ink)}
+.coupon-ticket-min{margin:0 0 2px;font-size:11px;line-height:1.35;white-space:normal;color:var(--ticket-ink)}
+.coupon-ticket-dots{left:14px;right:38px;bottom:11px;height:3px;background:radial-gradient(circle,color-mix(in srgb,var(--ticket-dark) 48%,white) 1.3px,transparent 1.6px) left center/9px 3px repeat-x}
+.coupon-ticket-paw{right:12px;bottom:7px;color:var(--ticket-dark);opacity:.5}
+.coupon-ticket-stub{
+  justify-content:center;
+  gap:5px;
+  padding:13px 10px;
+  border-left:1.5px dashed var(--ticket-dark);
+  border-radius:0 17px 17px 0;
+  background:linear-gradient(160deg,#fff,var(--ticket-stub));
+}
+.coupon-ticket-stub:before,.coupon-ticket-stub:after{left:-10px;width:17px;height:17px;border:1.5px solid var(--ticket-dark)}
+.coupon-ticket-stub:before{top:-10px}.coupon-ticket-stub:after{bottom:-10px}
+.coupon-ticket-stub-title{color:#836a60;font-size:10px;font-weight:750}
+.coupon-ticket-remaining{color:var(--ticket-number);font-size:clamp(15px,1.5vw,20px);font-weight:900;line-height:1.25;white-space:nowrap}
+.coupon-ticket-expiry{min-height:24px;color:#786f6c;font-size:10px;line-height:1.25}
+.coupon-ticket-action{min-height:32px;margin-top:4px;border-radius:10px;background:var(--ticket-dark);color:#fff;font-size:11px;box-shadow:0 3px 8px #8d523122}
+.coupon-ticket--honey .coupon-ticket-action{color:#fff}
+.customer-coupon-ticket{padding:7px;border-color:#f0e3d9;border-radius:21px;box-shadow:0 5px 16px #80604412}
+.customer-coupon-ticket .coupon-ticket{min-height:166px}
+.customer-coupon-ticket .coupon-ticket-main{padding:14px 11px 19px}
+.customer-coupon-ticket .coupon-ticket-value>b{font-size:clamp(39px,11vw,53px)}
+.customer-coupon-ticket .coupon-ticket-value>span,.customer-coupon-ticket .coupon-ticket-value>small{font-size:19px}
+.customer-coupon-ticket-footer{padding:9px 5px 3px}
+.customer-coupon-ticket-title{color:#59453a;font-size:13px;line-height:1.4}
+@media(max-width:390px){
+  .coupon-ticket{grid-template-columns:minmax(0,57%) minmax(0,43%)}
+  .coupon-ticket-main{padding-inline:10px}
+  .coupon-ticket-stub{padding-inline:8px}
+  .coupon-ticket-value>b{font-size:39px}
+  .coupon-ticket-value>span,.coupon-ticket-value>small{font-size:18px}
+  .coupon-ticket-member{font-size:9px}
+  .coupon-ticket-remaining{font-size:15px}
+}

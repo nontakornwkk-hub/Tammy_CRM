@@ -1,5 +1,5 @@
-import { RewardsManager } from "@/components/rewards-manager";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <RewardsManager />;
+  redirect("/points");
 }

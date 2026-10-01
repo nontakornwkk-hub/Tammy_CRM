@@ -1,5 +1,5 @@
-import { LineMemberRegistration } from "@/components/line-member-registration";
+import { CustomerEntry } from "@/components/customer-entry";
 
 export default function CustomerPage() {
-  return <LineMemberRegistration preview={false} />;
+  return <CustomerEntry />;
 }

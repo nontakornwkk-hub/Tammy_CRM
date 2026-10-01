@@ -26,11 +26,17 @@ import { Sidebar } from "./sidebar";
 import { DateRangePicker } from "./date-range-picker";
 import { PromotionDisplay } from "./promotion-display";
 import { MemberQrScanner } from "./member-qr-scanner";
+import { CouponQrScanner } from "./coupon-qr-scanner";
+import { normalizeCouponScan, normalizeMemberScan } from "@/lib/member-code";
 
 type MemberLevel = "Platinum" | "Gold" | "Silver" | "Member";
 type Customer = {
   id: string;
   memberCode: string;
+  previousMemberCode: string;
+  legacyMemberCode: string;
+  formerMemberCode: string;
+  memberNumber: number;
   name: string;
   nickname: string;
   phone: string;
@@ -61,7 +67,7 @@ function loadMemberAliases(): Record<string, string> {
 
 function toCustomers(rows: PointsData["members"]): Customer[] {
   const aliases = loadMemberAliases();
-  return rows.map((m) => ({ id: m.id, memberCode: m.member_code || "", name: m.name, nickname: aliases[m.id] || "", phone: m.phone || "-", level: m.level as MemberLevel, points: Number(m.points) || 0, spending: Number(m.spending) || 0, birthDate: m.birth_date || "", createdAt: m.created_at || "", pinned: false }));
+  return rows.map((m) => ({ id: m.id, memberCode: m.member_code || "", previousMemberCode: m.previous_member_code || "", legacyMemberCode: m.legacy_member_code || "", formerMemberCode: m.former_member_code || "", memberNumber: Number(m.member_number) || Number.MAX_SAFE_INTEGER, name: m.name, nickname: aliases[m.id] || "", phone: m.phone || "-", level: m.level as MemberLevel, points: Number(m.points) || 0, spending: Number(m.spending) || 0, birthDate: m.birth_date || "", createdAt: m.created_at || "", pinned: false })).sort((a, b) => a.memberNumber - b.memberNumber || a.createdAt.localeCompare(b.createdAt));
 }
 
 export function PointsManager() {
@@ -73,10 +79,12 @@ export function PointsManager() {
   const [transactions, setTransactions] = useState<PointTransaction[]>(() => cachedData<PointsData>("points")?.transactions ?? []);
   const [birthdayClaims, setBirthdayClaims] = useState<Set<string>>(() => new Set(cachedData<PointsData>("points")?.birthdays.map((row) => row.member_id) ?? []));
   const [loading, setLoading] = useState(() => !cachedData<PointsData>("points"));
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [couponScanQr, setCouponScanQr] = useState("");
   const [scannerError, setScannerError] = useState("");
   const [scannedId, setScannedId] = useState("");
   const [linePictures, setLinePictures] = useState<Record<string, string>>({});
@@ -92,11 +100,11 @@ export function PointsManager() {
   const [dailyError, setDailyError] = useState("");
   const [dailyRefresh, setDailyRefresh] = useState(0);
   const [systemSettings, setSystemSettings] = useState(defaultSettings);
-  const selected = customers.find((customer) => customer.id === selectedId) ?? customers[0] ?? { id: "", memberCode: "", name: "ยังไม่ได้เลือกลูกค้า", nickname: "", phone: "-", level: "Member" as const, points: 0, spending: 0, birthDate: "", createdAt: "", pinned: false };
+  const selected = customers.find((customer) => customer.id === selectedId) ?? customers[0] ?? { id: "", memberCode: "", previousMemberCode: "", legacyMemberCode: "", formerMemberCode: "", memberNumber: Number.MAX_SAFE_INTEGER, name: "ยังไม่ได้เลือกลูกค้า", nickname: "", phone: "-", level: "Member" as const, points: 0, spending: 0, birthDate: "", createdAt: "", pinned: false };
   const sale = Number(saleInput) || 0;
-  const pointRate = selected.level === "Platinum" ? systemSettings.platinumBahtPerPoint : selected.level === "Gold" ? systemSettings.goldBahtPerPoint : systemSettings.pointsSpend;
-  const pointUnit = selected.level === "Gold" || selected.level === "Platinum" ? 1 : systemSettings.pointsEarned;
-  const award = calculateAward(sale, pointRate, pointUnit, systemSettings.promotions, undefined, selected.createdAt, selected.birthDate, birthdayClaims.has(selected.id));
+  const pointRate = selected.level === "Platinum" ? systemSettings.platinumBahtPerPoint : selected.level === "Gold" ? systemSettings.goldBahtPerPoint : selected.level === "Silver" ? systemSettings.silverBahtPerPoint : systemSettings.pointsSpend;
+  const pointUnit = 1;
+  const award = calculateAward(sale, pointRate, 1, systemSettings.promotions, undefined, selected.createdAt, selected.birthDate, birthdayClaims.has(selected.id));
   const upgradeBonus = selected.level === "Platinum" ? 0 : selected.level === "Gold" ? (selected.spending + sale >= systemSettings.platinumMinSpend ? systemSettings.platinumUpgradeBonus : 0) : (selected.spending + sale >= systemSettings.goldMinSpend ? systemSettings.goldUpgradeBonus : 0) + (selected.spending + sale >= systemSettings.platinumMinSpend ? systemSettings.platinumUpgradeBonus : 0);
   const earned = systemSettings.accumulationEnabled ? award.total + upgradeBonus : 0;
 
@@ -108,9 +116,9 @@ export function PointsManager() {
   }, []);
 
   useEffect(() => { void (async () => {
+    if (loadAttempt) setLoading(true);
+    setError("");
     if (!supabase) { setError("ยังไม่ได้ตั้งค่า Supabase"); setLoading(false); return; }
-    const { data: auth, error: authError } = await supabase.auth.getUser();
-    if (authError || !auth.user) { setError("กรุณาเข้าสู่ระบบก่อนให้แต้ม"); setLoading(false); return; }
     try {
     const ownerId = crmOwnerId();
     if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
@@ -119,11 +127,15 @@ export function PointsManager() {
     if (extra?.points_policy_version === 1) setSystemSettings((current) => ({
       ...current,
       pointsSpend: Number(result.settings?.points_spend) || current.pointsSpend,
-      pointsEarned: Number(result.settings?.points_earned) || current.pointsEarned,
+      pointsEarned: 1,
+      silverBahtPerPoint: Number(extra.silver_baht_per_point) || Number(result.settings?.points_spend) || current.pointsSpend,
+      silverPointsEarned: 1,
       goldMinSpend: Number(extra.gold_min_spend) || current.goldMinSpend,
       platinumMinSpend: Number(extra.platinum_min_spend) || current.platinumMinSpend,
       goldBahtPerPoint: Number(extra.gold_baht_per_point) || current.goldBahtPerPoint,
+      goldPointsEarned: 1,
       platinumBahtPerPoint: Number(extra.platinum_baht_per_point) || current.platinumBahtPerPoint,
+      platinumPointsEarned: 1,
       goldUpgradeBonus: Number.isInteger(extra.gold_upgrade_bonus) ? Number(extra.gold_upgrade_bonus) : current.goldUpgradeBonus,
       platinumUpgradeBonus: Number.isInteger(extra.platinum_upgrade_bonus) ? Number(extra.platinum_upgrade_bonus) : current.platinumUpgradeBonus,
       promotions: Array.isArray(extra.promotions) ? extra.promotions as typeof current.promotions : current.promotions,
@@ -134,6 +146,7 @@ export function PointsManager() {
     setSelectedId((current) => current || mapped[0]?.id || "");
     setTransactions(result.transactions);
     setBirthdayClaims(new Set(result.birthdays.map((row) => row.member_id)));
+    setLoading(false);
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
@@ -147,7 +160,7 @@ export function PointsManager() {
     } catch { /* Member data remains usable when LINE profiles are unavailable. */ }
     } catch (error) { setError(error instanceof Error ? error.message : "โหลดข้อมูลไม่สำเร็จ"); }
     setLoading(false);
-  })(); }, []);
+  })(); }, [loadAttempt]);
 
   useEffect(() => {
     if (!historyDate || !supabase) return;
@@ -166,6 +179,8 @@ export function PointsManager() {
           const { data, error: queryError } = await supabase!.from("points_transactions")
             .select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note")
             .eq("owner_id", ownerId)
+            .eq("transaction_type", "earn")
+            .gt("points_delta", 0)
             .gte("created_at", start.toISOString())
             .lt("created_at", end.toISOString())
             .order("created_at", { ascending: false })
@@ -184,7 +199,7 @@ export function PointsManager() {
     return () => { active = false; };
   }, [historyDate, dailyRefresh]);
 
-  const shownTransactions = historyDate ? dailyTransactions : transactions.slice(0, 5);
+  const shownTransactions = (historyDate ? dailyTransactions : transactions).filter((row) => row.transaction_type === "earn" && row.points_delta > 0).slice(0, 5);
 
   const visible = useMemo(() => customers.filter((customer) => {
     if (scannedId && customer.id !== scannedId) return false;
@@ -194,8 +209,8 @@ export function PointsManager() {
   }), [customers, filter, query, scannedId]);
 
   function selectByCode(rawCode: string) {
-    const code = rawCode.trim().replace(/^TAMMY-MEMBER:/i, "").trim().toUpperCase();
-    const match = customers.find((customer) => customer.memberCode.toUpperCase() === code);
+    const code = normalizeMemberScan(rawCode);
+    const match = customers.find((customer) => customer.memberCode.toUpperCase() === code || customer.previousMemberCode.toUpperCase() === code || customer.legacyMemberCode.toUpperCase() === code || customer.formerMemberCode.toUpperCase() === code);
     if (!match) { setScannerError("ไม่พบรหัสสมาชิกนี้ในร้าน กรุณาตรวจ QR หรือรหัสบนบัตร"); return false; }
     setSelectedId(match.id);
     setScannedId(match.id);
@@ -207,6 +222,12 @@ export function PointsManager() {
     return true;
   }
 
+  function routeScan(rawCode: string) {
+    const couponQr = normalizeCouponScan(rawCode);
+    if (couponQr) { setScannerOpen(false); setCouponScanQr(couponQr); setScannerError(""); return true; }
+    return selectByCode(rawCode);
+  }
+
   async function confirmPoints() {
     if (submitting || !supabase || !selected || sale <= 0 || earned <= 0 || !systemSettings.accumulationEnabled) return;
     setSubmitting(true); setError("");
@@ -215,7 +236,7 @@ export function PointsManager() {
       if (awardError) throw awardError;
       if (!data?.id) throw new Error("ฐานข้อมูลไม่ยืนยันรายการให้แต้ม");
       const total = Number(data.points);
-      const recent = await supabase.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").order("created_at", { ascending: false }).limit(100);
+      const recent = await supabase.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").eq("owner_id", crmOwnerId() || "").eq("transaction_type", "earn").gt("points_delta", 0).order("created_at", { ascending: false }).limit(100);
       if (!recent.error) setTransactions(recent.data || []);
       if (historyDate) setDailyRefresh((current) => current + 1);
       setCustomers((current) => current.map((customer) => customer.id === selected.id ? { ...customer, points: total, level: data.level as MemberLevel, spending: Number(data.spending) } : customer));
@@ -235,7 +256,7 @@ export function PointsManager() {
   return (
     <div className="app-shell points-page">
       <div className={`mobile-overlay${mobileMenu ? " show" : ""}`} onClick={() => setMobileMenu(false)} />
-      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/points" /></div>
+      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/points" onClose={() => setMobileMenu(false)} /></div>
       <main className="main-content">
         <header className="page-header points-header">
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
@@ -247,7 +268,7 @@ export function PointsManager() {
         <div className="points-workspace">
           <section className="panel customer-panel">
             <div className="step-heading"><span>1</span><h2>เลือกลูกค้า</h2></div>
-            <div className="points-customer-lookup"><label className="customer-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} disabled={!!scannedId} placeholder="ค้นหาชื่อ เบอร์โทร หรือรหัสสมาชิก" /></label><button type="button" className="points-scan-button" onClick={() => { setScannerError(""); setScannerOpen(true); }} disabled={loading || customers.length === 0}><ScanLine size={18} /> สแกน QR</button></div>
+            <div className="points-customer-lookup"><label className="customer-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} disabled={!!scannedId} placeholder="ค้นหาชื่อ เบอร์โทร หรือรหัสสมาชิก" /></label><button type="button" className="points-scan-button" onClick={() => { setScannerError(""); setCouponScanQr(""); setScannerOpen(true); }}><ScanLine size={18} /> สแกนสมาชิก / คูปอง</button></div>
             {scannedId ? <div className="points-scan-lock"><span>เลือกสมาชิกจาก QR แล้ว · {selected.name}</span><button type="button" onClick={() => { setScannedId(""); setQuery(""); }}>เปลี่ยนสมาชิก</button></div> : null}
             <div className="customer-filters">
               {([
@@ -259,7 +280,7 @@ export function PointsManager() {
             <div className="customer-table">
               <div className="customer-head"><span>ลูกค้า</span><span>ชื่อที่จำ</span><span>เบอร์โทรศัพท์</span><span>ระดับสมาชิก</span><span>แต้มปัจจุบัน</span><span>ปักหมุด</span><span /></div>
               <div>
-                {loading ? <p className="rewards-gallery-empty">กำลังโหลดสมาชิก...</p> : !customers.length ? <p className="rewards-gallery-empty">ยังไม่มีสมาชิกที่ให้แต้มได้</p> : null}
+                {loading ? <p className="rewards-gallery-empty">กำลังโหลดสมาชิก...</p> : !customers.length && error ? <div className="points-load-error" role="alert"><p>โหลดรายชื่อสมาชิกไม่สำเร็จ</p><button type="button" onClick={() => setLoadAttempt((current) => current + 1)}>ลองโหลดอีกครั้ง</button></div> : !customers.length ? <p className="rewards-gallery-empty">ยังไม่มีสมาชิกที่ให้แต้มได้</p> : null}
                 {visible.map((customer) => <article key={customer.id} className={`customer-row${selectedId === customer.id ? " selected" : ""}`} role="button" tabIndex={0} aria-pressed={selectedId === customer.id} aria-label={`เลือก ${customer.name}${customer.nickname ? ` ชื่อที่จำ ${customer.nickname}` : ""}`} onClick={() => setSelectedId(customer.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(customer.id); } }}>
                   <span className="customer-identity"><span className="pet-avatar">{linePictures[customer.id] ? <img src={linePictures[customer.id]} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-member-entry-logo.png" alt="" width={44} height={44} />}</span><span className="customer-name">{customer.name}</span></span>
                   <strong className="customer-alias">{customer.nickname || "—"}</strong>
@@ -293,7 +314,7 @@ export function PointsManager() {
             </section>
 
             <section className="panel recent-points">
-              <div className="recent-title"><h3><Clock3 /> {historyDate ? "รายการตามวันที่เลือก" : "5 รายการล่าสุด"}</h3><div className="recent-date-actions"><DateRangePicker single start={historyDate} end="" onChange={(day) => setHistoryDate(day)} label="เลือกวันที่ของรายการแต้ม" />{historyDate ? <button type="button" onClick={() => setHistoryDate("")}>ดูล่าสุด</button> : null}</div></div>
+              <div className="recent-title"><h3><Clock3 /> {historyDate ? "ประวัติให้แต้มตามวันที่เลือก" : "ประวัติให้แต้มล่าสุด"}</h3><div className="recent-date-actions"><DateRangePicker single start={historyDate} end="" onChange={(day) => setHistoryDate(day)} label="เลือกวันที่ของรายการแต้ม" />{historyDate ? <button type="button" onClick={() => setHistoryDate("")}>ดูล่าสุด</button> : null}</div></div>
               <div className="recent-head"><span>วันที่</span><span>ลูกค้า</span><span>รายการ</span><span>แต้ม</span></div>
               {dailyLoading ? <p className="rewards-gallery-empty" role="status">กำลังโหลดรายการของวันที่เลือก…</p> : dailyError ? <p className="rewards-gallery-error" role="alert">{dailyError}</p> : shownTransactions.length === 0 ? <p className="rewards-gallery-empty">{historyDate ? "ไม่มีรายการแต้มในวันที่เลือก" : "ยังไม่มีรายการแต้ม"}</p> : shownTransactions.map((row) => <div className="recent-row" key={row.id}><span>{new Date(row.created_at).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })}</span><span>{customers.find((customer) => customer.id === row.member_id)?.name || "สมาชิก"}</span><span title={row.note}>{row.transaction_type === "earn" ? `${Number(row.sale_amount).toLocaleString()} บาท` : row.note || "ปรับแต้ม"}</span><span className={row.points_delta >= 0 ? "green" : "negative"}>{row.points_delta > 0 ? "+" : ""}{row.points_delta}</span></div>)}
             </section>
@@ -325,7 +346,8 @@ export function PointsManager() {
             </section>
           </div>
         ) : null}
-        {scannerOpen ? <MemberQrScanner onScan={selectByCode} onClose={() => setScannerOpen(false)} error={scannerError} /> : null}
+        {scannerOpen ? <MemberQrScanner onScan={routeScan} onClose={() => setScannerOpen(false)} error={scannerError} /> : null}
+        {couponScanQr ? <CouponQrScanner initialQr={couponScanQr} onClose={() => setCouponScanQr("")} /> : null}
         {successOpen ? (
           <div className="preview-modal points-success-modal" role="dialog" aria-modal="true" aria-labelledby="points-success-title">
             <button className="preview-backdrop" type="button" aria-label="ปิด" onClick={() => setSuccessOpen(false)} />

@@ -6,6 +6,7 @@ import {
   Bell,
   CalendarDays,
   Check,
+  ChevronDown,
   Clock3,
   Copy,
   Crown,
@@ -29,7 +30,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { SiFacebook, SiInstagram, SiLine, SiTiktok, SiYoutube } from "react-icons/si";
 import { AppSettings, ContactPlatform, defaultSettings, loadSettings, saveSettings } from "@/lib/settings";
 import { supabase } from "@/lib/supabase/client";
@@ -66,12 +67,40 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: () =
   return <button type="button" className={`toggle${checked ? " on" : ""}`} role="switch" aria-checked={checked} aria-label={label} onClick={onChange}><span /></button>;
 }
 
+function RankAmountInput({ value, onChange, label }: { value: number; onChange: (value: number) => void; label: string }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  function edit(event: ChangeEvent<HTMLInputElement>) {
+    const digits = event.target.value.replace(/\D/g, "").slice(0, 8);
+    setDraft(digits);
+    if (digits && Number(digits) !== value) onChange(Number(digits));
+  }
+  return <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label={label} value={draft} onChange={edit} onBlur={() => setDraft(String(value))} />;
+}
+
+function SettingsPicker({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", closeOutside);
+    root.current?.querySelector<HTMLButtonElement>('.settings-picker-menu [aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
+  const selected = options.find(option => option.value === value)?.label || value;
+  return <div className="settings-picker" ref={root}>
+    <button type="button" className="settings-picker-trigger" aria-label={`${label}: ${selected}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } if (event.key === "Escape") setOpen(false); }}><span>{selected}</span><ChevronDown size={17} aria-hidden="true" /></button>
+    {open ? <div className="settings-picker-menu" role="listbox" aria-label={label} onKeyDown={event => { if (event.key === "Escape") { setOpen(false); root.current?.querySelector<HTMLButtonElement>(".settings-picker-trigger")?.focus(); } if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button")); const index = buttons.indexOf(document.activeElement as HTMLButtonElement); buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus(); } }}>{options.map(option => <button type="button" role="option" aria-selected={value === option.value} className={value === option.value ? "is-selected" : ""} key={option.value} onClick={() => { onChange(option.value); setOpen(false); root.current?.querySelector<HTMLButtonElement>(".settings-picker-trigger")?.focus(); }}><span>{option.label}</span>{value === option.value ? <Check size={16} /> : null}</button>)}</div> : null}
+  </div>;
+}
+
 export function SettingsManager() {
   const role = crmRole();
   const ownerMode = role === "owner";
   const personalOnly = role === "staff";
   const [activeTab, setActiveTab] = useState<Tab>(() => crmRole() === "staff" ? "team" : "shop");
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [team, setTeam] = useState(initialTeam);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(true);
@@ -80,6 +109,7 @@ export function SettingsManager() {
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
+    void loadPopupCatalog().catch(() => {});
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
     if (requestedTab === "team") setActiveTab("team");
     setSettings(loadSettings());
@@ -110,16 +140,22 @@ export function SettingsManager() {
       setSettings((current) => ({
         ...current,
         pointsSpend: Number(data?.points_spend) || current.pointsSpend,
-        pointsEarned: Number(data?.points_earned) || current.pointsEarned,
+        pointsEarned: 1,
+        silverBahtPerPoint: Number(extra.silver_baht_per_point) || Number(data?.points_spend) || current.pointsSpend,
+        silverPointsEarned: 1,
         goldMinSpend: Number(extra.gold_min_spend) || current.goldMinSpend,
         platinumMinSpend: Number(extra.platinum_min_spend) || current.platinumMinSpend,
         goldBahtPerPoint: Number(extra.gold_baht_per_point) || current.goldBahtPerPoint,
+        goldPointsEarned: 1,
         platinumBahtPerPoint: Number(extra.platinum_baht_per_point) || current.platinumBahtPerPoint,
+        platinumPointsEarned: 1,
         goldUpgradeBonus: Number.isInteger(extra.gold_upgrade_bonus) ? Number(extra.gold_upgrade_bonus) : current.goldUpgradeBonus,
         platinumUpgradeBonus: Number.isInteger(extra.platinum_upgrade_bonus) ? Number(extra.platinum_upgrade_bonus) : current.platinumUpgradeBonus,
         welcomeBonusEnabled: extra.welcome_bonus_enabled === true,
         welcomeBonusPoints: Number.isInteger(extra.welcome_bonus_points) && Number(extra.welcome_bonus_points) >= 1 ? Number(extra.welcome_bonus_points) : current.welcomeBonusPoints,
         pointsExpiration: extra.points_expiration === "รีทุกสิ้นปี" ? "รีทุกสิ้นปี" : "ไม่มีวันหมดอายุ",
+        pointsExpirationMonth: Number(extra.points_expiration_month) >= 1 && Number(extra.points_expiration_month) <= 12 ? Number(extra.points_expiration_month) : 1,
+        pointsExpirationDay: Number(extra.points_expiration_day) >= 1 && Number(extra.points_expiration_day) <= 31 ? Number(extra.points_expiration_day) : 1,
         promotions: Array.isArray(extra.promotions) ? extra.promotions as PointPromotion[] : current.promotions,
         accumulationEnabled: typeof extra.accumulation_enabled === "boolean" ? extra.accumulation_enabled : current.accumulationEnabled,
         popupContent: Array.isArray(extra.popup_content) ? normalizePopupContent(extra.popup_content) : current.popupContent,
@@ -181,7 +217,9 @@ export function SettingsManager() {
         if (upload.error) throw upload.error;
         return { ...mascot, image: supabase!.storage.from("crm-content").getPublicUrl(path).data.publicUrl };
       }));
-      const next = { ...settings, cardMascots, customerUrl, logoDataUrl: logoUrl, pointsExpiration: settings.pointsExpiration === "รีทุกสิ้นปี" ? "รีทุกสิ้นปี" : "ไม่มีวันหมดอายุ" };
+      const expiryMonth = Math.min(12, Math.max(1, Math.trunc(settings.pointsExpirationMonth) || 1));
+      const expiryDay = Math.min(new Date(2025, expiryMonth, 0).getDate(), Math.max(1, Math.trunc(settings.pointsExpirationDay) || 1));
+      const next = { ...settings, pointsEarned: 1, silverPointsEarned: 1, goldPointsEarned: 1, platinumPointsEarned: 1, cardMascots, customerUrl, logoDataUrl: logoUrl, pointsExpiration: settings.pointsExpiration === "รีทุกสิ้นปี" ? "รีทุกสิ้นปี" : "ไม่มีวันหมดอายุ", pointsExpirationMonth: expiryMonth, pointsExpirationDay: expiryDay };
       const publicPopupContent = next.popupContent.length
         ? resolvePopupContent(next.popupContent, await loadPopupCatalog()).filter(item => item.active)
         : [];
@@ -195,11 +233,17 @@ export function SettingsManager() {
           ...previousExtra,
           points_policy_version: 1,
           points_expiration: next.pointsExpiration === "รีทุกสิ้นปี" ? "รีทุกสิ้นปี" : "ไม่มีวันหมดอายุ",
+          points_expiration_month: next.pointsExpirationMonth,
+          points_expiration_day: next.pointsExpirationDay,
           accumulation_enabled: next.accumulationEnabled,
           gold_min_spend: next.goldMinSpend,
           platinum_min_spend: next.platinumMinSpend,
           gold_baht_per_point: next.goldBahtPerPoint,
+          silver_baht_per_point: next.silverBahtPerPoint,
+          silver_points_earned: next.silverPointsEarned,
+          gold_points_earned: next.goldPointsEarned,
           platinum_baht_per_point: next.platinumBahtPerPoint,
+          platinum_points_earned: next.platinumPointsEarned,
           gold_upgrade_bonus: next.goldUpgradeBonus,
           platinum_upgrade_bonus: next.platinumUpgradeBonus,
           welcome_bonus_enabled: next.welcomeBonusEnabled,
@@ -244,7 +288,7 @@ export function SettingsManager() {
   return (
     <div className="app-shell settings-page">
       <div className={`mobile-overlay${mobileMenu ? " show" : ""}`} onClick={() => setMobileMenu(false)} />
-      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/settings" /></div>
+      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/settings" onClose={() => setMobileMenu(false)} /></div>
       <main className="main-content">
         <header className="page-header settings-header">
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
@@ -520,16 +564,26 @@ function PromotionSettings({ promotions, onChange }: { promotions: PointPromotio
 }
 
 function PointsTab({ settings, update }: { settings: AppSettings; update: Update }) {
+  const resetMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+  const resetMonth = Math.min(12, Math.max(1, settings.pointsExpirationMonth));
+  const resetDays = new Date(2025, resetMonth, 0).getDate();
   return <div className="settings-grid points-settings-grid">
     <div className="settings-column">
-      <section className="settings-card points-policy-card"><div className="card-heading"><div><h2>กฎการสะสมแต้ม</h2><p>กำหนดอัตราแต้มพื้นฐานและอายุแต้ม</p></div><div className="points-policy-switch"><span>เปิดการสะสมแต้ม</span><Switch checked={settings.accumulationEnabled} onChange={() => update("accumulationEnabled", !settings.accumulationEnabled)} label="เปิดการสะสมแต้ม" /></div></div><div className="points-rule"><span>ทุกยอดซื้อ</span><input aria-label="ยอดซื้อบาทต่อแต้ม" type="number" min="1" value={settings.pointsSpend} onChange={(event) => update("pointsSpend", Math.max(1, Number(event.target.value)))} /><span>บาท</span><b>→</b><span>ได้รับ</span><input aria-label="จำนวนแต้มที่ได้รับ" type="number" min="1" value={settings.pointsEarned} onChange={(event) => update("pointsEarned", Math.max(1, Number(event.target.value)))} /><span>แต้ม</span></div><div className="points-expiry-row"><label>อายุแต้ม<select value={settings.pointsExpiration === "รีทุกสิ้นปี" ? "รีทุกสิ้นปี" : "ไม่มีวันหมดอายุ"} onChange={(event) => update("pointsExpiration", event.target.value)}><option>ไม่มีวันหมดอายุ</option><option>รีทุกสิ้นปี</option></select></label><p>{settings.pointsExpiration === "รีทุกสิ้นปี" ? "หลังเปิดใช้ ระบบจะรีเซ็ตยอดแต้มคงเหลือทั้งหมดทุกวันที่ 1 มกราคม เวลา 00:05 น. (เวลาไทย) โดยบันทึกรายการตัดแต้มไว้ตรวจสอบย้อนหลัง" : "แต้มคงอยู่จนกว่าจะมีการใช้หรือปรับแก้โดยพนักงาน"}</p></div></section>
+      <section className="settings-card points-policy-card">
+        <div className="card-heading"><div><h2>กฎการสะสมแต้ม</h2><p>กำหนดอัตราแต้มพื้นฐานและอายุแต้ม</p></div><div className="points-policy-switch"><span>เปิดการสะสมแต้ม</span><Switch checked={settings.accumulationEnabled} onChange={() => update("accumulationEnabled", !settings.accumulationEnabled)} label="เปิดการสะสมแต้ม" /></div></div>
+        <p className="points-base-note">อัตราพื้นฐานของ Member ตั้งได้ในการ์ดแรงค์ด้านล่าง</p>
+        <div className="points-expiry-row">
+          <div className="points-expiry-mode"><span>อายุแต้ม</span><SettingsPicker label="อายุแต้ม" value={settings.pointsExpiration} options={[{ value: "ไม่มีวันหมดอายุ", label: "ไม่มีวันหมดอายุ" }, { value: "รีทุกสิ้นปี", label: "รีทุกสิ้นปี" }]} onChange={value => update("pointsExpiration", value)} /></div>
+          {settings.pointsExpiration === "รีทุกสิ้นปี" ? <div className="points-reset-date"><span>รีเซ็ตแต้มของปีที่ผ่านมา ทุกวันที่</span><div><SettingsPicker label="วันที่รีเซ็ตแต้ม" value={String(Math.min(settings.pointsExpirationDay, resetDays))} options={Array.from({ length: resetDays }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }))} onChange={value => update("pointsExpirationDay", Number(value))} /><SettingsPicker label="เดือนที่รีเซ็ตแต้ม" value={String(resetMonth)} options={resetMonths.map((month, index) => ({ value: String(index + 1), label: month }))} onChange={value => { const month = Number(value); update("pointsExpirationMonth", month); if (settings.pointsExpirationDay > new Date(2025, month, 0).getDate()) update("pointsExpirationDay", new Date(2025, month, 0).getDate()); }} /></div><p>เวลา 00:05 น. (เวลาไทย) ลูกค้ายังใช้แต้มของปีที่ผ่านมาได้ก่อนวันรีเซ็ต ส่วนแต้มที่ได้รับในปีใหม่จะยังอยู่</p></div> : <p>แต้มคงอยู่จนกว่าจะมีการใช้หรือปรับแก้โดยพนักงาน</p>}
+        </div>
+      </section>
       <section className="settings-card welcome-bonus-card"><div className="card-heading"><div><h2>แต้มต้อนรับสมาชิกใหม่</h2><p>ให้ครั้งเดียวทันทีเมื่อเพิ่มสมาชิกสำเร็จ ไม่ต้องมียอดซื้อ</p></div><Switch checked={settings.welcomeBonusEnabled} onChange={() => update("welcomeBonusEnabled", !settings.welcomeBonusEnabled)} label="เปิดแต้มต้อนรับสมาชิกใหม่" /></div><div className="welcome-bonus-value"><Gift size={20} /><span>สมัครครั้งแรกได้รับ</span><input aria-label="จำนวนแต้มต้อนรับ" type="number" min="1" max="10000" step="1" disabled={!settings.welcomeBonusEnabled} value={settings.welcomeBonusPoints} onChange={(event) => update("welcomeBonusPoints", Math.max(1, Math.min(10000, Math.trunc(Number(event.target.value) || 1))))} /><strong>แต้ม</strong></div><p className="welcome-bonus-note">ใช้เฉพาะสมาชิกที่สมัครหลังเปิดใช้งาน ไม่ให้ย้อนหลัง และมีประวัติแต้มให้ตรวจสอบ</p></section>
       <section className="settings-card rank-settings-card">
-        <div className="card-heading"><div><h2>แรงค์สมาชิก</h2><p>ยอดซื้อถึงเกณฑ์จะเลื่อนระดับอัตโนมัติ · โบนัสเลื่อนขั้นให้ครั้งเดียวต่อระดับ</p></div><Crown size={25} /></div>
-        <div className="rank-tier-card silver"><strong>Silver / Member</strong><span>อัตราปกติ · ทุก {settings.pointsSpend} บาท = {settings.pointsEarned} แต้ม</span></div>
-        {([{ name: "Gold", minimum: "goldMinSpend", rate: "goldBahtPerPoint", bonus: "goldUpgradeBonus" }, { name: "Platinum", minimum: "platinumMinSpend", rate: "platinumBahtPerPoint", bonus: "platinumUpgradeBonus" }] as const).map((rank) => <div className={`rank-tier-card ${rank.name.toLowerCase()}`} key={rank.name}>
-          <strong><Crown size={17} /> {rank.name}</strong>
-          <div><label>เลื่อนขั้นเมื่อซื้อสะสม<input type="number" min="1" value={settings[rank.minimum]} onChange={(event) => update(rank.minimum, Math.max(1, Math.trunc(Number(event.target.value) || 1)))} />บาท</label><label>ทุก<input type="number" min="1" value={settings[rank.rate]} onChange={(event) => update(rank.rate, Math.max(1, Math.trunc(Number(event.target.value) || 1)))} />บาท = 1 แต้ม</label><label>โบนัสเลื่อนขั้น<input type="number" min="0" value={settings[rank.bonus]} onChange={(event) => update(rank.bonus, Math.max(0, Math.trunc(Number(event.target.value) || 0)))} />แต้ม</label></div>
+        <div className="card-heading"><div><h2>แรงค์สมาชิก</h2><p>กำหนดยอดซื้อที่ได้ 1 แต้มแยกตามแรงค์ · โบนัสเลื่อนขั้นให้ครั้งเดียวต่อระดับ</p></div><Crown size={25} /></div>
+        {([{ name: "Member", rate: "pointsSpend" }, { name: "Silver", rate: "silverBahtPerPoint" }, { name: "Gold", rate: "goldBahtPerPoint", minimum: "goldMinSpend", bonus: "goldUpgradeBonus" }, { name: "Platinum", rate: "platinumBahtPerPoint", minimum: "platinumMinSpend", bonus: "platinumUpgradeBonus" }] as const).map((rank) => <div className={`rank-tier-card ${rank.name.toLowerCase()}`} key={rank.name}>
+          <div className="rank-tier-title"><span className="rank-tier-icon">{rank.name === "Gold" || rank.name === "Platinum" ? <Crown size={21} /> : <PawPrint size={21} />}</span><strong>{rank.name}</strong><span className="rank-tier-sparkle" aria-hidden="true">✦</span></div>
+          <div className="rank-rate-fields"><label>ทุกยอดซื้อ<RankAmountInput label={`ยอดซื้อบาทต่อแต้มระดับ ${rank.name}`} value={settings[rank.rate]} onChange={(amount) => update(rank.rate, Math.max(1, amount))} /><span>บาท = 1 แต้ม</span></label></div>
+          {"minimum" in rank ? <div className="rank-extra-fields"><label>เลื่อนขั้นเมื่อซื้อสะสม<RankAmountInput label={`ยอดซื้อสะสมเลื่อนขั้น ${rank.name}`} value={settings[rank.minimum]} onChange={(amount) => update(rank.minimum, Math.max(1, amount))} /><span>บาท</span></label><label>โบนัสเลื่อนขั้น<RankAmountInput label={`โบนัสเลื่อนขั้น ${rank.name}`} value={settings[rank.bonus]} onChange={(amount) => update(rank.bonus, Math.max(0, amount))} /><span>แต้ม</span></label></div> : null}
         </div>)}
         <p className="rank-card-note">อัตราของแรงค์ใหม่เริ่มใช้กับการซื้อครั้งถัดไป · สมาชิกเดิมไม่ถูกลดระดับเมื่อเปลี่ยนเกณฑ์</p>
       </section>

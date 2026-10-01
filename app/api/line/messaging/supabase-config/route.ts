@@ -16,27 +16,29 @@ function parseUrl(value: unknown) {
 }
 
 async function check(url: string, publishable: string, secret: string) {
-  const result = { url: false, publishable: false, secret: false };
-  try {
-    const health = await fetch(`${url}/auth/v1/health`, { cache: "no-store", signal: AbortSignal.timeout(7000) });
-    result.url = health.ok || health.status === 401;
-  } catch { /* Return a clear failed check, without exposing credentials. */ }
-  if (!result.url) return result;
-  if (publishable) {
+  const urlCheck = async () => {
     try {
-      const response = await fetch(`${url}/auth/v1/health`, { headers: { apikey: publishable },
-        cache: "no-store", signal: AbortSignal.timeout(7000) });
-      result.publishable = response.ok;
-    } catch { /* Invalid or unreachable key. */ }
-  }
-  if (secret) {
+      const response = await fetch(`${url}/auth/v1/health`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+      return response.ok || response.status === 401;
+    } catch { return false; }
+  };
+  const publishableCheck = async () => {
+    if (!publishable) return false;
+    try {
+      const response = await fetch(`${url}/auth/v1/health`, { headers: { apikey: publishable }, cache: "no-store", signal: AbortSignal.timeout(5000) });
+      return response.ok;
+    } catch { return false; }
+  };
+  const secretCheck = async () => {
+    if (!secret) return false;
     try {
       const client = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
       const response = await client.auth.admin.listUsers({ page: 1, perPage: 1 });
-      result.secret = !response.error;
-    } catch { /* Invalid or unreachable key. */ }
-  }
-  return result;
+      return !response.error;
+    } catch { return false; }
+  };
+  const [reachable, publishableValid, secretValid] = await Promise.all([urlCheck(), publishableCheck(), secretCheck()]);
+  return { url: reachable, publishable: reachable && publishableValid, secret: reachable && secretValid };
 }
 
 export async function GET(request: Request) {

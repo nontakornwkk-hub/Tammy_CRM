@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Crown, Gift, RefreshCw, ShoppingCart, UserPlus, Users } from "lucide-react";
+import { Clock3, Crown, Gift, Menu, RefreshCw, ShoppingCart, UserPlus, Users } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { DateRangePicker } from "./date-range-picker";
 import { ReportMonthPicker } from "./report-month-picker";
@@ -42,6 +42,7 @@ const percentLabel=(now:number,before:number,context:string) =>
   ((now>before?"+":"")+number((now-before)/Math.abs(before)*100)+"% เทียบ"+context);
 
 export function ReportsManager() {
+  const [mobileMenu, setMobileMenu] = useState(false);
   const [range,setRange] = useState(() => { const today=dayKey(new Date().toISOString()); return {start:today.slice(0,7)+"-01",end:today}; });
   const [period,setPeriod] = useState<Period>("month");
   const [rankMonths,setRankMonths] = useState(() => {
@@ -51,6 +52,7 @@ export function ReportsManager() {
   const [draft,setDraft] = useState(range);
   const [members,setMembers] = useState<Member[]>(() => cachedData<ReportsData>("reports")?.members as Member[] ?? []);
   const [transactions,setTransactions] = useState<Transaction[]>(() => cachedData<ReportsData>("reports")?.transactions as Transaction[] ?? []);
+  const [linePictures,setLinePictures] = useState<Record<string,string>>({});
   const [loading,setLoading] = useState(() => !cachedData<ReportsData>("reports"));
   const [error,setError] = useState("");
   const [reload,setReload] = useState(0);
@@ -74,12 +76,21 @@ export function ReportsManager() {
     setError("");
     void (async () => {
       if (!supabase) throw new Error("ยังไม่ได้เชื่อมต่อฐานข้อมูล");
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user) throw new Error("กรุณาเข้าสู่ระบบก่อนดูรายงาน");
       const ownerId = crmOwnerId();
       if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
       const result = await loadCachedData(ownerId, "reports", () => fetchReportsData(ownerId), reload > 0);
       if (active) { setMembers(result.members as Member[]); setTransactions(result.transactions as Transaction[]); }
+      void (async () => {
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
+          if (!token) return;
+          const response = await fetch("/api/line/messaging/member-profiles", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+          if (!response.ok) return;
+          const payload = await response.json() as { profiles: { member_id: string; line_picture_url: string | null }[] };
+          if (active) setLinePictures(Object.fromEntries(payload.profiles.filter((profile) => profile.line_picture_url?.startsWith("https://")).map((profile) => [profile.member_id, profile.line_picture_url!])));
+        } catch { /* Rankings remain available when LINE profile images cannot load. */ }
+      })();
     })().catch(e => {if(active)setError(e instanceof Error ? e.message : "โหลดรายงานไม่สำเร็จ");})
       .finally(() => {if(active)setLoading(false);});
     return () => {active=false;};
@@ -143,9 +154,10 @@ export function ReportsManager() {
   const pointBefore=point===null?null:transactions.filter(t=>t.transaction_type==="earn"&&dayKey(t.created_at)===(period==="month"?previousMonthEnd(point.day):shift(compare.previousStart,hover??0))).reduce((sum,t)=>sum+(metric==="sales"?Number(t.sale_amount):Math.max(0,Number(t.points_delta))),0);
   const selected=follow===null?[]:report.inactive.filter(m=>m.days!==null&&(follow===4?m.days>=customDays:m.days>=buckets[follow].min&&m.days<=buckets[follow].max));
   return <div className="app-shell reports-page">
-    <div className="sidebar-wrap"><Sidebar activePath="/reports"/></div>
+    <div className={`mobile-overlay${mobileMenu ? " show" : ""}`} onClick={() => setMobileMenu(false)} />
+    <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/reports" onClose={() => setMobileMenu(false)} /></div>
     <main className="main-content">
-      <header className="page-header"><div className="heading-copy"><h1>วิเคราะห์และรายงาน</h1><p>มองภาพรวมร้าน แล้วดูแลลูกค้าให้ใกล้ชิดขึ้น</p></div>
+      <header className="page-header"><button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button><div className="heading-copy"><h1>วิเคราะห์และรายงาน</h1><p>มองภาพรวมร้าน แล้วดูแลลูกค้าให้ใกล้ชิดขึ้น</p></div>
         <div className="report-controls"><DateRangePicker start={draft.start} end={draft.end} onChange={(start,end)=>{setDraft({start,end});if(start&&end){setRange({start,end});setPeriod("custom");setHover(null);}}}/><button className="button outline" aria-label="รีเฟรชรายงาน" disabled={loading} onClick={()=>setReload(n=>n+1)}><RefreshCw size={18}/></button></div>
       </header>
       <div className="report-period" role="group" aria-label="ช่วงเวลาเปรียบเทียบ"><span>ดูผลแบบ</span>{([["day","รายวัน"],["week","รายสัปดาห์"],["month","รายเดือน"]] as const).map(([key,label])=><button type="button" key={key} aria-pressed={period===key} onClick={()=>choosePeriod(key)}>{label}</button>)}{period==="custom"?<span className="report-custom-active">ช่วงที่กำหนดเอง</span>:null}<small>เทียบ {dateLabel(compare.previousStart)} – {dateLabel(compare.previousEnd)}</small></div>
@@ -179,7 +191,7 @@ export function ReportsManager() {
           <span aria-hidden="true">เทียบกับ</span>
           <ReportMonthPicker label="เดือนที่เทียบ" value={rankMonths.comparison} exclude={rankMonths.current} align="right" onChange={comparison=>setRankMonths(previous=>({...previous,comparison}))}/>
         </div>
-        {report.ranking.length?<><div className="report-podium">{[1,0,2].map(index=>{const row=report.ranking[index];return row?<article className={"place-"+(index+1)} key={row.id}><div className="report-podium-person"><div className="report-rank-avatar">{row.member?.name.slice(0,1)||"?"}</div><strong>{row.member?.name||"สมาชิกที่ถูกลบ"}</strong><span className={"member-badge "+(row.member?.level||"member").toLowerCase()}>{row.member?.level||"—"}</span><b>{metric==="sales"?"฿":""}{number(row[metric])}{metric==="points"?" แต้ม":""}</b></div><div className="report-podium-bar"><span>#{index+1}</span></div><div className="report-podium-detail"><small className={"report-rank-change "+(row.oldPlace!==null&&row.oldPlace<index+1?"down":"")}>{rankMove(row.oldPlace,index+1)}</small><small className={row[metric]<row.prior?"down":""}>{percentLabel(row[metric],row.prior,"เดือนที่เทียบ")}</small></div></article>:<div key={index}/>;})}</div>
+        {report.ranking.length?<><div className="report-podium">{[1,0,2].map(index=>{const row=report.ranking[index];return row?<article className={"place-"+(index+1)} key={row.id}><div className="report-podium-person"><div className="report-rank-avatar">{linePictures[row.id] ? <img src={linePictures[row.id]} alt={`รูปโปรไฟล์ LINE ของ ${row.member?.name || "สมาชิก"}`} referrerPolicy="no-referrer" /> : row.member?.name.slice(0,1)||"?"}</div><strong>{row.member?.name||"สมาชิกที่ถูกลบ"}</strong><span className={"member-badge "+(row.member?.level||"member").toLowerCase()}>{row.member?.level||"—"}</span><b>{metric==="sales"?"฿":""}{number(row[metric])}{metric==="points"?" แต้ม":""}</b></div><div className="report-podium-bar"><span>#{index+1}</span></div><div className="report-podium-detail"><small className={"report-rank-change "+(row.oldPlace!==null&&row.oldPlace<index+1?"down":"")}>{rankMove(row.oldPlace,index+1)}</small><small className={row[metric]<row.prior?"down":""}>{percentLabel(row[metric],row.prior,"เดือนที่เทียบ")}</small></div></article>:<div key={index}/>;})}</div>
           <div className="report-rank-table"><div className="report-rank-heading"><span>#</span><span>ลูกค้า / ระดับปัจจุบัน</span><span>{metric==="sales"?"ยอดซื้อ":"แต้ม"}</span></div>{report.ranking.slice(3).map((row,i)=><div key={row.id}><b>{i+4}</b><span><strong>{row.member?.name||"สมาชิกที่ถูกลบ"}</strong><small>{row.member?.level||"—"} · <span className={"report-rank-change "+(row.oldPlace!==null&&row.oldPlace<i+4?"down":"")}>{rankMove(row.oldPlace,i+4)}</span></small><small className={row[metric]<row.prior?"down":""}>{percentLabel(row[metric],row.prior,"เดือนที่เทียบ")}</small></span><b>{metric==="sales"?"฿":""}{number(row[metric])}{metric==="points"?" แต้ม":""}</b></div>)}</div></>:<div className="report-state">ยังไม่มีอันดับในเดือนนี้</div>}
         <p className="report-note">อันดับใช้เดือนที่เลือกในส่วนนี้ · ระดับสมาชิกเป็นระดับปัจจุบัน</p>
       </section></div><p className="report-footnote">ยอดซื้อและแต้มคำนวณจากรายการให้แต้มที่บันทึกสำเร็จ ไม่ใช่รายรับจากระบบบัญชี · ถ้าเลือกเดือนปัจจุบัน จะเทียบถึงวันที่เดียวกันของทั้งสองเดือน</p>

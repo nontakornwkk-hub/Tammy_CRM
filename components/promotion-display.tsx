@@ -15,22 +15,12 @@ export function PromotionDisplay({ promotion, index = 0 }: { promotion: PointPro
   const title = promotion.title.trim() || "โปรโมชั่นให้แต้ม";
   const description = shortPromotionDescription(promotion);
   const fullDescription = promotionDescription(promotion);
-  const originalWords = title === "โปรโมชั่นใหม่" && description === "แต้มคูณ 1.25";
 
   return (
-    <div className={`promotion-display promotion-pattern-${pattern}${pattern < 3 ? " promotion-display-reference" : ""}`} aria-label={`${title} · ${fullDescription}`}>
-      {pattern < 3 ? (
-        originalWords ? <span className="sr-only">{title} · {description}</span> :
-          <span className="promotion-display-copy promotion-display-copy-overprint"><strong>{title}</strong><small>{description}</small></span>
-      ) : <>
-        <span className="promotion-display-art" aria-hidden="true">{pattern === 3 ? <Bone /> : <Sparkles />}</span>
-        <span className="promotion-display-copy"><strong>{title}</strong><small>{description}</small></span>
-        <svg className="promotion-display-trail" viewBox="0 0 500 95" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M0 55 C80 100 120 5 215 58 S350 5 500 55" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={pattern === 3 ? "8 11" : undefined} /></svg>
-        <span className="promotion-display-decor decor-one" aria-hidden="true"><PawPrint /></span>
-        <span className="promotion-display-decor decor-two" aria-hidden="true">{pattern === 3 ? <Bone /> : <Sparkles />}</span>
-        <span className="promotion-display-decor decor-three" aria-hidden="true"><Heart /></span>
-        <span className="promotion-display-decor decor-four" aria-hidden="true"><Sparkles /></span>
-      </>}
+    <div className={`promotion-display promotion-pattern-${pattern}`} aria-label={`${title} · ${fullDescription}`}>
+      <span className="promotion-display-art" aria-hidden="true">{pattern === 1 || pattern === 3 ? <Bone /> : pattern === 2 ? <Heart /> : pattern === 4 ? <Sparkles /> : <PawPrint />}</span>
+      <span className="promotion-display-copy"><strong>{title}</strong><small>{description}</small></span>
+      <span className="promotion-display-doodles" aria-hidden="true"><PawPrint /><Sparkles /><Heart /></span>
     </div>
   );
 }

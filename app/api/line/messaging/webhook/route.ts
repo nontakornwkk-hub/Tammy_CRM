@@ -95,13 +95,9 @@ export async function POST(request: Request) {
       continue;
     }
     if (event.type === "unfollow") {
-      await db.from("line_conversations").update({ blocked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("owner_id", result.data.owner_id).eq("line_user_id", subject);
       continue;
     }
     if (event.type !== "follow" && event.type !== "message") continue;
-    const messageKey = event.message?.id || event.webhookEventId;
-    if (!messageKey) continue;
     let name: string | null = null;
     let picture: string | null = null;
     try {
@@ -114,19 +110,6 @@ export async function POST(request: Request) {
         picture = data.pictureUrl?.startsWith("https://") ? data.pictureUrl : null;
       }
     } catch { /* A message remains readable even if LINE profile is unavailable. */ }
-    const kind = event.type === "follow" ? "other" :
-      ["text", "image", "sticker", "file"].includes(event.message?.type || "") ? event.message!.type : "other";
-    const body = event.type === "follow" ? "เริ่มติดตามบัญชีร้าน" :
-      kind === "text" ? (event.message?.text || "").slice(0, 5000) :
-      kind === "image" ? "ส่งรูปภาพ" : kind === "sticker" ? "ส่งสติกเกอร์" : kind === "file" ? "ส่งไฟล์" : "ส่งข้อความประเภทอื่น";
-    const saved = await db.rpc("line_record_inbound", {
-      store_owner: result.data.owner_id, subject, profile_name: name, profile_picture: picture,
-      message_key: messageKey, message_kind: kind, message_body: body,
-    });
-    if (saved.error) {
-      console.error("[line-webhook] save failed", { code: saved.error.code });
-      return noStore({ error: "บันทึกแชตไม่สำเร็จ" }, 500);
-    }
     if (name) await db.from("line_member_links").update({ line_display_name: name, line_picture_url: picture, profile_synced_at: new Date().toISOString() })
       .eq("owner_id", result.data.owner_id).eq("line_user_id", subject);
     if (isPointsRequest(event) && event.replyToken) {

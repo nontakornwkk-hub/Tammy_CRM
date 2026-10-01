@@ -3,6 +3,8 @@
 import { Database, HardDrive, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { crmOwnerId, verifiedCrmUser } from "@/lib/supabase/crm-data";
+import { cachedAdminExtras } from "@/lib/supabase/admin-preload";
 
 type Usage = {
   database_bytes: number;
@@ -27,9 +29,10 @@ function formatBytes(value: number) {
 function percent(value: number, limit: number) { return Math.min(100, (value / limit) * 100); }
 
 export function DatabaseUsageCard() {
-  const [usage, setUsage] = useState<Usage | null>(null);
-  const [storage, setStorage] = useState<StorageUsage | null>(null);
-  const [loading, setLoading] = useState(true);
+  const preloaded = cachedAdminExtras(verifiedCrmUser() || "", crmOwnerId() || "");
+  const [usage, setUsage] = useState<Usage | null>(() => preloaded?.databaseUsage as Usage | null ?? null);
+  const [storage, setStorage] = useState<StorageUsage | null>(() => preloaded?.storageUsage as StorageUsage | null ?? null);
+  const [loading, setLoading] = useState(() => !preloaded?.databaseUsage || !preloaded?.storageUsage);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {

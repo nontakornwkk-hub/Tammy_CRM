@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ChevronDown, Gift, ImageIcon, Menu, Megaphone, Package, Pencil, Plus, RotateCcw, Search, Star, Tag, Trash2, X } from "lucide-react";
+import { Camera, Check, ChevronDown, Gift, ImageIcon, Menu, Megaphone, Package, Pencil, Plus, RotateCcw, Search, Star, Tag, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { cachedData, clearCachedData, crmOwnerId, fetchRewardsData, loadCachedData } from "@/lib/supabase/crm-data";
 import { refreshPublishedPopupContent } from "@/lib/popup-content";
 import { DateRangePicker } from "./date-range-picker";
 import { CouponTicketFace, couponTheme, couponThemes, type CouponTheme } from "./coupon-ticket-face";
+import { CouponQrScanner } from "./coupon-qr-scanner";
 import { Sidebar } from "./sidebar";
 
 type Kind = "rewards" | "coupons" | "news";
@@ -16,7 +17,7 @@ type CatalogItem = {
   id: string; kind: Kind; title: string; description: string; category: string; imageUrl: string | null;
   imageUrls: string[]; createdAt: string | null; expiresAt: string | null;
   active: boolean; points: number; stock: number | null; startsAt: string | null; endsAt: string | null;
-  code: string; discountType: string; discountValue: number; minSpend: number; usageLimit: number | null; theme: CouponTheme;
+  code: string; discountType: string; discountValue: number; minSpend: number; usageLimit: number | null; usedCount: number; theme: CouponTheme; audienceMode: "public" | "targeted"; qrValidMinutes: number;
   content: string;
 };
 type DatabaseRow = Record<string, unknown>;
@@ -52,7 +53,7 @@ const contentType = (item: CatalogItem) => item.category === "โปรโมช
 const empty = (kind: Kind): CatalogItem => ({
   id: "", kind, title: "", description: "", category: tabs.find((tab) => tab.kind === kind)?.title || "",
   imageUrl: null, imageUrls: [], createdAt: null, expiresAt: null, active: true, points: 0, stock: null, startsAt: null, endsAt: null,
-  code: "", discountType: "percent", discountValue: 10, minSpend: 0, usageLimit: null, theme: "coral", content: "",
+  code: "", discountType: "percent", discountValue: 10, minSpend: 0, usageLimit: null, usedCount: 0, theme: "coral", audienceMode: "public", qrValidMinutes: 15, content: "",
 });
 const value = (row: DatabaseRow, key: string) => String(row[key] ?? "");
 const numberOr = (row: DatabaseRow, key: string, fallback = 0) => Number(row[key] ?? fallback);
@@ -81,7 +82,7 @@ function fromRow(kind: Kind, row: DatabaseRow): CatalogItem {
     endsAt: row.ends_at ? value(row, "ends_at") : null,
     code: value(row, "code"), discountType: value(row, "discount_type") || "percent",
     discountValue: numberOr(row, "discount_value"), minSpend: numberOr(row, "min_spend"),
-    usageLimit: row.usage_limit == null ? null : numberOr(row, "usage_limit"), theme: couponTheme(value(row, "theme_color")),
+    usageLimit: row.usage_limit == null ? null : numberOr(row, "usage_limit"), usedCount: numberOr(row, "used_count"), theme: couponTheme(value(row, "theme_color")), audienceMode: value(row, "audience_mode") === "targeted" ? "targeted" : "public", qrValidMinutes: numberOr(row, "qr_valid_minutes", 15),
     content: value(row, "content"),
   };
 }
@@ -152,7 +153,6 @@ export function RewardsGallery() {
   const [category, setCategory] = useState("ทั้งหมด");
   const [formCategory, setFormCategory] = useState("ข่าวสาร");
   const [formDiscountType, setFormDiscountType] = useState("percent");
-  const [formCouponCode, setFormCouponCode] = useState("");
   const [formCouponTheme, setFormCouponTheme] = useState<CouponTheme>("coral");
   const [editing, setEditing] = useState<CatalogItem | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -168,14 +168,13 @@ export function RewardsGallery() {
   const toggleQueues = useRef(new Map<string, Promise<void>>());
   const desiredStatuses = useRef(new Map<string, boolean>());
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [couponScannerOpen, setCouponScannerOpen] = useState(false);
 
   const load = useCallback(async (force = false) => {
     const client = supabase;
     if (!client) { setError("ยังไม่ได้ตั้งค่า Supabase"); setLoading(false); return; }
-    setLoading(true);
+    if (!cachedData<RewardsData>("rewards")) setLoading(true);
     setError("");
-    const { data: auth, error: authError } = await client.auth.getUser();
-    if (authError || !auth.user) { setError("กรุณาเข้าสู่ระบบก่อนโหลดรายการ"); setLoading(false); return; }
     try {
       const ownerId = crmOwnerId();
       if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
@@ -184,7 +183,7 @@ export function RewardsGallery() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "โหลดข้อมูลไม่สำเร็จ"); }
     setLoading(false);
   }, []);
-  useEffect(() => { void load(true); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const matchesView = (item: CatalogItem) => item.kind === kind;
   const categories = [...new Set(items.filter(matchesView).map((item) => item.category))];
@@ -198,7 +197,7 @@ export function RewardsGallery() {
   const activeTab = navigationTabs.find((tab) => tab.view === view)!;
 
   function clearNewsPreviews() { newsImages.forEach(image => { if (image.file) URL.revokeObjectURL(image.url); }); }
-  function openEditor(item: CatalogItem) { clearNewsPreviews(); setEditing(item); setFormCategory(item.category === "โปรโมชั่น" ? "โปรโมชั่น" : "ข่าวสาร"); setFormDiscountType(item.discountType); setFormCouponCode(item.code); setFormCouponTheme(item.theme); setEditingRange({ start: item.startsAt?.slice(0, 10) || "", end: (item.kind === "news" ? item.expiresAt : item.endsAt)?.slice(0, 10) || "" }); setNewsImages((item.imageUrls.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : []).map(url => ({ url }))); setFile(null); setFilePreview(""); setCropPosition({ x: 0.5, y: 0.5 }); setError(""); }
+  function openEditor(item: CatalogItem) { clearNewsPreviews(); setEditing(item); setFormCategory(item.category === "โปรโมชั่น" ? "โปรโมชั่น" : "ข่าวสาร"); setFormDiscountType(item.discountType); setFormCouponTheme(item.theme); setEditingRange({ start: item.startsAt?.slice(0, 10) || "", end: (item.kind === "news" ? item.expiresAt : item.endsAt)?.slice(0, 10) || "" }); setNewsImages((item.imageUrls.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : []).map(url => ({ url }))); setFile(null); setFilePreview(""); setCropPosition({ x: 0.5, y: 0.5 }); setError(""); }
   function closeEditor() { if (!saving) { clearNewsPreviews(); setEditing(null); setNewsImages([]); setFile(null); setFilePreview(""); } }
   function selectNewsFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -241,14 +240,13 @@ export function RewardsGallery() {
       const shared = { title, category: String(form.get("category") || activeTab.title).trim(), image_url: imageUrl };
       let payload: DatabaseRow;
       if (editing.kind === "rewards") payload = { ...shared, description: String(form.get("description") || ""), points_cost: Number(form.get("points") || 0), stock: form.get("stock") === "" ? null : Number(form.get("stock")), active: form.get("active") === "on", starts_at: atStart(String(form.get("startsAt") || "")), ends_at: atEnd(String(form.get("endsAt") || "")) };
-      else if (editing.kind === "coupons") payload = { ...shared, description: String(form.get("description") || ""), code: String(form.get("code") || "").trim().toUpperCase(), discount_type: String(form.get("discountType") || "percent"), theme_color: formCouponTheme, discount_value: Number(form.get("discountValue") || 0), min_spend: Number(form.get("minSpend") || 0), usage_limit: form.get("usageLimit") === "" ? null : Number(form.get("usageLimit")), active: form.get("active") === "on", starts_at: atStart(String(form.get("startsAt") || "")), ends_at: atEnd(String(form.get("endsAt") || "")) };
+      else if (editing.kind === "coupons") payload = { ...shared, description: String(form.get("description") || ""), code: editing.code || randomCouponCode(new Set(items.filter(item => item.kind === "coupons").map(item => item.code.toUpperCase()))), discount_type: String(form.get("discountType") || "percent"), theme_color: formCouponTheme, discount_value: Number(form.get("discountValue") || 0), min_spend: Number(form.get("minSpend") || 0), usage_limit: form.get("usageLimit") === "" ? null : Number(form.get("usageLimit")), qr_valid_minutes: Number(form.get("qrValidMinutes") || 15), audience_mode: form.get("audienceMode") === "targeted" ? "targeted" : "public", active: form.get("active") === "on", starts_at: atStart(String(form.get("startsAt") || "")), ends_at: atEnd(String(form.get("endsAt") || "")) };
       else {
         const startsOn = String(form.get("startsAt") || "");
         const endsOn = String(form.get("expiresAt") || "");
         if (startsOn && endsOn && endsOn < startsOn) throw new Error("วันสิ้นสุดโปรต้องไม่ก่อนวันเริ่มโปร");
         payload = { ...shared, image_urls: imageUrls, summary: String(form.get("description") || ""), content: String(form.get("content") || ""), starts_at: atStart(startsOn), expires_at: atEnd(endsOn), status: form.get("active") === "on" ? "published" : "draft", published_at: form.get("active") === "on" ? new Date().toISOString() : null };
       }
-      if (editing.kind === "coupons" && !payload.code) throw new Error("กรุณาใส่รหัสคูปอง");
       const result = editing.id
         ? await supabase.from(editing.kind).update(payload).eq("id", editing.id).select().single()
         : await supabase.from(editing.kind).insert({ ...payload, owner_id: ownerId }).select().single();
@@ -257,7 +255,7 @@ export function RewardsGallery() {
       clearNewsPreviews(); setEditing(null); setNewsImages([]); setFile(null); setFilePreview("");
       clearCachedData("rewards");
       await load(true);
-    } catch (cause) { setError(cause && typeof cause === "object" && "code" in cause && cause.code === "23505" ? "รหัสคูปองนี้มีแล้ว กรุณาสุ่มใหม่หรือใช้รหัสอื่น" : cause instanceof Error ? cause.message : "บันทึกไม่สำเร็จ"); }
+    } catch (cause) { setError(cause && typeof cause === "object" && "code" in cause && cause.code === "23505" ? "สร้างคูปองซ้ำ กรุณาลองบันทึกอีกครั้ง" : cause instanceof Error ? cause.message : "บันทึกไม่สำเร็จ"); }
     finally { setSaving(false); }
   }
   async function remove() {
@@ -330,12 +328,12 @@ export function RewardsGallery() {
 
   return <div className="app-shell rewards-gallery-page">
     <div className={`mobile-overlay${mobileMenu ? " show" : ""}`} onClick={() => setMobileMenu(false)} />
-    <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/rewards" /></div>
+    <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/rewards" onClose={() => setMobileMenu(false)} /></div>
     <main className="main-content rewards-gallery-main">
       <header className="page-header rewards-gallery-header">
         <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
         <div className="title-icon"><Gift /></div><div className="heading-copy"><h1>คูปอง ของรางวัล และข่าวสาร</h1><p>สร้างและจัดการเนื้อหาที่ลูกค้าจะเห็น</p></div>
-        <div className="header-actions"><button className="button primary" type="button" onClick={() => openEditor(empty(kind))}><Plus size={19} /> เพิ่มรายการ</button></div>
+        <div className="header-actions">{kind === "coupons" ? <button className="button" type="button" onClick={() => setCouponScannerOpen(true)}><Camera size={19} /> สแกนใช้คูปอง</button> : null}<button className="button primary" type="button" onClick={() => openEditor(empty(kind))}><Plus size={19} /> เพิ่มรายการ</button></div>
       </header>
       <nav className="reward-tabs rewards-gallery-tabs" aria-label="ประเภทเนื้อหา">{navigationTabs.map(({ view: tab, title, icon: Icon }) => <button key={tab} type="button" className={`${view === tab ? "active " : ""}is-${tab}`} onClick={() => { setView(tab); setCategory("ทั้งหมด"); setStatus("ทั้งหมด"); setSearch(""); }}><Icon /> {title}</button>)}</nav>
       {kind === "news" ? <div className="rewards-content-filters" role="group" aria-label="กรองข่าวสารและโปรโมชั่น">{(["ทั้งหมด", "ข่าวสาร", "โปรโมชั่น"] as const).map((type) => <button key={type} type="button" className={`${category === type ? "active " : ""}${type === "โปรโมชั่น" ? "is-promotion" : type === "ข่าวสาร" ? "is-news" : ""}`} aria-pressed={category === type} onClick={() => setCategory(type)}>{type}<span>{type === "ทั้งหมด" ? newsItems.length : newsItems.filter((item) => contentType(item) === type).length}</span></button>)}</div> : null}
@@ -346,8 +344,8 @@ export function RewardsGallery() {
         <button className="rewards-gallery-reset" type="button" onClick={() => { setSearch(""); setStatus("ทั้งหมด"); setCategory("ทั้งหมด"); }}><RotateCcw size={16} /> ล้างตัวกรอง</button>
       </div>
       {error && !editing ? <p className="rewards-gallery-error" role="alert">{error} <button type="button" onClick={() => void load()}>ลองอีกครั้ง</button></p> : null}
-      {loading ? <p className="rewards-gallery-empty">กำลังโหลดข้อมูล...</p> : visible.length ? <div className="rewards-gallery-grid">{visible.map((item) => <article className={`rewards-gallery-card${item.kind === "coupons" ? " is-coupon" : ""}`} key={item.id}>
-        {item.kind === "coupons" ? <CouponTicketFace discountType={item.discountType} discountValue={item.discountValue} minSpend={item.minSpend} code={item.code} endsAt={item.endsAt} theme={item.theme} /> : <><div className="rewards-gallery-image">{item.imageUrl ? <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" unoptimized /> : <span><ImageIcon size={42} /><small>ยังไม่มีภาพพรีวิว</small></span>}</div>
+      {loading && items.length === 0 ? <p className="rewards-gallery-empty">กำลังโหลดข้อมูล...</p> : visible.length ? <div className="rewards-gallery-grid">{visible.map((item) => <article className={`rewards-gallery-card${item.kind === "coupons" ? " is-coupon" : ""}`} key={item.id}>
+        {item.kind === "coupons" ? <CouponTicketFace discountType={item.discountType} discountValue={item.discountValue} minSpend={item.minSpend} remaining={item.usageLimit === null ? null : Math.max(0, item.usageLimit - item.usedCount)} endsAt={item.endsAt} theme={item.theme} /> : <><div className="rewards-gallery-image">{item.imageUrl ? <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" unoptimized /> : <span><ImageIcon size={42} /><small>ยังไม่มีภาพพรีวิว</small></span>}</div>
         <div className="rewards-gallery-copy"><h2>{item.title}</h2><span className={`rewards-gallery-category${item.kind === "news" ? contentType(item) === "โปรโมชั่น" ? " is-promotion" : " is-news" : ""}`}>{item.kind === "news" ? contentType(item) : item.category}</span><p>{item.description || "ยังไม่มีคำอธิบาย"}</p>
           <div className="rewards-gallery-facts">{item.kind === "rewards" ? <><strong><Star size={15} /> ใช้ {item.points.toLocaleString()} แต้ม</strong><span><Package size={15} /> คงเหลือ {item.stock === null ? "ไม่จำกัด" : `${item.stock} ชิ้น`}</span></> : <><strong>{item.category}</strong><span>{item.active ? item.category === "โปรโมชั่น" && item.startsAt && Date.parse(item.startsAt) > Date.now() ? "ประกาศล่วงหน้า · ยังไม่เริ่มโปร" : "เผยแพร่แล้ว" : "แบบร่าง"}</span></>}</div>
           <div className="rewards-gallery-actions"><button className={`rewards-gallery-status rewards-gallery-toggle ${item.active ? "on" : "off"}`} type="button" role="switch" aria-checked={item.active} aria-label={`${item.active ? "ปิด" : "เปิด"}${item.kind === "news" ? item.category : "ของรางวัล"} ${item.title}`} title={item.active ? "เปิดใช้งาน" : "ปิดใช้งาน"} onClick={() => toggleActive(item)}><span className="switch-track" aria-hidden="true"><i /></span></button><button type="button" onClick={() => openEditor(item)}><Pencil size={17} /> แก้ไข</button></div>
@@ -355,6 +353,7 @@ export function RewardsGallery() {
         {item.kind === "coupons" ? <div className="coupon-ticket-footer"><div><h2>{item.title}</h2><p>{item.description || "ใช้เป็นส่วนลดในร้าน"}</p></div><div className="rewards-gallery-actions"><button className={`rewards-gallery-status rewards-gallery-toggle ${item.active ? "on" : "off"}`} type="button" role="switch" aria-checked={item.active} aria-label={`${item.active ? "ปิด" : "เปิด"}คูปอง ${item.title}`} title={item.active ? "เปิดใช้งาน" : "ปิดใช้งาน"} onClick={() => toggleActive(item)}><span className="switch-track" aria-hidden="true"><i /></span></button><button type="button" onClick={() => openEditor(item)}><Pencil size={17} /> แก้ไข</button></div></div> : null}
       </article>)}</div> : !loading ? <div className="rewards-gallery-empty"><ImageIcon size={36} /><strong>ยังไม่มี{activeTab.title}</strong><span>กด “เพิ่มรายการ” เพื่อสร้างรายการแรก</span></div> : null}
     </main>
+    {couponScannerOpen ? <CouponQrScanner onClose={() => setCouponScannerOpen(false)} /> : null}
     {editing ? <div className="preview-modal rewards-gallery-modal" role="dialog" aria-modal="true" aria-label={editing.id ? `แก้ไข${editing.title}` : `เพิ่ม${activeTab.title}`}>
       <button className="preview-backdrop" type="button" onClick={closeEditor} aria-label="ปิด" />
       <section><button className="preview-close" type="button" onClick={closeEditor} aria-label="ปิด"><X /></button><h2>{editing.id ? `แก้ไข${activeTab.title}` : `เพิ่ม${activeTab.title}`}</h2>
@@ -363,8 +362,8 @@ export function RewardsGallery() {
           <div className="rewards-gallery-form-row rewards-gallery-basic"><label>ชื่อรายการ<input name="title" defaultValue={editing.title} required /></label>{editing.kind === "news" ? <div className="cute-select-field"><span>ประเภท</span><CuteSelect label="ประเภท" name="category" value={formCategory} onChange={setFormCategory} options={[{ value: "ข่าวสาร", label: "ข่าวสาร" }, { value: "โปรโมชั่น", label: "โปรโมชั่น" }]} /></div> : <label>หมวดหมู่<input name="category" defaultValue={editing.category} required /></label>}</div>
           <label>คำอธิบาย<textarea name="description" defaultValue={editing.description} rows={3} /></label>
           {editing.kind === "rewards" ? <div className="rewards-gallery-form-row"><label>แต้มที่ใช้แลก<input name="points" type="number" min="0" defaultValue={editing.points} required /></label><label>จำนวนคงเหลือ<input name="stock" type="number" min="0" defaultValue={editing.stock ?? ""} placeholder="ไม่จำกัด" /></label></div> : null}
-          {editing.kind === "coupons" ? <><div className="rewards-coupon-code-field"><label>รหัสคูปอง<input name="code" value={formCouponCode} onChange={event => setFormCouponCode(event.target.value.toUpperCase())} maxLength={32} autoComplete="off" required /></label><button type="button" disabled={saving} onClick={() => { try { setFormCouponCode(randomCouponCode(new Set(items.filter(item => item.kind === "coupons" && item.id !== editing.id).map(item => item.code.toUpperCase())))); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "สุ่มรหัสไม่สำเร็จ"); } }}><RotateCcw size={16} /> สุ่มรหัสคูปอง</button></div><div className="rewards-gallery-form-row"><div className="cute-select-field"><span>ประเภทส่วนลด</span><CuteSelect label="ประเภทส่วนลด" name="discountType" value={formDiscountType} onChange={setFormDiscountType} options={[{ value: "percent", label: "เปอร์เซ็นต์" }, { value: "fixed", label: "จำนวนเงิน" }]} /></div><label>มูลค่าส่วนลด<input name="discountValue" type="number" min="0" defaultValue={editing.discountValue} required /></label></div><div className="rewards-gallery-form-row"><label>ยอดขั้นต่ำ<input name="minSpend" type="number" min="0" defaultValue={editing.minSpend} /></label><label>จำกัดจำนวนใช้<input name="usageLimit" type="number" min="0" defaultValue={editing.usageLimit ?? ""} placeholder="ไม่จำกัด" /></label></div></> : null}
-          {editing.kind === "coupons" ? <div className="coupon-theme-field"><span>ธีมสีคูปอง</span><div className="coupon-theme-options" role="group" aria-label="เลือกธีมสีคูปอง">{couponThemes.map((theme) => <button key={theme.id} type="button" className={`coupon-theme-option coupon-theme-option--${theme.id}${formCouponTheme === theme.id ? " is-selected" : ""}`} aria-pressed={formCouponTheme === theme.id} onClick={() => setFormCouponTheme(theme.id)}><i aria-hidden="true" />{theme.label}</button>)}</div><div className="coupon-theme-preview"><CouponTicketFace discountType={formDiscountType} discountValue={editing.discountValue} minSpend={editing.minSpend} code={formCouponCode || "WELCOME10"} endsAt={editing.endsAt} theme={formCouponTheme} /></div></div> : null}
+          {editing.kind === "coupons" ? <><label className="rewards-gallery-checkbox"><input name="audienceMode" type="checkbox" value="targeted" defaultChecked={editing.audienceMode === "targeted"} /> เฉพาะสมาชิกที่ได้รับคูปองจาก LINE</label><div className="rewards-gallery-form-row"><div className="cute-select-field"><span>ประเภทส่วนลด</span><CuteSelect label="ประเภทส่วนลด" name="discountType" value={formDiscountType} onChange={setFormDiscountType} options={[{ value: "percent", label: "เปอร์เซ็นต์" }, { value: "fixed", label: "จำนวนเงิน" }]} /></div><label>มูลค่าส่วนลด<input name="discountValue" type="number" min="0" defaultValue={editing.discountValue} required /></label></div><div className="rewards-gallery-form-row"><label>ยอดขั้นต่ำ<input name="minSpend" type="number" min="0" defaultValue={editing.minSpend} /></label><label>จำกัดจำนวนใช้<input name="usageLimit" type="number" min="0" defaultValue={editing.usageLimit ?? ""} placeholder="ไม่จำกัด" /></label></div><div className="rewards-coupon-timer-field"><label>QR คูปองใช้ได้กี่นาทีหลังลูกค้ายืนยัน<input name="qrValidMinutes" type="number" min="1" max="1440" inputMode="numeric" defaultValue={editing.qrValidMinutes} required /></label><small>เริ่มต้น 15 นาที · เมื่อหมดเวลา ลูกค้าเปิด QR ใหม่ได้ถ้าคูปองยังไม่ถูกใช้</small></div></> : null}
+          {editing.kind === "coupons" ? <div className="coupon-theme-field"><span>ธีมสีคูปอง</span><div className="coupon-theme-options" role="group" aria-label="เลือกธีมสีคูปอง">{couponThemes.map((theme) => <button key={theme.id} type="button" className={`coupon-theme-option coupon-theme-option--${theme.id}${formCouponTheme === theme.id ? " is-selected" : ""}`} aria-pressed={formCouponTheme === theme.id} onClick={() => setFormCouponTheme(theme.id)}><i aria-hidden="true" />{theme.label}</button>)}</div><div className="coupon-theme-preview"><CouponTicketFace discountType={formDiscountType} discountValue={editing.discountValue} minSpend={editing.minSpend} remaining={editing.usageLimit === null ? null : Math.max(0, editing.usageLimit - editing.usedCount)} endsAt={editing.endsAt} theme={formCouponTheme} /></div></div> : null}
           {editing.kind === "news" ? <><label>เนื้อหา<textarea name="content" defaultValue={editing.content} rows={5} /></label><label>ช่วงวันเริ่ม–สิ้นสุดโปร (ถ้ามี)<DateRangePicker start={editingRange.start} end={editingRange.end} onChange={(start, end) => setEditingRange({ start, end })} nameStart="startsAt" nameEnd="expiresAt" label="ช่วงวันที่โปรโมชั่น" /></label><p className="news-schedule-hint">ต้องการแจ้งโปรล่วงหน้า? เปิดเผยแพร่ตอนนี้ แล้วเลือกวันเริ่มโปรในอนาคต ลูกค้าจะเห็นประกาศ “เร็ว ๆ นี้” ก่อนโปรเริ่ม · ข่าวทั่วไปเว้นวันที่ได้</p></> : <label>ช่วงวันที่ใช้งาน<DateRangePicker start={editingRange.start} end={editingRange.end} onChange={(start, end) => setEditingRange({ start, end })} nameStart="startsAt" nameEnd="endsAt" /></label>}
           <label className="rewards-gallery-checkbox"><input name="active" type="checkbox" role="switch" defaultChecked={editing.active} /> {editing.kind === "news" ? "เผยแพร่ข่าวสาร" : "เปิดใช้งาน"}</label>
           {error ? <p className="rewards-gallery-error" role="alert">{error}</p> : null}

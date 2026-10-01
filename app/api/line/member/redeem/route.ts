@@ -13,7 +13,8 @@ export async function POST(request: Request) {
     if (raw.length > 8192) return json({ error: "ข้อมูลมีขนาดใหญ่เกินไป" }, 413);
     input = JSON.parse(raw);
   } catch { return json({ error: "คำขอไม่ถูกต้อง" }, 400); }
-  if (!input.itemId || !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(input.itemId) || !input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId) || !["reward", "coupon"].includes(input.kind || "")) return json({ error: "รายการไม่ถูกต้อง" }, 400);
+  if (input.kind === "coupon") return json({ error: "กรุณาแสดง QR ให้พนักงานสแกนที่หน้าร้าน" }, 409);
+  if (!input.itemId || !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(input.itemId) || !input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId) || input.kind !== "reward") return json({ error: "รายการไม่ถูกต้อง" }, 400);
   const session = await verifiedMemberSession(input);
   if ("error" in session) return json({ error: session.error }, session.status);
   const { db, ownerId, memberId } = session;

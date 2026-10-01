@@ -7,13 +7,14 @@ import Image from "next/image";
 
 type Member = { memberCode: string; name: string; level: string; points: number; linePictureUrl?: string | null };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
-type State = "entry" | "loading" | "form" | "member" | "login" | "unavailable";
+type State = "entry" | "loading" | "form" | "member" | "login" | "unavailable" | "transfer" | "transferDone";
 type PreviewScreen = "register" | "login";
 const signedOutKey = "tammy-customer-signed-out";
+const transferKey = "tammy-pending-line-transfer";
 
 const emptyForm: Registration = { firstName: "", lastName: "", gender: "", birthDate: "", phone: "" };
 
-export function LineMemberRegistration({ preview, previewScreen = "register" }: { preview: boolean; previewScreen?: PreviewScreen }) {
+export function LineMemberRegistration({ preview, previewScreen = "register", testLogin }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void }) {
   const [richMenuView, setRichMenuView] = useState<"points" | "rewards" | "news" | null>(null);
   const [state, setState] = useState<State>(preview ? previewScreen === "login" ? "login" : "form" : "entry");
   const [idToken, setIdToken] = useState("");
@@ -25,11 +26,14 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
   const [busy, setBusy] = useState(false);
   const [liffUrl, setLiffUrl] = useState("");
   const [connectRequested, setConnectRequested] = useState(false);
+  const [transferId, setTransferId] = useState("");
 
   useEffect(() => {
     if (preview) return;
     const query = new URLSearchParams(window.location.search);
-    const liffCallback = query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
+    const requestedTransfer = query.get("lineTransfer");
+    if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
+    const liffCallback = query.has("code") && query.has("state") || query.has("liff.state") || window.location.hash.includes("access_token=");
     if (connectRequested || liffCallback) setState("loading");
     let active = true;
     void (async () => {
@@ -38,10 +42,11 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         const configResponse = await fetch("/api/line/member/config", { cache: "no-store", signal: AbortSignal.timeout(10000) });
         const config = await configResponse.json() as { liffId?: string; error?: string };
         if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
-        const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}`;
+        const pendingTransfer = sessionStorage.getItem(transferKey);
+        const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
         if (signedOut && !connectRequested) { setState("login"); return; }
-        if (!connectRequested && !liffCallback) { setState("entry"); return; }
+        if (!connectRequested && !liffCallback && !pendingTransfer) { setState("entry"); return; }
         const { default: liff } = await import("@line/liff");
         await Promise.race([
           liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: false }),
@@ -54,6 +59,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         }
         // LIFF restores rich-menu query parameters only after initialization.
         const finalQuery = new URLSearchParams(window.location.search);
+        const finalTransfer = finalQuery.get("lineTransfer") || sessionStorage.getItem(transferKey) || "";
+        if (finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer)) setTransferId(finalTransfer);
         const finalScreen = finalQuery.get("screen");
         const finalView = finalQuery.get("view");
         const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
@@ -74,8 +81,11 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
         const data = await response.json() as { registered?: boolean; member?: Member; error?: string; errorCode?: string };
         if (!active) return;
         if (!response.ok) throw new Error(data.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
-        if (data.registered && data.member) { setMember(data.member); setState("member"); }
-        else setState("form");
+        if (data.registered && data.member) {
+          if (finalTransfer) { setError("LINE นี้เชื่อมกับสมาชิกอยู่แล้ว กรุณาให้ร้านตรวจสอบก่อนย้ายบัญชี"); setState("unavailable"); }
+          else { setMember(data.member); setState("member"); }
+        }
+        else setState(finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer) ? "transfer" : "form");
       } catch (cause) {
         if (!active) return;
         setError(cause instanceof Error ? cause.message : "ไม่สามารถเชื่อมต่อ LINE ได้");
@@ -86,6 +96,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
   }, [preview, connectRequested]);
 
   function loginWithLine() {
+    if (testLogin) { testLogin(); return; }
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     localStorage.removeItem(signedOutKey);
     if (!liffUrl) { setError("กำลังเตรียมลิงก์ LINE กรุณาลองอีกครั้งสักครู่"); return; }
@@ -121,6 +132,25 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
     } finally { setBusy(false); }
   }
 
+  async function claimTransfer() {
+    if (busy || (!idToken && !accessToken) || !transferId) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/line/member/transfer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: transferId, idToken, accessToken }), cache: "no-store",
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "ส่งคำขอไม่สำเร็จ");
+      sessionStorage.removeItem(transferKey);
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete("lineTransfer");
+      window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      setState("transferDone");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "ส่งคำขอไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
   if (state === "member" && member) return preview ? <CustomerPortal mode="preview" /> : <CustomerPortal mode="customer" initialView={richMenuView} member={member} idToken={idToken} accessToken={accessToken} onLogout={() => void logout()} onMemberUpdated={name => setMember(value => value ? { ...value, name } : value)} />;
 
   return <main className={`line-entry line-entry--${state}`}>
@@ -135,6 +165,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
       </section>}
       {state === "form" && <>
         <div className="line-entry-form-heading"><h1>ข้อมูลสมาชิก</h1><p>กรอกข้อมูลเพื่อเป็นสมาชิกกับแทมมี่</p></div>
+        <div className="line-transfer-existing-note"><strong>เคยเป็นสมาชิก แต่เปลี่ยน LINE?</strong><p>ให้พนักงานเปิดข้อมูลสมาชิกเดิมและแสดง QR สำหรับ LINE ใหม่ที่หน้าร้าน เพื่อรักษาแต้มและสิทธิ์เดิมไว้</p></div>
         <section className="line-signup-panel line-entry-form-panel">
           <form onSubmit={register} className="line-signup-form">
             <div className="line-signup-row"><label>ชื่อจริง <span>*</span><input autoComplete="given-name" required maxLength={80} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} placeholder="ชื่อจริง" /></label><label>นามสกุล <span>*</span><input autoComplete="family-name" required maxLength={80} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} placeholder="นามสกุล" /></label></div>
@@ -149,6 +180,13 @@ export function LineMemberRegistration({ preview, previewScreen = "register" }: 
           </form>
         </section>
       </>}
+      {(state === "transfer" || state === "transferDone") && <section className="line-transfer-customer-panel">
+        <span className="line-transfer-customer-icon"><PawPrint size={27} /></span>
+        <h1>{state === "transferDone" ? "ส่งคำขอเชื่อม LINE แล้ว" : "เชื่อม LINE ใหม่กับสมาชิกเดิม"}</h1>
+        <p>{state === "transferDone" ? "กรุณาให้พนักงานตรวจและยืนยันบนหน้าร้าน เมื่อสำเร็จแล้วเปิดหน้าสมาชิกอีกครั้ง" : "คุณกำลังยืนยัน LINE ใหม่บนโทรศัพท์เครื่องนี้ ร้านจะตรวจสอบสมาชิกเดิมก่อนย้ายการเชื่อมต่อ แต้มและสิทธิ์ของคุณยังอยู่ในบัญชีเดิม"}</p>
+        {error ? <p role="alert" className="line-entry-error">{error}</p> : null}
+        {state === "transfer" ? <button type="button" disabled={busy} onClick={() => void claimTransfer()}>{busy ? "กำลังส่งคำขอ…" : "ยืนยันใช้ LINE นี้"}<ArrowRight size={17} /></button> : null}
+      </section>}
       <footer className="line-entry-footer"><PawPrint size={19} fill="currentColor" /> เพื่อนซี้ที่อยู่เคียงข้างเสมอ ♡</footer>
     </div>
   </main>;

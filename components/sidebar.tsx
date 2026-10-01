@@ -2,28 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { loadSettings } from "@/lib/settings";
 import { supabase } from "@/lib/supabase/client";
 import { crmRole, prefetchCrmPage } from "@/lib/supabase/crm-data";
 import {
-  BarChart3,
   ChevronRight,
-  Gift,
   LogOut,
-  Settings,
-  Tags,
-  Users,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PawPrint,
+  X,
 } from "lucide-react";
 
 const navigation = [
-  { icon: Gift, label: "ให้แต้ม", detail: "เพิ่ม / ลดแต้มสมาชิก", art: "points", href: "/points" },
-  { icon: Users, label: "สมาชิก", detail: "จัดการข้อมูลสมาชิก", art: "members", href: "/members" },
-  { icon: BarChart3, label: "แดชบอร์ดวิเคราะห์", detail: "สรุปยอดและรายงาน", art: "reports", href: "/reports" },
-  { icon: Tags, label: "ของรางวัล คูปอง และข่าวสาร", detail: "จัดการของรางวัล คูปอง โปรโมชั่น", art: "rewards", href: "/rewards" },
-  { icon: Gift, label: "ลุ้นของรางวัล", detail: "ตั้งค่ากิจกรรมลุ้นรางวัล", art: "lucky", href: null },
-  { icon: Gift, label: "LINE", detail: "เชื่อมต่อและตั้งค่า LINE", art: "line", href: "/line" },
-  { icon: Settings, label: "ตั้งค่าระบบ", detail: "จัดการระบบและสิทธิ์ผู้ใช้", art: "settings", href: "/settings" },
+  { label: "ให้แต้ม", detail: "เพิ่ม / ลดแต้มสมาชิก", art: "points", href: "/points" },
+  { label: "สมาชิก", detail: "จัดการข้อมูลสมาชิก", art: "members", href: "/members" },
+  { label: "แดชบอร์ดวิเคราะห์", detail: "สรุปยอดและรายงาน", art: "reports", href: "/reports" },
+  { label: "ของรางวัล คูปอง และข่าวสาร", detail: "จัดการของรางวัล คูปอง โปรโมชั่น", art: "rewards", href: "/rewards" },
+  { label: "ลุ้นของรางวัล", detail: "ตั้งค่ากิจกรรมลุ้นรางวัล", art: "lucky", href: null },
+  { label: "LINE", detail: "เชื่อมต่อและตั้งค่า LINE", art: "line", href: "/line" },
+  { label: "ตั้งค่าระบบ", detail: "จัดการระบบและสิทธิ์ผู้ใช้", art: "settings", href: "/settings" },
 ];
 
 type Brand = { logo: string; name: string; subtitle: string; x: number; y: number; zoom: number };
@@ -46,8 +47,11 @@ function sameBrand(a: Brand, b: Brand) {
   return a.logo === b.logo && a.name === b.name && a.subtitle === b.subtitle && a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 }
 
-export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/line" }) {
+export function Sidebar({ activePath, onClose }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/line"; onClose?: () => void }) {
+  const router = useRouter();
   const [brand, setBrand] = useState<Brand>(() => cachedBrand ?? defaultBrand);
+  const [collapsed, setCollapsed] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   const role = crmRole();
   const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings" || href === "/line"));
 
@@ -69,34 +73,53 @@ export function Sidebar({ activePath }: { activePath: "/points" | "/members" | "
     return () => window.clearTimeout(timer);
   }, [activePath]);
 
+  useEffect(() => {
+    if (activePath === "/line") return;
+    const timer = window.setTimeout(() => router.prefetch("/line"), 300);
+    return () => window.clearTimeout(timer);
+  }, [activePath, router]);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem("tammy-sidebar-collapsed") === "true");
+  }, []);
+
+  useEffect(() => { setPendingPath(null); }, [activePath]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      window.localStorage.setItem("tammy-sidebar-collapsed", String(!current));
+      return !current;
+    });
+  };
+
   return (
-    <aside className="sidebar sidebar-reference">
+    <aside className={`sidebar sidebar-reference${collapsed ? " is-collapsed" : ""}`}>
       <div className="brand">
-        <Image src={brand.logo || "/assets/tammy-member-entry-logo.png"} alt="โลโก้ร้าน" width={114} height={104} preload unoptimized={Boolean(brand.logo)} style={{ objectPosition: `${brand.x}% ${brand.y}%`, transform: `scale(${brand.zoom})` }} />
+        {brand.logo ? <Image src={brand.logo} alt="โลโก้ร้าน" width={114} height={104} preload unoptimized style={{ objectPosition: `${brand.x}% ${brand.y}%`, transform: `scale(${brand.zoom})` }} /> : <span className="brand-letter" aria-hidden="true"><PawPrint size={26} strokeWidth={2.2} /></span>}
         <div className="brand-name">{brand.name}</div>
         <div className="brand-subtitle">{brand.subtitle}</div>
       </div>
 
+      <button className="sidebar-collapse" type="button" onClick={toggleCollapsed} aria-label={collapsed ? "ขยายเมนู" : "พับเมนู"} aria-expanded={!collapsed} title={collapsed ? "ขยายเมนู" : "พับเมนู"}>
+        {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+      </button>
+      <button className="sidebar-close" type="button" onClick={onClose} aria-label="ปิดเมนู"><X size={20} /></button>
+
       <nav className="sidebar-nav" aria-label="เมนูหลัก">
-        {visibleNavigation.map(({ icon: Icon, label, detail, art, href }) => href === null ? (
+        {visibleNavigation.map(({ label, detail, art, href }) => href === null ? (
           <div key={art} className="nav-item nav-placeholder" aria-disabled="true" title="ยังไม่เปิดใช้งาน">
             <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true" />
             <span className="sidebar-menu-copy"><strong>{label}</strong><small>{detail}</small></span>
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />
           </div>
         ) : (
-          <Link key={label} href={href} title={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${activePath === href ? " active" : ""}`} onMouseEnter={() => prefetchCrmPage(href)} onFocus={() => prefetchCrmPage(href)}>
-            <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true">{art === "preview" && <Icon size={30} />}</span>
+          <Link key={label} href={href} prefetch title={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${(pendingPath ?? activePath) === href ? " active" : ""}`} onClick={() => { flushSync(() => setPendingPath(href)); onClose?.(); }} onMouseEnter={() => { router.prefetch(href); void prefetchCrmPage(href); }} onFocus={() => { router.prefetch(href); void prefetchCrmPage(href); }}>
+            <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true" />
             <span className="sidebar-menu-copy"><strong>{label}</strong><small>{detail}</small></span>
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />
           </Link>
         ))}
       </nav>
-
-      <div className="sidebar-art" aria-hidden="true">
-        <p>เพราะทุกความสุข<br />เริ่มต้นที่น้องแมว 🐾</p>
-        <Image src="/assets/tammy-member-entry-logo.png" alt="" width={188} height={224} loading="eager" />
-      </div>
 
       <div className="account-card">
         <div className="avatar">{role === "owner" ? "A" : role === "manager" ? "ผ" : "พ"}</div>

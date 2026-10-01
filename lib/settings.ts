@@ -37,10 +37,14 @@ export type AppSettings = {
   primaryColor: string;
   pointsSpend: number;
   pointsEarned: number;
+  silverBahtPerPoint: number;
+  silverPointsEarned: number;
   goldMinSpend: number;
   platinumMinSpend: number;
   goldBahtPerPoint: number;
+  goldPointsEarned: number;
   platinumBahtPerPoint: number;
+  platinumPointsEarned: number;
   goldUpgradeBonus: number;
   platinumUpgradeBonus: number;
   welcomeBonusEnabled: boolean;
@@ -48,6 +52,8 @@ export type AppSettings = {
   promotionMultiplier: number;
   promotions: PointPromotion[];
   pointsExpiration: string;
+  pointsExpirationMonth: number;
+  pointsExpirationDay: number;
   accumulationEnabled: boolean;
   popupEnabled: boolean;
   popupContent: PopupContent[];
@@ -91,10 +97,14 @@ export const defaultSettings: AppSettings = {
   primaryColor: "#ff554b",
   pointsSpend: 50,
   pointsEarned: 1,
+  silverBahtPerPoint: 50,
+  silverPointsEarned: 1,
   goldMinSpend: 5000,
   platinumMinSpend: 20000,
   goldBahtPerPoint: 45,
+  goldPointsEarned: 1,
   platinumBahtPerPoint: 40,
+  platinumPointsEarned: 1,
   goldUpgradeBonus: 15,
   platinumUpgradeBonus: 30,
   welcomeBonusEnabled: false,
@@ -102,6 +112,8 @@ export const defaultSettings: AppSettings = {
   promotionMultiplier: 1,
   promotions: [],
   pointsExpiration: "ไม่มีวันหมดอายุ",
+  pointsExpirationMonth: 1,
+  pointsExpirationDay: 1,
   accumulationEnabled: true,
   popupEnabled: true,
   popupContent: defaultPopupContent,

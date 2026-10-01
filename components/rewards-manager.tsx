@@ -114,7 +114,7 @@ export function RewardsManager() {
   return (
     <div className="app-shell rewards-page">
       <div className={`mobile-overlay${mobileMenu ? " show" : ""}`} onClick={() => setMobileMenu(false)} />
-      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/rewards" /></div>
+      <div className={`sidebar-wrap${mobileMenu ? " open" : ""}`}><Sidebar activePath="/rewards" onClose={() => setMobileMenu(false)} /></div>
       <main className="main-content">
         <header className="page-header rewards-header">
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>

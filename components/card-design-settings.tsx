@@ -70,7 +70,7 @@ export function CardDesignSettings({ settings, update }: { settings: AppSettings
   const design = { themes: settings.cardThemes, mascots: settings.cardMascots, selectedTheme: settings.selectedTheme, selectedMascot: settings.selectedMascot, displayCustomization: settings.displayCustomization };
   const liveTheme: CardTheme | null = themeDraft ? { id: themeDraft.id ?? "card-draft", name: themeDraft.name || "ธีมใหม่", ...paletteFromTone(themeDraft.base), pattern: themeDraft.pattern } : null;
   const liveDesign = liveTheme ? { ...design, themes: [...design.themes.filter((item) => item.id !== liveTheme.id), liveTheme], selectedTheme: liveTheme.id } : design;
-  const preview: CardMember = { name: "คุณอาทิตย์", code: "TM000123", level: previewTier, points: 2480, spending: previewTier === "Member" ? 1500 : previewTier === "Gold" ? 12500 : 23500 };
+  const preview: CardMember = { name: "คุณอาทิตย์", code: "TMA0123", level: previewTier, points: 2480, spending: previewTier === "Member" ? 1500 : previewTier === "Gold" ? 12500 : 23500 };
 
   function editTheme(theme?: CardTheme) {
     setThemeDraft(theme ? { id: theme.id, name: theme.name, base: theme.base ?? theme.from, pattern: patternForTheme(theme) } : { name: "", base: tones[0].color, pattern: "paws" });

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { GripVertical, Megaphone, Plus, Tag, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AppSettings } from "@/lib/settings";
-import { loadPopupCatalog, popupKey, resolvePopupContent, type PopupCatalog, type PopupContent, type PopupDisplay } from "@/lib/popup-content";
+import { loadPopupCatalog, peekPopupCatalog, popupKey, resolvePopupContent, type PopupCatalog, type PopupContent, type PopupDisplay } from "@/lib/popup-content";
 import { PopupCarouselCard } from "./customer-popup-carousel";
 import { PopupDetailView } from "./customer-content-detail";
 
@@ -18,7 +18,7 @@ function PopupImage({ item, size }: { item: PopupDisplay; size: number }) {
 export function PopupContentSettings({ settings, update }: { settings: AppSettings; update: Update }) {
   const items = settings.popupContent;
   const [catalog, setCatalog] = useState<PopupCatalog>(emptyCatalog);
-  const [loading, setLoading] = useState(true);
+  const [hasCatalog, setHasCatalog] = useState(false);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -28,9 +28,10 @@ export function PopupContentSettings({ settings, update }: { settings: AppSettin
 
   useEffect(() => {
     let current = true;
-    loadPopupCatalog().then(value => { if (current) setCatalog(value); })
+    const ready = peekPopupCatalog();
+    if (ready) { setCatalog(ready); setHasCatalog(true); }
+    loadPopupCatalog(true).then(value => { if (current) { setCatalog(value); setHasCatalog(true); } })
       .catch(reason => { if (current) setError(reason instanceof Error ? reason.message : "โหลดข่าวสารและคูปองไม่สำเร็จ"); })
-      .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, []);
 
@@ -62,7 +63,6 @@ export function PopupContentSettings({ settings, update }: { settings: AppSettin
       <section className="settings-card">
         <div className="popup-heading"><div><h2>Popup หลัง Login</h2><p>เลือกข่าวสารหรือคูปองที่มีอยู่เพื่อแสดงให้ลูกค้า</p></div><label className="popup-master"><input type="checkbox" role="switch" checked={settings.popupEnabled} onChange={event => update("popupEnabled", event.target.checked)} /> เปิดใช้งาน</label></div>
         <p className="popup-info">เปิดอยู่ {enabled.length} รายการ · ลากเพื่อเรียงลำดับที่ลูกค้าจะเห็น</p>
-        {loading ? <p>กำลังโหลดข่าวสารและคูปอง…</p> : null}
         {error ? <p role="alert">{error}</p> : null}
         <div className="popup-editor-list">{displayItems.map((item, order) => <div className={`popup-editor-row${selected && popupKey(selected) === popupKey(item) ? " selected" : ""}`} key={popupKey(item)} draggable onDragStart={() => { dragId.current = popupKey(item); }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragId.current) move(dragId.current, popupKey(item)); dragId.current = null; }} onDragEnd={() => { dragId.current = null; }}>
           <GripVertical aria-hidden="true" /><span className="popup-order">{order + 1}</span>
@@ -71,9 +71,9 @@ export function PopupContentSettings({ settings, update }: { settings: AppSettin
           <label className={`popup-row-toggle ${item.active ? "is-on" : "is-off"}`}><input type="checkbox" role="switch" checked={item.active} aria-label={`${item.active ? "ปิด" : "เปิด"} ${item.title}`} onChange={event => change(items.map(entry => popupKey(entry) === popupKey(item) ? { ...entry, active: event.target.checked } : entry))} /><span>{item.active ? "เปิด" : "ปิด"}</span></label>
           <button className="popup-row-delete" type="button" onClick={() => change(items.filter(entry => popupKey(entry) !== popupKey(item)))} aria-label={`นำ ${item.title} ออกจาก Popup`}><Trash2 size={16}/></button>
         </div>)}</div>
-        {!loading && !displayItems.length ? <p className="popup-empty">ยังไม่ได้เลือกรายการ</p> : null}
+        {hasCatalog && !displayItems.length ? <p className="popup-empty">ยังไม่ได้เลือกรายการ</p> : null}
         <button className="popup-add" type="button" onClick={() => setAdding(value => !value)}><Plus size={18}/> เลือกจากข่าวสาร/คูปอง</button>
-        {adding ? <div className="popup-source-list">{unselected.length ? unselected.map(item => <button type="button" key={popupKey(item)} onClick={() => { change([...items, { id: item.id, source: item.source, active: true }]); choose(popupKey(item)); setAdding(false); }}><span className="popup-row-image"><PopupImage item={item} size={42} /></span><span><strong>{item.title}</strong><small>{item.category} · {item.summary}</small></span><Plus size={17}/></button>) : <p>ไม่มีข่าวสารหรือคูปองที่เปิดใช้งานให้เลือก</p>}</div> : null}
+        {adding ? <div className="popup-source-list">{unselected.length ? unselected.map(item => <button type="button" key={popupKey(item)} onClick={() => { change([...items, { id: item.id, source: item.source, active: true }]); choose(popupKey(item)); setAdding(false); }}><span className="popup-row-image"><PopupImage item={item} size={42} /></span><span><strong>{item.title}</strong><small>{item.category} · {item.summary}</small></span><Plus size={17}/></button>) : hasCatalog ? <p>ไม่มีข่าวสารหรือคูปองที่เปิดใช้งานให้เลือก</p> : null}</div> : null}
       </section>
     </div>
     <div className="settings-column">

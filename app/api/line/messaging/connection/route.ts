@@ -50,8 +50,7 @@ export async function GET(request: Request) {
     const connection = await lineConnection(db, actor.ownerId);
     const envToken = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
     const token = connection?.access_token || envToken;
-    const bot = token ? await botInfo(token) : null;
-    const webhook = token && bot ? await webhookStatus(token) : null;
+    const [bot, webhook] = token ? await Promise.all([botInfo(token), webhookStatus(token)]) : [null, null];
     const loginChannelId = connection?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID || "";
     const liffId = connection?.liff_id || process.env.NEXT_PUBLIC_LINE_LIFF_ID || "";
     return noStore({

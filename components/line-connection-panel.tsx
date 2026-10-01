@@ -25,7 +25,7 @@ function Step({ number, title, ready, readyText = "พร้อมใช้ง�
   return <section className="linev2-setup-card"><header className="linev2-setup-head"><span className="linev2-step-number">{number}</span><h2>{title}</h2><span className={`linev2-step-state${ready ? " ready" : ""}`}>{ready ? <><Check size={14} /> {readyText}</> : "รอตั้งค่า"}</span></header><div className="linev2-setup-body">{children}</div></section>;
 }
 
-export function LineConnectionPanel() {
+export function LineConnectionPanel({ onConnection }: { onConnection?: (connection: Connection) => void }) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [serverReady, setServerReady] = useState(false);
   const [supabaseConfigured, setSupabaseConfigured] = useState({ url: false, publishable: false, secret: false });
@@ -46,15 +46,19 @@ export function LineConnectionPanel() {
 
   async function refresh() {
     try {
-      const status = await api<{ configured: { url: boolean; publishable: boolean; secret: boolean }; checks: { url: boolean; publishable: boolean; secret: boolean }; localSaveAvailable: boolean; projectUrl: string }>("/api/line/messaging/supabase-config");
+      const [status, connectionResult] = await Promise.all([
+        api<{ configured: { url: boolean; publishable: boolean; secret: boolean }; checks: { url: boolean; publishable: boolean; secret: boolean }; localSaveAvailable: boolean; projectUrl: string }>("/api/line/messaging/supabase-config"),
+        api<Connection>("/api/line/messaging/connection").catch(() => null),
+      ]);
       setServerReady(status.checks.url && status.checks.publishable && status.checks.secret);
       setSupabaseConfigured(status.configured);
       setSupabaseChecks(status.checks);
       setLocalSaveAvailable(status.localSaveAvailable);
       setErrors(value => ({ ...value, server: "" }));
-      if (!status.configured.secret) return;
-      const data = await api<Connection>("/api/line/messaging/connection");
+      if (!status.configured.secret || !connectionResult) return;
+      const data = connectionResult;
       setConnection(data);
+      onConnection?.(data);
       setEditingMessaging(false);
       setMessaging(value => ({ ...value, channelId: data.channelId || value.channelId }));
       setLogin(value => ({ loginChannelId: data.loginChannelId || value.loginChannelId, liffId: data.liffId || value.liffId }));
