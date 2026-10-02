@@ -168,7 +168,6 @@ export function ReportsManager() {
           const before=report.previous[i],now=report.current[i];
           return <article key={label}><Icon size={26}/><div><span>{label}</span><strong>{i===0?"฿":""}{number(now)}{i===1||i===3?" คน":""}</strong><small className={before>now?"down":""}>{percentLabel(now,before,compareName)}</small><span className="report-sr">{unit}</span></div></article>;
         })}</div>
-        <CouponUsagePanel start={range.start} end={range.end} reload={reload} />
         <section className="panel report-chart"><div className="report-section-head"><div><h2>แนวโน้มรายวัน</h2><p>{dateLabel(range.start)} – {dateLabel(range.end)}</p></div><div className="report-segment"><button aria-pressed={metric==="sales"} onClick={()=>{setMetric("sales");setHover(null);}}>ยอดซื้อ</button><button aria-pressed={metric==="points"} onClick={()=>{setMetric("points");setHover(null);}}>แต้มที่ให้</button></div></div>
           <div className="report-chart-value" aria-live="polite">{point?dateLabel(point.day):"เลือกจุดบนกราฟเพื่อดูรายละเอียด"}<strong>{point?(metric==="sales"?"฿":"")+number(point[metric])+(metric==="points"?" แต้ม":""):" "}</strong></div>
           {pointBefore!==null?<p className="report-point-compare">{percentLabel(point?.[metric]??0,pointBefore,compareName)}</p>:null}
@@ -181,6 +180,7 @@ export function ReportsManager() {
           </svg>
           {!report.current[1]?<p className="report-note">ยังไม่มีรายการซื้อในช่วงวันที่เลือก</p>:null}
         </section>
+        <CouponUsagePanel start={range.start} end={range.end} reload={reload} />
         <section className="panel report-follow"><div className="report-section-head"><div><h2><Clock3 size={23}/> ลูกค้าที่ต้องติดตาม</h2><p>จำนวนวันที่ไม่ได้ซื้อ ณ {dateLabel(range.end)} · แต่ละกลุ่มไม่นับซ้ำ</p></div></div>
           <div className="report-follow-grid">{buckets.map((b,i)=><button key={b.label} onClick={()=>setFollow(follow===i?null:i)} aria-expanded={follow===i}><Users size={23}/><span>{b.label}<strong>{report.inactive.filter(m=>m.days!==null&&m.days>=b.min&&m.days<=b.max).length} คน</strong></span></button>)}</div>
           <div className="report-custom"><label>กำหนดเอง: ไม่ได้ซื้ออย่างน้อย <input aria-label="จำนวนวันที่ต้องการติดตาม" type="number" min="1" max="3650" value={customDays} onChange={e=>setCustomDays(Math.max(1,Math.min(3650,Number(e.target.value)||1)))}/> วัน</label><button className="button outline" onClick={()=>setFollow(follow===4?null:4)} aria-expanded={follow===4}>ดูรายชื่อ</button></div>
