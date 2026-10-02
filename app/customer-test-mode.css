@@ -5,3 +5,4 @@
 .customer-database-test-banner button:focus-visible{outline:2px solid white;outline-offset:2px}
 .customer-database-test-banner button:disabled{opacity:.6;cursor:default}
 .customer-database-test-banner small{width:100%;color:#ffe6ca}
+.customer-database-test-banner{width:min(440px,100%);margin-inline:auto;box-sizing:border-box}.customer-database-test-banner + .customer-portal.customer-home-page{width:min(440px,100%);max-width:440px;min-height:956px;margin:0 auto;box-sizing:border-box;border-inline:1px solid #d9e3ec;box-shadow:0 12px 35px #20364a18}.customer-database-test-banner + .customer-portal .customer-home-nav{width:min(440px,100vw)}@media(max-width:440px){.customer-database-test-banner,.customer-database-test-banner + .customer-portal.customer-home-page{width:100%;max-width:100%;border-inline:0;box-shadow:none}.customer-database-test-banner + .customer-portal .customer-home-nav{width:100vw}}
