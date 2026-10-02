@@ -90,7 +90,7 @@
 .customer-news-slide-copy h2 { font-size:17px; line-height:1.45; margin:4px 0; }
 .customer-news-slide-copy p { color:#827b75; font-size:12px; line-height:1.5; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .customer-news-slide-copy > span { margin-top:10px; display:flex; gap:3px; align-items:center; font-size:12px; color:#d46044; }
-.customer-catalog-refresh .customer-news-slide-picture { aspect-ratio:16/9; max-height:260px; }
+.customer-catalog-refresh .customer-news-slide-picture { width:min(100%,220px); aspect-ratio:1/1; max-height:220px; margin-inline:auto; }
 .customer-news-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 3px 0; }
 .customer-redeem-confirm-dialog { position:fixed; z-index:100; inset:0; display:grid; place-items:center; padding:20px; }
 .customer-redeem-confirm-backdrop { position:absolute; inset:0; border:0; background:#1c243b99; }
@@ -108,7 +108,7 @@
 .customer-news-dots button { position:relative; width:23px; height:30px; padding:0; background:none; border:0; cursor:pointer; }
 .customer-news-dots button::after { content:""; position:absolute; width:6px; height:6px; border-radius:99px; background:#d9cabe; top:12px; left:9px; }
 .customer-news-dots button.active::after { background:#eb7658; width:14px; left:5px; }
-@media(max-width:600px){.customer-catalog-refresh .customer-home-news{margin-top:18px}.customer-catalog-refresh .customer-news-slide-picture{aspect-ratio:16/10;max-height:190px}.customer-catalog-refresh .customer-news-slide-copy{padding:10px 12px 11px}.customer-catalog-refresh .customer-news-slide-copy h2{font-size:15px}.customer-catalog-refresh .customer-news-slide-copy>span{margin-top:7px}}
+@media(max-width:600px){.customer-catalog-refresh .customer-home-news{margin-top:18px}.customer-catalog-refresh .customer-news-slide-copy{padding:10px 12px 11px}.customer-catalog-refresh .customer-news-slide-copy h2{font-size:15px}.customer-catalog-refresh .customer-news-slide-copy>span{margin-top:7px}}
 .customer-lucky-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:410px; text-align:center; }
 .customer-lucky-art { position:relative; display:grid; place-items:center; width:195px; height:185px; color:#e66b4b; border-radius:50%; background:radial-gradient(circle,#ffe5c8,transparent 70%); }
 .customer-lucky-art > svg:first-of-type { position:absolute; left:22px; top:28px; color:#edb34b; fill:#ffe2a0; }
