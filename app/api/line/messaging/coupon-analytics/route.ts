@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
   const db = serviceDb();
   if (!db) return noStore({ error: "ฐานข้อมูลไม่พร้อมใช้งาน" }, 503);
-  const result = await db.rpc("crm_coupon_usage_summary", { p_owner_id: actor.ownerId, p_start: start, p_end: end });
+  const result = await db.rpc("crm_coupon_redemption_summary", { p_owner_id: actor.ownerId, p_start: start, p_end: end });
   if (result.error) return noStore({ error: "โหลดข้อมูลการใช้คูปองไม่สำเร็จ" }, 500);
   return noStore({ rows: result.data || [] });
 }

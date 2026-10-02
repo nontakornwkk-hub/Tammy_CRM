@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
   const result = await session.db.rpc("issue_member_coupon_qr_once", { p_owner_id: session.ownerId, p_member_id: session.memberId, p_coupon_id: input.couponId });
   if (result.error) {
-    const errors: Record<string, string> = { NOT_ELIGIBLE: "คูปองนี้เป็นสิทธิ์เฉพาะผู้รับ", ALREADY_USED: "คุณใช้คูปองนี้แล้ว", QR_EXPIRED: "QR คูปองหมดเวลาแล้ว ไม่สามารถเปิดใหม่ได้", ITEM_UNAVAILABLE: "คูปองยังไม่เปิดให้ใช้หรือหมดอายุแล้ว", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว" };
+    const errors: Record<string, string> = { NOT_ELIGIBLE: "คูปองนี้เป็นสิทธิ์เฉพาะผู้รับ", ALREADY_USED: "คุณใช้คูปองนี้แล้ว", ITEM_UNAVAILABLE: "คูปองยังไม่เปิดให้ใช้หรือหมดอายุแล้ว", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว" };
     return Response.json({ error: errors[result.error.message] || "เปิด QR ไม่สำเร็จ" }, { status: errors[result.error.message] ? 409 : 500 });
   }
   const claim = (result.data as { qr_token: string; qr_expires_at: string }[] | null)?.[0];

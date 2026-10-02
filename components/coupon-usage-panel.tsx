@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TicketPercent } from "lucide-react";
+import Image from "next/image";
+import { CalendarDays, PawPrint, TicketPercent } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
-type CouponUsage = { coupon_id: string; title: string; opened_count: number; used_count: number; expired_count: number };
+type CouponUsage = { coupon_id: string; title: string; received_count: number; used_count: number };
 
 export function CouponUsagePanel({ start, end, reload }: { start: string; end: string; reload: number }) {
   const [rows, setRows] = useState<CouponUsage[]>([]);
@@ -30,17 +31,30 @@ export function CouponUsagePanel({ start, end, reload }: { start: string; end: s
     return () => controller.abort();
   }, [start, end, reload]);
 
-  const opened = rows.reduce((total, item) => total + Number(item.opened_count), 0);
+  const received = rows.reduce((total, item) => total + Number(item.received_count), 0);
   const used = rows.reduce((total, item) => total + Number(item.used_count), 0);
-  const expired = rows.reduce((total, item) => total + Number(item.expired_count), 0);
-  const rate = opened ? Math.round(used / opened * 100) : 0;
+  const rate = received ? Math.round(used / received * 100) : 0;
+  const items = rows.filter(item => Number(item.received_count) > 0);
+  const period = start.slice(0, 7) === end.slice(0, 7) && start.endsWith("-01")
+    ? new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(new Date(`${start}T12:00:00Z`))
+    : "ช่วงที่เลือก";
+
   return <section className="panel coupon-usage-panel" aria-labelledby="coupon-usage-title">
-    <div className="coupon-usage-heading"><span><TicketPercent size={23} /></span><div><h2 id="coupon-usage-title">อัตราการใช้คูปอง</h2><p>นับจาก QR ที่ลูกค้ายืนยันเปิดในช่วงวันที่เลือก</p></div></div>
-    {loading ? <p role="status">กำลังโหลดข้อมูลคูปอง…</p> : error ? <p role="alert">{error}</p> : <>
-      <div className="coupon-usage-numbers"><div><small>เปิด QR</small><strong>{opened.toLocaleString("th-TH")}</strong><span>สิทธิ์</span></div><div className="is-used"><small>ใช้สำเร็จ</small><strong>{used.toLocaleString("th-TH")}</strong><span>สิทธิ์</span></div><div><small>อัตราการใช้</small><strong>{rate}%</strong><span>ของ QR ที่เปิด</span></div></div>
-      <div className="coupon-usage-meter" role="progressbar" aria-label="อัตราการใช้คูปอง" aria-valuemin={0} aria-valuemax={100} aria-valuenow={rate}><span style={{ width: `${rate}%` }} /></div>
-      <p className="coupon-usage-explain">{opened ? `หมดเวลาโดยไม่ใช้ ${expired.toLocaleString("th-TH")} สิทธิ์` : "ยังไม่มีการเปิด QR คูปองในช่วงนี้"}</p>
-      {rows.some(item => Number(item.opened_count) > 0) && <div className="coupon-usage-list">{rows.filter(item => Number(item.opened_count) > 0).slice(0, 5).map(item => <div key={item.coupon_id}><span>{item.title}</span><strong>{item.used_count}/{item.opened_count} ใช้แล้ว</strong></div>)}</div>}
+    <div className="coupon-usage-heading">
+      <PawPrint className="coupon-heading-paw" aria-hidden="true" />
+      <div><h2 id="coupon-usage-title">สรุปการใช้คูปอง</h2><p>ผลการใช้สิทธิ์ที่ลูกค้าได้รับในช่วงเวลาที่เลือก</p></div>
+      <span className="coupon-period"><CalendarDays size={16} />{period}</span>
+    </div>
+    {loading ? <p className="coupon-usage-state" role="status">กำลังโหลดข้อมูลคูปอง…</p> : error ? <p className="coupon-usage-state" role="alert">{error}</p> : <>
+      <div className="coupon-usage-hero">
+        <div className="coupon-usage-illustration"><Image src="/images/coupon-pets.png" alt="สุนัขและแมวกับบัตรคูปอง" width={340} height={255} /></div>
+        <div className="coupon-usage-total"><span>ใช้คูปองแล้ว</span><strong>{used.toLocaleString("th-TH")} <small>สิทธิ์</small></strong></div>
+        <div className="coupon-usage-rate"><div><span>อัตราการใช้</span><strong>{rate}%</strong></div><div className="coupon-usage-meter" role="progressbar" aria-label="อัตราการใช้คูปอง" aria-valuemin={0} aria-valuemax={100} aria-valuenow={rate}><span style={{ width: `${rate}%` }} /></div><p>ใช้แล้ว {used.toLocaleString("th-TH")} จาก {received.toLocaleString("th-TH")} สิทธิ์ที่ลูกค้ารับ</p></div>
+      </div>
+      <div className="coupon-usage-list"><h3>คูปองแต่ละรายการ</h3>{items.length ? items.map(item => {
+        const itemRate = Math.round(Number(item.used_count) / Number(item.received_count) * 100);
+        return <div className="coupon-usage-row" key={item.coupon_id}><span className="coupon-row-ticket"><TicketPercent size={18} /></span><strong className="coupon-row-title">{item.title}</strong><span className="coupon-row-count">ใช้แล้ว {Number(item.used_count).toLocaleString("th-TH")} / {Number(item.received_count).toLocaleString("th-TH")} สิทธิ์</span><strong className="coupon-row-rate">{itemRate}%</strong></div>;
+      }) : <p className="coupon-usage-empty">ยังไม่มีสิทธิ์คูปองในช่วงเวลานี้</p>}</div>
     </>}
   </section>;
 }
