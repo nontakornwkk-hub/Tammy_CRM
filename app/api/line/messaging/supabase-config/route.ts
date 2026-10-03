@@ -84,9 +84,12 @@ export async function POST(request: Request) {
   try {
     await writeFile(tempPath, contents, { encoding: "utf8", flag: "wx", mode: 0o600 });
     await rename(tempPath, envPath);
-    process.env.NEXT_PUBLIC_SUPABASE_URL = url;
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = publishable;
-    process.env.SUPABASE_SECRET_KEY = secret;
+    // Public env property expressions are inlined by Next during production builds.
+    Object.assign(process.env, {
+      NEXT_PUBLIC_SUPABASE_URL: url,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable,
+      SUPABASE_SECRET_KEY: secret,
+    });
   } catch { return noStore({ error: "บันทึก .env.local ไม่สำเร็จ" }, 500); }
   return noStore({ checks, savedLocal: true, restartRecommended: true });
 }

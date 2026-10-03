@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Noto_Sans_Thai } from "next/font/google";
 import { ArrowLeft, Check, Gift, PawPrint, Star, Tag, TicketPercent, X } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { cachedMemberCatalog, clearMemberCatalog, loadMemberCatalog } from "@/lib/customer-catalog";
 import { watchCatalogChanges } from "@/lib/catalog-live";
@@ -18,9 +18,9 @@ import { CustomerBrandHeader } from "./customer-brand-header";
 import { CustomerAccount } from "./customer-account";
 import { CustomerMemberCard, type RankProgress } from "./customer-member-card";
 import { CustomerNewsCarousel } from "./customer-news-carousel";
-import { CustomerNavIcon } from "./customer-nav-icon";
+import { CustomerNavigation, type CustomerTab } from "./customer-navigation";
 
-type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
+type Tab = CustomerTab;
 const memberFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], display: "swap" });
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
 type Reward = { id: string; title: string; description: string; category: string; points_cost: number; stock: number | null; image_url: string | null; active: boolean; starts_at: string | null; ends_at: string | null };
@@ -29,14 +29,6 @@ type Member = { memberCode: string; name: string; level: string; points: number;
 type PortalProps =
   | { mode: "preview"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member?: never; idToken?: never; accessToken?: never; onLogout?: never; onMemberUpdated?: never }
   | { mode: "customer"; initialTab?: "home" | "rewards"; initialView?: "points" | "rewards" | "news" | null; member: Member; idToken?: string; accessToken?: string; onLogout: () => void; onMemberUpdated?: (name: string) => void };
-
-const navigation = [
-  { id: "rewards", label: "ของรางวัล" },
-  { id: "coupons", label: "คูปอง" },
-  { id: "home", label: "หน้าหลัก" },
-  { id: "lucky", label: "ลุ้นรางวัล" },
-  { id: "account", label: "ข้อมูลของฉัน" },
-] as const;
 
 const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }> = {
   rewards: { title: "ของรางวัล", empty: "ยังไม่มีของรางวัลที่เปิดให้แลกในขณะนี้" },
@@ -341,7 +333,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
 
       {couponStatusError && selectedCoupon && <p className="customer-coupon-status-notice" role="status">{couponStatusError}</p>}
       {usedCouponTitle && <div className="customer-coupon-use-dialog" role="dialog" aria-modal="true" aria-labelledby="coupon-used-title"><button type="button" className="customer-coupon-use-backdrop" aria-label="ปิด" onClick={() => setUsedCouponTitle("")} /><section className="customer-coupon-used"><span className="customer-coupon-use-icon"><Check size={32} /></span><h2 id="coupon-used-title">ใช้คูปองสำเร็จแล้ว</h2><p role="status">ร้านยืนยันใช้สิทธิ์ของคุณเรียบร้อยแล้ว</p><strong>{usedCouponTitle}</strong><button className="customer-coupon-copy-button" type="button" autoFocus onClick={() => setUsedCouponTitle("")}>เรียบร้อย</button></section></div>}
-      {!selectedReward && <nav className="customer-nav customer-soft-nav" aria-label="เมนูหลัก" style={{ "--customer-active-tab": navigation.findIndex(item => item.id === tab) } as CSSProperties}>{navigation.map(({ id, label }) => <button type="button" className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "instant" }); }} key={id}><span className="customer-soft-nav-icon"><CustomerNavIcon tab={id} /></span><span>{label}</span></button>)}</nav>}
+      {!selectedReward && <CustomerNavigation activeTab={tab} onSelect={setTab} />}
       {selectedCoupon ? <div className="customer-coupon-use-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-coupon-use-title"><button type="button" className="customer-coupon-use-backdrop" onClick={() => setSelectedCoupon(null)} aria-label="ปิดหน้าคูปอง"/><section><button type="button" className="customer-coupon-use-close" onClick={() => setSelectedCoupon(null)} aria-label="ปิด"><X size={19}/></button><span className="customer-coupon-use-icon"><TicketPercent size={27}/></span><p>คูปองเฉพาะของคุณ</p><h2 id="customer-coupon-use-title">{selectedCoupon.title}</h2><strong className="customer-coupon-use-value">{selectedCoupon.discount_type === "percent" ? `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")}%` : `ลด ${Number(selectedCoupon.discount_value).toLocaleString("th-TH")} บาท`}</strong>{!couponQr ? <><div className="customer-coupon-terms"><strong>เงื่อนไขก่อนใช้สิทธิ์</strong><ul>{selectedCoupon.description ? <li>{selectedCoupon.description}</li> : null}<li>{selectedCoupon.min_spend > 0 ? `ใช้เมื่อซื้อครบ ${Number(selectedCoupon.min_spend).toLocaleString("th-TH")} บาท` : "ไม่มีขั้นต่ำ"}</li><li>ใช้สิทธิ์ได้ที่หน้าร้านเท่านั้น จำกัด 1 ครั้งต่อสมาชิก ให้พนักงานสแกน QR เพื่อยืนยัน</li>{selectedCoupon.ends_at ? <li>คูปองใช้ได้ถึง {new Date(selectedCoupon.ends_at).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" })}</li> : null}<li>QR ใช้ได้ {selectedCoupon.qr_valid_minutes || 15} นาทีหลังยืนยัน หากหมดเวลาก่อนพนักงานสแกน สามารถเปิด QR ใหม่ได้ โดย QR เดิมจะใช้ไม่ได้</li></ul></div>{redeemError ? <p role="alert" className="line-signup-error">{redeemError}</p> : null}<button className="customer-coupon-copy-button" type="button" disabled={couponQrBusy} onClick={() => void activateCoupon()}>{couponQrBusy ? "กำลังเตรียม QR…" : "ยืนยันใช้คูปอง"}</button></> : couponSecondsLeft > 0 ? <><div className="customer-coupon-personal-qr"><Image src={couponQr} alt="QR คูปองส่วนตัวสำหรับให้พนักงานสแกน" width={224} height={224} unoptimized /><small>ให้พนักงานสแกนและยืนยันใช้สิทธิ์ที่หน้าร้าน</small></div><div className="customer-coupon-countdown" role="timer">QR ใช้ได้อีก <strong>{String(Math.floor(couponSecondsLeft / 60)).padStart(2, "0")}:{String(couponSecondsLeft % 60).padStart(2, "0")}</strong> นาที</div></> : <div className="customer-coupon-expired" role="status"><p>QR หมดเวลาแล้ว</p><small>ยังไม่ได้ใช้สิทธิ์? เปิด QR ใหม่ได้ที่หน้าร้าน โดย QR เดิมจะใช้ไม่ได้</small><button className="customer-coupon-copy-button" type="button" disabled={couponQrBusy} onClick={() => void activateCoupon()}>{couponQrBusy ? "กำลังเตรียม QR…" : "เปิด QR ใหม่"}</button></div>}</section></div> : null}</main>
   );
 }
