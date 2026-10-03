@@ -7,6 +7,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { ReportMonthPicker } from "./report-month-picker";
 import { supabase } from "@/lib/supabase/client";
 import { cachedData, crmOwnerId, fetchReportsData, loadCachedData } from "@/lib/supabase/crm-data";
+import { cachedLinePictures, rememberLinePictures } from "@/lib/supabase/line-profile-cache";
 import { CouponUsagePanel } from "./coupon-usage-panel";
 
 type Member = { id:string; name:string; member_code:string; level:string; created_at:string; last_visit:string|null };
@@ -53,7 +54,7 @@ export function ReportsManager() {
   const [draft,setDraft] = useState(range);
   const [members,setMembers] = useState<Member[]>(() => cachedData<ReportsData>("reports")?.members as Member[] ?? []);
   const [transactions,setTransactions] = useState<Transaction[]>(() => cachedData<ReportsData>("reports")?.transactions as Transaction[] ?? []);
-  const [linePictures,setLinePictures] = useState<Record<string,string>>({});
+  const [linePictures,setLinePictures] = useState<Record<string,string>>(() => cachedLinePictures(crmOwnerId()));
   const [loading,setLoading] = useState(() => !cachedData<ReportsData>("reports"));
   const [error,setError] = useState("");
   const [reload,setReload] = useState(0);
@@ -89,7 +90,7 @@ export function ReportsManager() {
           const response = await fetch("/api/line/messaging/member-profiles", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
           if (!response.ok) return;
           const payload = await response.json() as { profiles: { member_id: string; line_picture_url: string | null }[] };
-          if (active) setLinePictures(Object.fromEntries(payload.profiles.filter((profile) => profile.line_picture_url?.startsWith("https://")).map((profile) => [profile.member_id, profile.line_picture_url!])));
+          if (active) setLinePictures(rememberLinePictures(ownerId, payload.profiles));
         } catch { /* Rankings remain available when LINE profile images cannot load. */ }
       })();
     })().catch(e => {if(active)setError(e instanceof Error ? e.message : "โหลดรายงานไม่สำเร็จ");})

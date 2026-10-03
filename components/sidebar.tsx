@@ -113,7 +113,7 @@ export function Sidebar({ activePath, onClose }: { activePath: "/points" | "/mem
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />
           </div>
         ) : (
-          <Link key={label} href={href} prefetch title={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${(pendingPath ?? activePath) === href ? " active" : ""}`} onClick={() => { flushSync(() => setPendingPath(href)); onClose?.(); }} onMouseEnter={() => { router.prefetch(href); void prefetchCrmPage(href); }} onFocus={() => { router.prefetch(href); void prefetchCrmPage(href); }}>
+          <Link key={label} href={href} prefetch title={label} aria-label={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${(pendingPath ?? activePath) === href ? " active" : ""}`} onClick={() => { flushSync(() => setPendingPath(href)); onClose?.(); }} onMouseEnter={() => { router.prefetch(href); void prefetchCrmPage(href); }} onFocus={() => { router.prefetch(href); void prefetchCrmPage(href); }}>
             <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true" />
             <span className="sidebar-menu-copy"><strong>{label}</strong><span className="sidebar-mobile-label">{art === "reports" ? "รายงาน" : art === "rewards" ? "สิทธิพิเศษ" : art === "settings" ? "ตั้งค่า" : label}</span><small>{detail}</small></span>
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />

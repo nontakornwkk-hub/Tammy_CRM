@@ -1,5 +1,5 @@
 "use client";
-import { notifyCatalogChanged } from "@/lib/catalog-live";
+import { notifyCatalogChanged, watchCatalogChanges } from "@/lib/catalog-live";
 
 import Image from "next/image";
 import { Camera, History, Check, ChevronDown, Gift, ImageIcon, Menu, Megaphone, Package, Pencil, Plus, RotateCcw, Search, Star, Tag, Trash2, X } from "lucide-react";
@@ -188,6 +188,7 @@ export function RewardsGallery() {
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => watchCatalogChanges(() => { void load(true); }), [load]);
 
   const matchesView = (item: CatalogItem) => item.kind === kind;
   const categories = [...new Set(items.filter(matchesView).map((item) => item.category))];
@@ -225,7 +226,7 @@ export function RewardsGallery() {
       if (file && editing.kind === "rewards") {
         const upload = await withinFiveMb(await cropSquareImage(file, cropPosition));
         const path = `${ownerId}/${crypto.randomUUID()}.${upload.type === "image/png" ? "png" : upload.type === "image/webp" ? "webp" : "jpg"}`;
-        const uploaded = await supabase.storage.from("crm-content").upload(path, upload, { contentType: upload.type, upsert: false });
+        const uploaded = await supabase.storage.from("crm-content").upload(path, upload, { contentType: upload.type, cacheControl: "31536000", upsert: false });
         if (uploaded.error) throw uploaded.error;
         imageUrl = supabase.storage.from("crm-content").getPublicUrl(path).data.publicUrl;
       }
@@ -235,7 +236,7 @@ export function RewardsGallery() {
           if (!image.file) return image.url;
           const compressed = await compressNewsImage(image.file);
           const path = `${ownerId}/news-${crypto.randomUUID()}.${compressed.type === "image/jpeg" ? "jpg" : compressed.type === "image/png" ? "png" : "webp"}`;
-          const uploaded = await supabase!.storage.from("crm-content").upload(path, compressed, { contentType: compressed.type, upsert: false });
+          const uploaded = await supabase!.storage.from("crm-content").upload(path, compressed, { contentType: compressed.type, cacheControl: "31536000", upsert: false });
           if (uploaded.error) throw uploaded.error;
           return supabase!.storage.from("crm-content").getPublicUrl(path).data.publicUrl;
         }));
@@ -266,16 +267,13 @@ export function RewardsGallery() {
   async function remove() {
     if (!supabase || !editing?.id || !window.confirm(editing.kind === "coupons"
       ? `ลบคูปอง "${editing.title}" ออกจากรายการใช่ไหม? ประวัติการใช้ที่เกิดขึ้นแล้วจะยังอยู่`
-      : `ลบ "${editing.title}" ใช่ไหม?`)) return;
+      : `ลบ "${editing.title}" ใช่ไหม?${editing.kind === "rewards" ? " ประวัติการแลกที่เกิดขึ้นแล้วจะยังอยู่" : ""}`)) return;
     setSaving(true); setError("");
     const ownerId = crmOwnerId();
     if (!ownerId) { setSaving(false); setError("ยังไม่พบสิทธิ์ของร้าน"); return; }
-    const { error: deleteError } = editing.kind === "coupons"
-      ? await supabase.from("coupons").update({ active: false, archived_at: new Date().toISOString() })
-          .eq("owner_id", ownerId).eq("id", editing.id).is("archived_at", null).select("id").single()
-      : await supabase.from(editing.kind).delete().eq("owner_id", ownerId).eq("id", editing.id);
+    const { error: deleteError } = await supabase.from(editing.kind).delete().eq("owner_id", ownerId).eq("id", editing.id);
     setSaving(false);
-    if (deleteError) { setError(deleteError.code === "23503" ? "รายการนี้มีประวัติการใช้งานอยู่ จึงลบถาวรไม่ได้" : deleteError.message); return; }
+    if (deleteError) { setError(deleteError.code === "23503" ? "ลบรายการนี้ไม่ได้เนื่องจากยังมีข้อมูลอ้างอิงอยู่ กรุณาตรวจสอบ migration ฐานข้อมูล" : deleteError.message); return; }
     notifyCatalogChanged();
     try { await refreshPublishedPopupContent(); } catch { setError("ลบรายการแล้ว แต่ปรับ Popup ไม่สำเร็จ กรุณาบันทึกหน้าตั้งค่า Popup อีกครั้ง"); }
     clearCachedData("rewards");
@@ -359,7 +357,7 @@ export function RewardsGallery() {
       </div>
       {error && !editing ? <p className="rewards-gallery-error" role="alert">{error} <button type="button" onClick={() => void load()}>ลองอีกครั้ง</button></p> : null}
       {loading && items.length === 0 ? <p className="rewards-gallery-empty">กำลังโหลดข้อมูล...</p> : visible.length ? <div className="rewards-gallery-grid">{visible.map((item) => <article className={`rewards-gallery-card${item.kind === "coupons" ? " is-coupon" : ""}`} key={item.id}>
-        {item.kind === "coupons" ? <CouponTicketFace title={item.title} description={item.description} discountType={item.discountType} discountValue={item.discountValue} minSpend={item.minSpend} remaining={item.usageLimit === null ? null : Math.max(0, item.usageLimit - item.usedCount)} endsAt={item.endsAt} theme={item.theme} /> : <><div className="rewards-gallery-image">{item.imageUrl ? <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" unoptimized /> : <span><ImageIcon size={42} /><small>ยังไม่มีภาพพรีวิว</small></span>}</div>
+        {item.kind === "coupons" ? <CouponTicketFace title={item.title} description={item.description} discountType={item.discountType} discountValue={item.discountValue} minSpend={item.minSpend} remaining={item.usageLimit === null ? null : Math.max(0, item.usageLimit - item.usedCount)} endsAt={item.endsAt} theme={item.theme} /> : <><div className="rewards-gallery-image"><span><ImageIcon size={42} /><small>{item.imageUrl ? "กำลังแสดงภาพ" : "ยังไม่มีภาพพรีวิว"}</small></span>{item.imageUrl ? <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" unoptimized onError={event => { event.currentTarget.style.display = "none"; }} /> : null}</div>
         <div className="rewards-gallery-copy"><h2>{item.title}</h2><span className={`rewards-gallery-category${item.kind === "news" ? contentType(item) === "โปรโมชั่น" ? " is-promotion" : " is-news" : ""}`}>{item.kind === "news" ? contentType(item) : item.category}</span><p>{item.description || "ยังไม่มีคำอธิบาย"}</p>
           <div className="rewards-gallery-facts">{item.kind === "rewards" ? <><strong><Star size={15} /> ใช้ {item.points.toLocaleString()} แต้ม</strong><span><Package size={15} /> คงเหลือ {item.stock === null ? "ไม่จำกัด" : `${item.stock} ชิ้น`}</span></> : <><strong>{item.category}</strong><span>{item.active ? item.category === "โปรโมชั่น" && item.startsAt && Date.parse(item.startsAt) > Date.now() ? "ประกาศล่วงหน้า · ยังไม่เริ่มโปร" : "เผยแพร่แล้ว" : "แบบร่าง"}</span></>}</div>
           <div className="rewards-gallery-actions"><button className={`rewards-gallery-status rewards-gallery-toggle ${item.active ? "on" : "off"}`} type="button" role="switch" aria-checked={item.active} aria-label={`${item.active ? "ปิด" : "เปิด"}${item.kind === "news" ? item.category : "ของรางวัล"} ${item.title}`} title={item.active ? "เปิดใช้งาน" : "ปิดใช้งาน"} onClick={() => toggleActive(item)}><span className="switch-track" aria-hidden="true"><i /></span></button><button type="button" onClick={() => openEditor(item)}><Pencil size={17} /> แก้ไข</button></div>

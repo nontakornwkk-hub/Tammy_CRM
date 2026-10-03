@@ -20,19 +20,21 @@ export async function POST(request: Request) {
   if (!db) return noStore({ error: "ยังไม่ได้ตั้งค่าฐานข้อมูล" }, 503);
   const ownerId = isTest ? test?.ownerId : actor.ownerId;
   if (!ownerId) return noStore({ error: "ไม่พบร้านทดสอบ" }, 503);
+  if (input.action === "redeem") {
+    const result = await db.rpc("redeem_member_coupon_qr", { p_owner_id: ownerId, p_token: token });
+    if (result.error) {
+      const errors: Record<string, string> = { ALREADY_USED: "คูปองนี้ใช้ไปแล้ว", QR_EXPIRED: "QR คูปองหมดเวลาแล้ว ให้ลูกค้าเปิด QR ใหม่", ITEM_UNAVAILABLE: "คูปองหมดอายุหรือปิดใช้งาน", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว", MEMBER_NOT_FOUND: "สมาชิกไม่พร้อมใช้งาน" };
+      return noStore({ error: errors[result.error.message] || "ใช้สิทธิ์ไม่สำเร็จ" }, errors[result.error.message] ? 409 : 500);
+    }
+    return noStore({ success: true });
+  }
   const claim = await db.from("member_coupon_claims").select("id,member_id,coupon_id,status,qr_expires_at").eq("owner_id", ownerId).eq("qr_token", token).maybeSingle();
   if (claim.error || !claim.data) return noStore({ error: "ไม่พบคูปองของร้านนี้" }, 404);
   if (!claim.data.qr_expires_at || Date.parse(claim.data.qr_expires_at) <= Date.now()) return noStore({ error: "QR คูปองหมดเวลาแล้ว ให้ลูกค้าเปิด QR ใหม่" }, 410);
   const [member, coupon] = await Promise.all([
-    db.from("members").select("id,name,member_code,status").eq("owner_id", ownerId).eq("id", claim.data.member_id).maybeSingle(),
+    db.from("members").select("id,name,member_code,status,line_picture_url").eq("owner_id", ownerId).eq("id", claim.data.member_id).maybeSingle(),
     db.from("coupons").select("id,title,discount_type,discount_value,min_spend,active,starts_at,ends_at").eq("owner_id", ownerId).eq("id", claim.data.coupon_id).maybeSingle(),
   ]);
   if (!member.data || !coupon.data) return noStore({ error: "ข้อมูลคูปองไม่ครบ" }, 404);
-  if (input.action === "inspect") return noStore({ claim: { status: claim.data.status, member: member.data, coupon: coupon.data } });
-  const result = await db.rpc("redeem_member_coupon_qr", { p_owner_id: ownerId, p_token: token });
-  if (result.error) {
-    const errors: Record<string, string> = { ALREADY_USED: "คูปองนี้ใช้ไปแล้ว", QR_EXPIRED: "QR คูปองหมดเวลาแล้ว ให้ลูกค้าเปิด QR ใหม่", ITEM_UNAVAILABLE: "คูปองหมดอายุหรือปิดใช้งาน", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว", MEMBER_NOT_FOUND: "สมาชิกไม่พร้อมใช้งาน" };
-    return noStore({ error: errors[result.error.message] || "ใช้สิทธิ์ไม่สำเร็จ" }, errors[result.error.message] ? 409 : 500);
-  }
-  return noStore({ success: true, member: member.data, coupon: coupon.data });
+  return noStore({ claim: { status: claim.data.status, member: member.data, coupon: coupon.data } });
 }

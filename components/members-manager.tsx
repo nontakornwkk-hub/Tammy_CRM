@@ -9,9 +9,11 @@ import type { MemberRow, MemberTagDefinition } from "@/lib/database.types";
 import { createMember } from "@/lib/supabase/members";
 import { supabase } from "@/lib/supabase/client";
 import { cachedData, clearCachedData, crmOwnerId, crmRole, fetchMembersData, loadCachedData } from "@/lib/supabase/crm-data";
+import { cachedLinePictures, rememberLinePictures } from "@/lib/supabase/line-profile-cache";
 import { Sidebar } from "./sidebar";
 import { MemberTagSettings } from "./member-tag-settings";
 import { MemberLineTransfer } from "./member-line-transfer";
+import { ProfilePhoto } from "./profile-photo";
 
 type Pet = { member_id: string; name: string; species: string; breed: string | null; sex: string | null; birth_date: string | null };
 type MembersData = Awaited<ReturnType<typeof fetchMembersData>>;
@@ -65,6 +67,7 @@ export function MembersManager() {
   const [pets, setPets] = useState<Pet[]>(() => cachedData<MembersData>("members")?.pets ?? []);
   const [tagDefinitions, setTagDefinitions] = useState<MemberTagDefinition[]>(() => cachedData<MembersData>("members")?.tags ?? []);
   const [lineProfiles, setLineProfiles] = useState<Record<string, LineProfile>>({});
+  const [cachedPictures, setCachedPictures] = useState<Record<string, string>>(() => cachedLinePictures(crmOwnerId()));
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(() => !cachedData<MembersData>("members"));
   const [loadError, setLoadError] = useState("");
@@ -94,6 +97,7 @@ export function MembersManager() {
     try {
       const ownerId = crmOwnerId();
       if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
+      setCachedPictures(cachedLinePictures(ownerId));
       const result = await loadCachedData(ownerId, "members", () => fetchMembersData(ownerId), force);
       setDemoMode(false); setMembers(result.members); setPets(result.pets); setTagDefinitions(result.tags);
       setLoading(false);
@@ -104,6 +108,7 @@ export function MembersManager() {
         if (response.ok) {
           const data = await response.json() as { profiles: LineProfile[] };
           setLineProfiles(Object.fromEntries(data.profiles.map(profile => [profile.member_id, profile])));
+          setCachedPictures(rememberLinePictures(ownerId, data.profiles));
         }
       }
     } catch (error) { setLoadError(error instanceof Error ? error.message : "โหลดข้อมูลไม่สำเร็จ"); }
@@ -240,14 +245,14 @@ export function MembersManager() {
       {!demoMode ? <div className="member-tags-admin"><button type="button" className="member-tags-admin-toggle" aria-expanded={tagSettingsOpen} onClick={() => setTagSettingsOpen((open) => !open)}><Tag size={17} /> จัดการแท็ก <span>{tagDefinitions.length} แท็ก</span><ChevronRight size={17} className={tagSettingsOpen ? "open" : ""} /></button>{tagSettingsOpen ? <MemberTagSettings onChanged={() => void refresh(true)} /> : null}</div> : null}
       <section id="members-list" className="panel members-list-panel"><div className="member-tools"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหาชื่อ รหัสสมาชิก เบอร์โทร ชื่อที่จำ หรือแท็ก" /></label><div className="member-level-filter">{(["ทั้งหมด", "Member", "Silver", "Gold", "Platinum"] as const).map((item) => <button key={item} className={`${level === item ? "active " : ""}rank-filter-${item === "ทั้งหมด" ? "all" : item.toLowerCase()}`} type="button" onClick={() => setLevel(item)}>{item}</button>)}</div></div>
         {tagCatalog.length ? <div className="member-tag-filters" aria-label="กรองตามแท็ก"><Tag size={16} /><button type="button" className={!tagFilter ? "active" : ""} onClick={() => setTagFilter(null)}>ทุกแท็ก</button>{tagCatalog.map((tag) => <button key={tag} type="button" className={`${tagFilter === tag ? "active " : ""}tag-color-${tagColorsByName[tag] ?? "sky"}`} onClick={() => setTagFilter(tag)}>{tag}<span>{members.filter((member) => (member.tags ?? []).includes(tag)).length}</span></button>)}</div> : null}
-        {loadError ? <div className="members-empty"><strong>{loadError}</strong><button type="button" onClick={() => void refresh()}>ลองอีกครั้ง</button></div> : loading ? <div className="members-empty"><strong>กำลังโหลดข้อมูลสมาชิก…</strong></div> : <>{demoMode ? <div className="member-demo-notice">โหมดตัวอย่าง · ไม่แสดงข้อมูลลูกค้าจริงหรือรหัสจากฐานข้อมูล</div> : null}<div className="members-table"><div className="members-table-head"><span>ลูกค้า</span><span>ชื่อที่พนักงานจำ</span><span>ระดับ</span><span>แต้ม</span><span>ยอดซื้อสะสม</span><span>มาล่าสุด</span><span>การติดตาม</span></div>{visible.map((member) => { const follow = followUp(member.last_visit); const profile = lineProfiles[member.id]; return <button className="members-table-row" type="button" key={member.id} onClick={() => { setSelectedId(member.id); setEditingInternal(false); }} aria-label={`ดูข้อมูล ${member.name}`}><span className="member-identity"><i>{profile?.line_picture_url?.startsWith("https://") ? <img src={profile.line_picture_url} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-wordmark.svg" alt="" width={44} height={44} />}</i><span><span className="member-name-line"><b>{member.name}</b>{(member.tags ?? []).length > 0 ? <Tag size={13} className="member-has-tags" aria-label="มีแท็ก" /> : null}</span><small>{member.member_code} · ลำดับที่ {member.member_number ?? "—"}</small><small>{member.phone || "ไม่มีเบอร์"}</small></span></span><span className="member-nickname">{aliases[member.id] || "—"}</span><span className={`member-badge ${member.level.toLowerCase()}`}>{member.level}</span><strong>{member.points.toLocaleString()}</strong><strong>฿{Number(member.spending).toLocaleString()}</strong><span>{displayDate(member.last_visit)}</span><span className={`follow-pill ${follow.tone}`}><i />{follow.label}</span></button>; })}</div>{visible.length === 0 ? <div className="members-empty"><Search /><strong>ไม่พบสมาชิก</strong><span>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</span></div> : null}<footer className="members-footer">แสดง {visible.length} จาก {members.length} รายการ · เรียงตามลำดับสมัคร</footer></>}
+        {loadError ? <div className="members-empty"><strong>{loadError}</strong><button type="button" onClick={() => void refresh()}>ลองอีกครั้ง</button></div> : loading ? <div className="members-empty"><strong>กำลังโหลดข้อมูลสมาชิก…</strong></div> : <>{demoMode ? <div className="member-demo-notice">โหมดตัวอย่าง · ไม่แสดงข้อมูลลูกค้าจริงหรือรหัสจากฐานข้อมูล</div> : null}<div className="members-table"><div className="members-table-head"><span>ลูกค้า</span><span>ชื่อที่พนักงานจำ</span><span>ระดับ</span><span>แต้ม</span><span>ยอดซื้อสะสม</span><span>มาล่าสุด</span><span>การติดตาม</span></div>{visible.map((member) => { const follow = followUp(member.last_visit); const profile = lineProfiles[member.id]; return <button className="members-table-row" type="button" key={member.id} onClick={() => { setSelectedId(member.id); setEditingInternal(false); }} aria-label={`ดูข้อมูล ${member.name}`}><span className="member-identity"><i><ProfilePhoto src={profile?.line_picture_url || cachedPictures[member.id]} size={44} /></i><span><span className="member-name-line"><b>{member.name}</b>{(member.tags ?? []).length > 0 ? <Tag size={13} className="member-has-tags" aria-label="มีแท็ก" /> : null}</span><small>{member.member_code} · ลำดับที่ {member.member_number ?? "—"}</small><small>{member.phone || "ไม่มีเบอร์"}</small></span></span><span className="member-nickname">{aliases[member.id] || "—"}</span><span className={`member-badge ${member.level.toLowerCase()}`}>{member.level}</span><strong>{member.points.toLocaleString()}</strong><strong>฿{Number(member.spending).toLocaleString()}</strong><span>{displayDate(member.last_visit)}</span><span className={`follow-pill ${follow.tone}`}><i />{follow.label}</span></button>; })}</div>{visible.length === 0 ? <div className="members-empty"><Search /><strong>ไม่พบสมาชิก</strong><span>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</span></div> : null}<footer className="members-footer">แสดง {visible.length} จาก {members.length} รายการ · เรียงตามลำดับสมัคร</footer></>}
       </section>
       {selected ? <div className="preview-modal member-profile-modal" role="dialog" aria-modal="true" aria-label={`ข้อมูลสมาชิก ${selected.name}`}>
         <button className="preview-backdrop" type="button" aria-label="ปิดรายละเอียด" onClick={() => setSelectedId(null)} />
         <section className="member-profile member-profile-reference">
           <button className="member-profile-close" type="button" aria-label="ปิดรายละเอียด" onClick={() => setSelectedId(null)}><X /></button>
           <header className="member-reference-hero">
-            <span className="member-reference-avatar">{lineProfiles[selected.id]?.line_picture_url?.startsWith("https://") ? <img src={lineProfiles[selected.id].line_picture_url!} alt={`รูปโปรไฟล์ LINE ของ ${selected.name}`} referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-wordmark.svg" alt="" width={140} height={140} />}</span>
+            <span className="member-reference-avatar"><ProfilePhoto src={lineProfiles[selected.id]?.line_picture_url || cachedPictures[selected.id]} size={140} alt={`รูปโปรไฟล์ LINE ของ ${selected.name}`} /></span>
             <div className="member-reference-identity">
               <h2>{selected.name}</h2>
               <p><UserRound size={17} /> ชื่อเรียก (ภายใน) <strong>{aliases[selected.id] || "ยังไม่ได้ระบุ"}</strong> <span className={`follow-pill ${followUp(selected.last_visit).tone}`}><i />{followUp(selected.last_visit).label}</span></p>

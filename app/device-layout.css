@@ -95,3 +95,133 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 .customer-pet-fields legend { padding: 0 6px; font-weight: 600; color: #765848; }
 .customer-pet-fields label > span { display: flex; align-items: center; gap: 6px; }
 .customer-pet-fields > small { display: block; margin-top: 8px; color: #8c7d8e; }
+/* Coupon confirmation uses the same warm, touch-friendly language as the customer portal. */
+.member-qr-modal > section{width:min(540px,calc(100vw - 24px));padding:26px;border:1px solid #f5ded2;border-radius:26px;background:#fffdfa}
+.member-qr-modal h2{color:#142f50;font-weight:850}
+.member-qr-modal .member-qr-video{height:min(300px,37dvh);border:1px solid #f3d8d0;border-radius:22px;background:#fff3ef}
+.member-qr-modal input{height:52px;border-radius:13px;font-size:15px}
+.member-qr-modal form button{min-height:52px;padding-inline:16px;border-radius:13px;background:#fa625f;font-size:14px}
+.member-qr-modal .member-qr-retry{min-height:44px;border-radius:12px}
+.coupon-scan-modal > section{width:min(540px,calc(100vw - 24px));padding:26px;background:#fffdfa;border:1px solid #f5ded2;border-radius:26px}
+.coupon-scan-modal h2{color:#142f50;font-weight:850}
+.coupon-scan-modal .member-qr-video{height:min(300px,37dvh);border:1px solid #f3d8d0;border-radius:22px;background:#fff3ef}
+.coupon-scan-modal .member-qr-status{color:#60748d}
+.coupon-scan-modal input{height:52px;border-radius:13px;font-size:15px}
+.coupon-scan-modal form button{min-height:52px;padding-inline:16px;border-radius:13px;background:#fa625f;font-size:14px}
+.coupon-scan-result{width:100%;gap:13px;padding:16px;border-color:#ccebd8;border-radius:22px;background:#f4fff7;text-align:left;box-shadow:0 8px 20px #254f3320}
+.coupon-scan-member{display:flex;align-items:center;gap:12px;min-width:0}
+.coupon-scan-avatar{display:grid;place-items:center;flex:none;width:58px;height:58px;overflow:hidden;border-radius:50%;background:#dff4e8;color:#317963}
+.coupon-scan-avatar img{width:100%;height:100%;object-fit:cover}
+.coupon-scan-member strong,.coupon-scan-member small{display:block}
+.coupon-scan-member strong{color:#142f50;font-size:17px;line-height:1.35}
+.coupon-scan-member small{margin-top:2px;color:#60748d;font-size:12px}
+.coupon-scan-offer{display:grid;gap:5px;padding:12px 14px;border-radius:15px;background:#fff;color:#173b5b}
+.coupon-scan-offer h3{margin:0;font-size:13px;color:#67788d}
+.coupon-scan-offer strong{font-size:20px;color:#16734d}
+.coupon-scan-offer small{font-size:12px;color:#596f65}
+.coupon-scan-result .button{width:100%;min-height:52px;margin:0;border-radius:14px;background:#fa625f;font-weight:800}
+.coupon-scan-done{justify-content:center;min-height:48px;border-radius:14px;background:#e0f6e8;font-weight:800}
+/* Keep the five illustrated asset icons aligned; selection is a gentle shadow only. */
+.customer-catalog-refresh .customer-home-nav{height:76px;padding:7px 8px;border-radius:25px}
+.customer-catalog-refresh .customer-home-nav button,
+.customer-catalog-refresh .customer-home-nav button.active,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3){height:60px;min-height:60px;justify-content:center;gap:2px;transform:none!important;color:#786e80!important;font-weight:600}
+.customer-catalog-refresh .customer-home-nav .customer-home-nav-icon,
+.customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3) .customer-home-nav-icon,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3):not(.active) .customer-home-nav-icon{width:40px;height:40px;margin:0;padding:2px;border:0;border-radius:14px;background:transparent;box-shadow:none;transform:none;animation:none}
+.customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon{box-shadow:0 5px 13px #69507925;background:#fffdfb}
+.customer-catalog-refresh .customer-home-nav .customer-home-nav-icon::before,
+.customer-catalog-refresh .customer-home-nav .customer-home-nav-icon::after,
+.customer-catalog-refresh .customer-home-nav button.active::after{content:none!important}
+.customer-catalog-refresh .customer-home-nav button .customer-pastel-nav-art,
+.customer-catalog-refresh .customer-home-nav button.active .customer-pastel-nav-art{width:36px;height:36px;fill:none!important;stroke:none!important;filter:none}
+.customer-catalog-refresh .customer-home-nav button>span:last-child,
+.customer-catalog-refresh .customer-home-nav button.active>span:last-child,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3)>span:last-child{margin:0;padding:0;border:0;background:transparent;color:inherit;font-size:9px;line-height:1.2;white-space:nowrap}
+/* The same local artwork remains visible while LINE loads or if its URL expires. */
+.profile-photo{position:relative;display:inline-block;flex:none;overflow:hidden;border-radius:50%;vertical-align:middle;background:#fff4ec}
+.profile-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.profile-photo .profile-photo-fallback{object-fit:contain;padding:2px}
+.profile-photo .profile-photo-line{position:absolute;inset:0;opacity:0;transition:opacity .14s ease}
+.profile-photo .profile-photo-line.is-ready{opacity:1}
+@media(prefers-reduced-motion:reduce){.profile-photo .profile-photo-line{transition:none}}
+/* News cards preview the whole square artwork and keep the headline readable. */
+.customer-catalog-refresh .customer-news-slide-picture{height:auto;aspect-ratio:1;max-height:none}
+.customer-catalog-refresh .customer-news-slide-copy{padding:11px 13px 13px}
+.customer-catalog-refresh .customer-news-slide-copy h2{white-space:normal;overflow:visible;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:14px}
+/* One lift on selection. The icon itself never runs another bounce animation. */
+.customer-catalog-refresh .customer-home-nav button,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3),
+.customer-catalog-refresh .customer-home-nav button.active{transform:translateY(0)!important;transition:transform .23s cubic-bezier(.2,.8,.2,1),color .2s;animation:none!important}
+.customer-catalog-refresh .customer-home-nav button.active,
+.customer-catalog-refresh .customer-home-nav button:nth-child(3).active{transform:translateY(-6px)!important}
+.customer-catalog-refresh .customer-home-nav .customer-home-nav-icon,
+.customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon{transform:none!important;animation:none!important}
+.customer-catalog-refresh .customer-news-slide{--news-square:min(calc(100vw - 52px),clamp(185px,calc(100dvh - 540px),300px));flex:0 0 var(--news-square);width:var(--news-square)}
+.customer-catalog-refresh .customer-news-slide-picture{width:100%;height:auto;aspect-ratio:1}
+@media(prefers-reduced-motion:reduce){.customer-catalog-refresh .customer-home-nav button{transition:none!important}}
+/* Desktop admin navigation keeps the artwork and two-line labels at a usable scale. */
+@media(min-width:821px){
+  .app-shell:not(:has(.sidebar-reference.is-collapsed)) .sidebar-wrap{flex:0 0 252px;width:252px}
+  .app-shell .sidebar.sidebar-reference:not(.is-collapsed){width:252px;padding:18px 10px}
+  .sidebar-reference:not(.is-collapsed) .brand{grid-template-columns:68px minmax(0,1fr);column-gap:12px;padding:5px 9px 22px}
+  .sidebar-reference:not(.is-collapsed) .brand img{width:68px;height:68px}
+  .sidebar-reference:not(.is-collapsed) .brand-name{font-size:21px;line-height:1.2}
+  .sidebar-reference:not(.is-collapsed) .brand-subtitle{font-size:11px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-nav{gap:8px}
+  .sidebar-reference:not(.is-collapsed) .nav-item{min-height:68px;padding:7px 10px;gap:11px;border-radius:17px;border-color:#f0f3f7;box-shadow:0 3px 11px #405b7810}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture{width:52px;height:52px;flex-basis:52px;border-radius:11px;background-size:388.78px 667.47px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-points{background-position:-100.75px -130.81px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-members{background-position:-100.75px -190.12px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-reports{background-position:-100.75px -251.06px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-rewards{background-position:-100.75px -310.37px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-lucky{background-position:-100.75px -369.69px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-line{background-position:-100.75px -431.44px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-settings{background-position:-100.75px -494.81px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy strong{font-size:13px;line-height:1.35;font-weight:750;white-space:normal}
+  .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy small{display:block;font-size:10px;line-height:1.4}
+  .sidebar-reference:not(.is-collapsed) .sidebar-menu-chevron{display:block;width:15px;flex-basis:15px}
+  .sidebar-reference:not(.is-collapsed) .nav-item.active{background:#fff;border-color:#cbddeb;box-shadow:0 5px 14px #34516b1c}
+}
+@media(min-width:821px) and (max-height:800px){
+  .app-shell .sidebar.sidebar-reference:not(.is-collapsed){padding-block:10px}
+  .sidebar-reference:not(.is-collapsed) .brand{grid-template-columns:55px minmax(0,1fr);padding:2px 9px 9px;column-gap:9px}
+  .sidebar-reference:not(.is-collapsed) .brand img{width:55px;height:55px}
+  .sidebar-reference:not(.is-collapsed) .brand-name{font-size:19px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-collapse{margin-bottom:5px;height:28px;flex-basis:28px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-nav{gap:5px;margin-bottom:8px}
+  .sidebar-reference:not(.is-collapsed) .nav-item{min-height:54px;padding:3px 8px;gap:8px;border-radius:14px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture{width:44px;height:44px;flex-basis:44px;background-size:328.97px 564.78px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-points{background-position:-85.25px -110.69px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-members{background-position:-85.25px -160.88px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-reports{background-position:-85.25px -212.44px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-rewards{background-position:-85.25px -262.63px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-lucky{background-position:-85.25px -312.81px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-line{background-position:-85.25px -365.06px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-picture-settings{background-position:-85.25px -418.69px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy strong{font-size:12px}
+  .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy small{font-size:9px}
+  .sidebar-reference:not(.is-collapsed) .account-card{padding:7px;margin-top:auto}
+  .sidebar-reference:not(.is-collapsed) .logout{padding:7px;margin-top:5px}
+}
+/* The customer tab bar is flat, including its selected tab. */
+.customer-catalog-refresh .customer-home-nav,
+.customer-catalog-refresh .customer-home-nav button,
+.customer-catalog-refresh .customer-home-nav .customer-home-nav-icon,
+.customer-catalog-refresh .customer-home-nav button.active .customer-home-nav-icon{box-shadow:none!important;filter:none!important;text-shadow:none!important}
+/* Admin selection has no blue fill at any breakpoint. */
+.sidebar-reference .nav-item.active,
+.sidebar-reference .nav-item[aria-current="page"]{background:#fff!important;border-color:#dbe5ef!important;box-shadow:0 3px 10px #38516b12!important}
+@media(max-width:820px){
+  .sidebar-reference .sidebar-menu-copy{display:none!important}
+  .sidebar-reference .nav-item{align-items:center;justify-content:center;min-height:60px;padding:5px 2px}
+  .sidebar-reference .sidebar-picture{width:36px;height:36px;flex-basis:36px;background-size:269.16px 462.09px}
+  .sidebar-reference .sidebar-picture-points{background-position:-69.75px -90.56px}
+  .sidebar-reference .sidebar-picture-members{background-position:-69.75px -131.63px}
+  .sidebar-reference .sidebar-picture-reports{background-position:-69.75px -173.81px}
+  .sidebar-reference .sidebar-picture-rewards{background-position:-69.75px -214.88px}
+  .sidebar-reference .sidebar-picture-lucky{background-position:-69.75px -255.94px}
+  .sidebar-reference .sidebar-picture-line{background-position:-69.75px -298.69px}
+  .sidebar-reference .sidebar-picture-settings{background-position:-69.75px -342.56px}
+}

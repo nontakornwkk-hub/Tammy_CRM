@@ -4,8 +4,9 @@ import { Camera, Check, Keyboard, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { memberScannerKey } from "@/lib/member-code";
+import { ProfilePhoto } from "./profile-photo";
 
-type Claim = { status: string; member: { name: string; member_code: string }; coupon: { title: string; discount_type: string; discount_value: number; min_spend: number } };
+type Claim = { status: string; member: { name: string; member_code: string; line_picture_url: string | null }; coupon: { title: string; discount_type: string; discount_value: number; min_spend: number } };
 
 export function CouponQrScanner({ onClose, initialQr = "" }: { onClose: () => void; initialQr?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -85,7 +86,7 @@ export function CouponQrScanner({ onClose, initialQr = "" }: { onClose: () => vo
       {initialQr && retry === 0 ? null : <div className="member-qr-video"><video ref={videoRef} muted playsInline autoPlay aria-label="ภาพจากกล้องสำหรับสแกนคูปอง" /></div>}
       <p className="member-qr-status" role="status">{cameraStatus}</p><button type="button" className="member-qr-retry" onClick={() => { setClaim(null); setDone(false); setError(""); setRetry(value => value + 1); }}><RotateCcw size={15} /> สแกนอีกครั้ง</button>
       <form onSubmit={submit}><label htmlFor="coupon-qr-input"><Keyboard size={17} /> เครื่องสแกน QR หรือวางข้อมูล QR</label><div><input ref={inputRef} id="coupon-qr-input" value={qr} onChange={event => updateQr(event.target.value)} onKeyDown={scannerKey} placeholder="TAMMY-COUPON:..." autoComplete="off" spellCheck={false} /><button type="submit" disabled={busy}>ตรวจคูปอง</button></div></form>
-      {claim ? <div className="coupon-scan-result"><strong>{claim.member.name}</strong><small>{claim.member.member_code}</small><h3>{claim.coupon.title}</h3><p>{claim.coupon.discount_type === "percent" ? `ลด ${claim.coupon.discount_value}%` : `ลด ${claim.coupon.discount_value} บาท`}{claim.coupon.min_spend > 0 ? ` · ซื้อครบ ${claim.coupon.min_spend} บาท` : ""}</p>{done ? <b className="coupon-scan-done"><Check size={18} /> ใช้สิทธิ์สำเร็จแล้ว</b> : claim.status === "used" ? <b>คูปองนี้ใช้ไปแล้ว</b> : <button className="button primary" type="button" disabled={busy} onClick={() => void redeem()}>{busy ? "กำลังยืนยัน…" : "ยืนยันใช้สิทธิ์"}</button>}</div> : null}
+      {claim ? <div className="coupon-scan-result"><div className="coupon-scan-member"><span className="coupon-scan-avatar"><ProfilePhoto src={claim.member.line_picture_url} size={58} alt={`รูปโปรไฟล์ของ ${claim.member.name}`} /></span><span><strong>{claim.member.name}</strong><small>{claim.member.member_code}</small></span></div><div className="coupon-scan-offer"><h3>{claim.coupon.title}</h3><strong>{claim.coupon.discount_type === "percent" ? `ลด ${Number(claim.coupon.discount_value).toLocaleString("th-TH")}%` : `ลด ${Number(claim.coupon.discount_value).toLocaleString("th-TH")} บาท`}</strong>{Number(claim.coupon.min_spend) > 0 && <small>เมื่อซื้อครบ {Number(claim.coupon.min_spend).toLocaleString("th-TH")} บาท</small>}</div>{done ? <b className="coupon-scan-done"><Check size={18} /> ใช้สิทธิ์สำเร็จแล้ว</b> : claim.status === "used" ? <b>คูปองนี้ใช้ไปแล้ว</b> : <button className="button primary" type="button" disabled={busy} onClick={() => void redeem()}>{busy ? "กำลังยืนยัน…" : "ยืนยันใช้สิทธิ์"}</button>}</div> : null}
       {error ? <p className="rewards-gallery-error" role="alert">{error}</p> : null}
     </section>
   </div>;

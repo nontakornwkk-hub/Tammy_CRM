@@ -17,7 +17,7 @@ export function CustomerNewsCarousel({ news, onSelect }: { news: PopupDisplay[];
   return <div className="customer-news-carousel" role="region" aria-roledescription="คารูเซล" aria-label="ข่าวสารล่าสุด">
     <div className="customer-news-track" ref={track} onScroll={() => { const el = track.current; const first = el?.children[0] as HTMLElement | undefined; if (el && first) setIndex(Math.min(news.length - 1, Math.max(0, Math.round(el.scrollLeft / (first.offsetWidth + 10))))); }}>
       {news.map((item, position) => <button type="button" className="customer-news-slide" key={item.id} onClick={() => onSelect(item)} aria-label={`${item.title} ข่าว ${position + 1} จาก ${news.length}`}>
-        <div className="customer-news-slide-picture">{item.image ? <Image src={item.image} alt="" fill sizes="(max-width:520px) 90vw, 480px" unoptimized /> : <PawPrint size={56} />}</div>
+        <div className="customer-news-slide-picture"><PawPrint size={56} aria-hidden="true" />{item.image ? <Image src={item.image} alt="" fill sizes="(max-width:520px) 90vw, 480px" loading={position === 0 ? "eager" : "lazy"} unoptimized onError={event => { event.currentTarget.style.display = "none"; }} /> : null}</div>
         <div className="customer-news-slide-copy">{item.createdAt && <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" })}</time>}<h2>{item.title}</h2><p>{item.summary}</p><span>อ่านเพิ่มเติม <ChevronRight size={15} /></span></div>
       </button>)}
     </div>

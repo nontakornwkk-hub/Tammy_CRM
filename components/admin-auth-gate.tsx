@@ -17,7 +17,7 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublic = publicPaths.has(pathname);
-  const [status, setStatus] = useState<"checking" | "allowed" | "pending" | "unconfirmed">("checking");
+  const [status, setStatus] = useState<"checking" | "allowed" | "pending" | "unconfirmed" | "offline">("checking");
   const alreadyVerified = Boolean(verifiedCrmUser() && canOpen(crmRole(), pathname));
 
   useEffect(() => {
@@ -42,9 +42,12 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
       }
     });
     void (async () => {
+      const stored = await supabase.auth.getSession();
+      if (!current) return;
+      if (!stored.data.session) { setVerifiedCrmUser(null); router.replace(`/login?next=${encodeURIComponent(pathname)}`); return; }
       const { data, error } = await supabase.auth.getUser();
       if (!current) return;
-      if (error || !data.user) { setVerifiedCrmUser(null); router.replace(`/login?next=${encodeURIComponent(pathname)}`); return; }
+      if (error || !data.user) { setStatus("offline"); return; }
       if (!data.user.email_confirmed_at) { setVerifiedCrmUser(null); setStatus("unconfirmed"); return; }
       const access = await supabase.rpc("crm_current_access").maybeSingle();
       if (!current) return;
@@ -75,6 +78,7 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
 
   if (isPublic) return children;
   if (status === "checking" && !alreadyVerified) return <main className="admin-auth-check" role="status">กำลังตรวจสอบสิทธิ์เข้าระบบ…</main>;
+  if (status === "offline") return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>ตรวจสอบการเชื่อมต่อไม่สำเร็จ</h1><p>บัญชีของคุณยังอยู่ในเครื่อง กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง</p><button type="button" onClick={() => window.location.reload()}>ลองอีกครั้ง</button></section></main>;
   if (status === "unconfirmed") return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>กรุณายืนยันอีเมลก่อน</h1><p>เปิดลิงก์ยืนยันที่ส่งไปยังอีเมลของคุณ แล้วกลับมากดตรวจสอบอีกครั้ง</p><button type="button" onClick={() => window.location.reload()}>ตรวจสอบอีกครั้ง</button><button type="button" onClick={async () => { await supabase?.auth.signOut(); router.replace("/login"); }}>ออกจากระบบ</button></section></main>;
   if (status === "pending") return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>บัญชีนี้ยังไม่มีสิทธิ์เข้าร้าน</h1><p>ให้เจ้าของร้านเพิ่มอีเมลบัญชีนี้ในหน้า ตั้งค่าระบบ → ทีมงานและความปลอดภัย แล้วกลับมาตรวจสอบอีกครั้ง</p><button type="button" onClick={() => window.location.reload()}>ตรวจสอบอีกครั้ง</button><button type="button" onClick={async () => { await supabase?.auth.signOut(); router.replace("/login"); }}>ออกจากระบบ</button></section></main>;
   if (!canOpen(crmRole(), pathname)) return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>ไม่มีสิทธิ์เปิดหน้านี้</h1><p>บัญชีทีมงานนี้ได้รับสิทธิ์เฉพาะเมนูที่เจ้าของร้านกำหนด</p><button type="button" onClick={() => router.replace("/points")}>ไปหน้าให้แต้ม</button></section></main>;
