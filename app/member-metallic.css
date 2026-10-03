@@ -26,3 +26,23 @@
 @media(max-width:500px) { .redemption-history-panel { padding:18px 12px; }.redemption-history-panel h2 { font-size:18px; }.redemption-history-list article { padding:15px 11px; }.redemption-history-result small { max-width:80px; text-align:right; }.redemption-history-filters button { padding:8px 10px; font-size:12px; } }
 .redemption-history-summary { display:flex; align-items:center; justify-content:space-between; margin:0 0 10px; font-size:12px; color:#8090a6; }.redemption-history-summary > span { color:#60738d; }.redemption-history-end > span { display:flex; align-items:center; gap:7px; }.redemption-history-end > span > svg { animation:customer-save-spin .8s linear infinite; }.redemption-history-list:focus-visible { outline:2px solid #cad7e9; outline-offset:2px; border-radius:12px; }
 @media(prefers-reduced-motion:reduce) { .redemption-history-end > span > svg { animation:none; } }
+/* Membership typography: inherit the Thai app font through the button. */
+.customer-catalog-refresh .metallic-membership .customer-card-flip-inner { font:inherit; font-style:normal; }
+.metallic-card-copy { top:8%; gap:4px; }
+.metallic-wordmark { font-size:9.5cqw; font-style:normal; font-weight:400; line-height:1; margin-bottom:3cqw; }
+.metallic-wordmark svg { width:5cqw; height:5cqw; flex:none; }
+.metallic-wordmark small { font-size:2.5cqw; line-height:1.2; }
+.metallic-rank { margin-top:0; font-family:inherit; font-size:clamp(10px,3.2cqw,14px); line-height:1.25; font-weight:800; letter-spacing:.055em; }
+.metallic-rank svg { width:4cqw; height:4cqw; flex:none; }
+.metallic-balance-group { width:100%; display:grid; justify-items:center; gap:2px; }
+.metallic-balance-label { margin:0; align-self:auto; font-size:clamp(11px,3.2cqw,14px); font-weight:700; line-height:1.5; }
+.metallic-balance strong { font-family:inherit; font-style:normal; font-size:clamp(32px,12cqw,52px); letter-spacing:-.045em; font-weight:800; font-variant-numeric:lining-nums tabular-nums; line-height:1.1; }
+.metallic-balance.is-large strong { font-size:9cqw; }
+.metallic-balance > span { font-size:clamp(11px,3.2cqw,14px); font-weight:700; }
+.metallic-progress { height:clamp(16px,5cqw,21px); flex:none; }
+.metallic-progress span { font-size:clamp(10px,2.8cqw,12px); }
+.metallic-card-copy > p { font-size:clamp(10px,2.8cqw,12px); font-weight:600; text-wrap:balance; }
+.metallic-card-back .metallic-wordmark { margin-bottom:0; }
+.metallic-qr { width:33%; }
+.metallic-qr-caption { margin-top:2%; font-size:clamp(10px,3.1cqw,13px); line-height:1.4; }
+.metallic-member-code { margin-top:1%; font-size:clamp(9px,2.5cqw,11px); line-height:1.4; }
