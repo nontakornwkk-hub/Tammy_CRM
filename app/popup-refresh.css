@@ -552,6 +552,17 @@
 .settings-page .database-usage-details strong{color:#2c557a}
 .settings-page .database-usage-note a{color:#2f77ac;text-decoration:underline;text-underline-offset:2px}
 .settings-page .database-usage-tip{margin:12px 0;padding:11px 14px;border-radius:11px;background:#eaf8f2;color:#347259;font-size:12px;line-height:1.6}
+.settings-page .points-cleanup{margin:20px 0;padding:18px;border:1px solid #dce7f3;border-radius:15px;background:#fbfdff}
+.settings-page .points-cleanup h3{margin:0 0 4px;color:#193957;font-size:16px}
+.settings-page .points-cleanup-heading p,.settings-page .points-cleanup-note{margin:4px 0 12px;color:#61748a;font-size:12px;line-height:1.7}
+.settings-page .points-cleanup-controls,.settings-page .points-cleanup-actions,.settings-page .points-cleanup-confirm{display:flex;align-items:end;flex-wrap:wrap;gap:10px 14px;margin:12px 0}
+.settings-page .points-cleanup-controls label,.settings-page .points-cleanup-confirm label{display:grid;gap:6px;color:#375b7d;font-size:12px;font-weight:700}
+.settings-page .points-cleanup-controls select,.settings-page .points-cleanup-confirm input{min-height:38px;border:1px solid #cbddeb;border-radius:9px;background:#fff;padding:7px 10px;color:#193957;font:inherit}
+.settings-page .points-cleanup-controls span,.settings-page .points-cleanup-actions span{color:#347259;font-size:12px}
+.settings-page .points-cleanup button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;border:1px solid #a6d0bb;border-radius:9px;background:#ecf9f1;color:#217e4b;padding:8px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.settings-page .points-cleanup button.danger{border-color:#e3a7a7;background:#fff0f0;color:#a53232}
+.settings-page .points-cleanup button:disabled{opacity:.5;cursor:not-allowed}
+.settings-page .points-cleanup-progress{margin:8px 0;color:#266d4b;font-size:12px}
 @media(max-width:700px){.settings-page .database-usage-stats,.settings-page .database-usage-meters{grid-template-columns:1fr}.settings-page .database-usage-total small{margin-left:0;flex-basis:100%}.settings-page .database-usage-card{padding:18px}.settings-page .database-usage-card .card-heading{align-items:flex-start}}
 
 /* Owner-focused team and security settings. */

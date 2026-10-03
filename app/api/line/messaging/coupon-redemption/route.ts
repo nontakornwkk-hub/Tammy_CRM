@@ -1,5 +1,5 @@
 import { crmActor, noStore, serviceDb } from "@/lib/line/server";
-import { testServiceDb } from "@/lib/line/test-member-session";
+import { testAdminContext } from "@/lib/line/test-member-session";
 
 export const runtime = "nodejs";
 const qrPattern = /^(?:TAMMY-(TEST-)?COUPON:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -14,9 +14,11 @@ export async function POST(request: Request) {
   const token = match?.[2];
   if (!token || !["inspect", "redeem"].includes(input.action || "")) return noStore({ error: "QR คูปองไม่ถูกต้อง" }, 400);
   const isTest = Boolean(match?.[1]);
-  const db = isTest ? testServiceDb() : serviceDb();
+  const test = isTest ? await testAdminContext((request.headers.get("authorization") || "").replace(/^Bearer /, "")) : null;
+  if(isTest&&!test)return noStore({error:"ไม่มีสิทธิ์ใช้คูปองทดสอบ"},403);
+  const db = isTest ? test?.db : serviceDb();
   if (!db) return noStore({ error: "ยังไม่ได้ตั้งค่าฐานข้อมูล" }, 503);
-  const ownerId = isTest ? (await db.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").maybeSingle()).data?.owner_id : actor.ownerId;
+  const ownerId = isTest ? test?.ownerId : actor.ownerId;
   if (!ownerId) return noStore({ error: "ไม่พบร้านทดสอบ" }, 503);
   const claim = await db.from("member_coupon_claims").select("id,member_id,coupon_id,status,qr_expires_at").eq("owner_id", ownerId).eq("qr_token", token).maybeSingle();
   if (claim.error || !claim.data) return noStore({ error: "ไม่พบคูปองของร้านนี้" }, 404);

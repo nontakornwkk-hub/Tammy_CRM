@@ -1,0 +1,166 @@
+/* Peach, cream, and the production pastel artwork approved for the member app. */
+.customer-catalog-refresh.customer-home-page { --premium-ink:#544552; --premium-violet:#bd7865; --premium-muted:#9b8790; background:radial-gradient(circle at 100% 0,#fff0e8,transparent 36%),#fffcf8; color:#574b59; }
+.customer-catalog-refresh .customer-home-greeting strong { color:#544552; }
+.customer-catalog-refresh .customer-header-avatar { background:#fff1e9; border-color:#fff; }
+.customer-catalog-refresh .customer-home-greeting svg { color:#be927b; }
+.customer-catalog-refresh .customer-catalog-intro h1,
+.customer-catalog-refresh .customer-home-section-heading h1,
+.customer-catalog-refresh .customer-account-page-title h1 { color:#574758; }
+.customer-catalog-refresh .customer-catalog-summary { border-color:#f1dfd3; background:linear-gradient(125deg,#fff,#fff3e8); box-shadow:0 4px 12px #946d4f0b; }
+.customer-catalog-refresh .customer-catalog-summary strong { color:#77536b; }
+.customer-catalog-refresh .customer-catalog-summary span { color:#9b7c87; }
+.customer-catalog-refresh .customer-catalog-description { color:#a68c99; }
+.customer-catalog-refresh .customer-rewards-filters button { border-color:#f0e3dc; color:#9b7b89; }
+.customer-catalog-refresh .customer-rewards-filters button.active { background:linear-gradient(135deg,#f7b49a,#e9957d); border-color:#eba58d; box-shadow:0 4px 10px #c2917620; }
+.customer-catalog-refresh .customer-reward-horizontal { border-color:#f0e5dc; box-shadow:0 5px 16px #986f510b; }
+.customer-catalog-refresh .customer-reward-horizontal-copy h2 { color:#5a4857; }
+.customer-catalog-refresh .customer-reward-horizontal-image { background:linear-gradient(145deg,#fff2e9,#f1eafa); }
+.customer-catalog-refresh .customer-reward-card-cta { background:#fff0e6; color:#bf8c76; }
+.customer-catalog-refresh .is-ready .customer-reward-card-cta { background:linear-gradient(125deg,#f4ae96,#e8937c); color:#fff; }
+.customer-catalog-refresh .customer-reward-hit:focus-visible { outline-color:#d69c83; }
+.customer-catalog-refresh .customer-account-card { border-color:#f0e3da; box-shadow:0 5px 16px #946d4f0a; }
+.customer-catalog-refresh .customer-account-profile { border-color:#f0dfd5; background:linear-gradient(125deg,#fffaf4,#fcece8 62%,#f3eefe); }
+.customer-catalog-refresh .customer-account-identity strong,
+.customer-catalog-refresh .customer-account-section-head h2 { color:#5c4958; }
+.customer-catalog-refresh .customer-account-avatar { color:#aa91cc; background:#f3ecfa; box-shadow:0 4px 11px #997b8c18; }
+.customer-catalog-refresh .customer-account-identity small,
+.customer-catalog-refresh .customer-account-identity span:not(.customer-account-avatar),
+.customer-catalog-refresh .customer-account-section-head small { color:#a58c99; }
+.customer-catalog-refresh .customer-account-points { color:#a1879b; }
+.customer-catalog-refresh .customer-account-points strong { color:#dc917c; }
+.customer-catalog-refresh .customer-account-details strong { color:#675564; }
+.customer-catalog-refresh .customer-account-details span { color:#a88f9b; }
+.customer-catalog-refresh .customer-account-details > div { border-color:#f7eee8; }
+.customer-catalog-refresh .customer-account-section-head > button,
+.customer-catalog-refresh .customer-account-section-head .customer-history-view-all { border-color:#f2ddd0; background:#fff4eb; color:#c18e76; }
+.customer-catalog-refresh .customer-account-page-title > span { background:#fff0e6; color:#d9a080; }
+.customer-catalog-refresh .customer-account-card:has(.customer-account-form) { border-color:#efded3; }
+.customer-catalog-refresh .customer-account-form > label,
+.customer-catalog-refresh .customer-account-form-row label { color:#917986; }
+.customer-catalog-refresh .customer-account-form input,
+.customer-catalog-refresh .customer-account-form select { border-color:#eddcd2; color:#645260; }
+.customer-catalog-refresh .customer-account-form input:focus,
+.customer-catalog-refresh .customer-account-form select:focus { border-color:#dba68d; box-shadow:0 0 0 3px #e4b69b22; }
+.customer-catalog-refresh .customer-account-save,
+.customer-catalog-refresh .customer-coupon-copy-button,
+.customer-catalog-refresh .customer-reward-redeem-dock .customer-reward-detail-submit:not(:disabled) { background:linear-gradient(130deg,#f0b098,#dc927c); box-shadow:0 5px 12px #c98f7621; }
+.customer-catalog-refresh .customer-reward-redeem-dock-inner { border-color:#f0ded2; box-shadow:0 9px 30px #946d4f1a; }
+.customer-catalog-refresh .customer-reward-redeem-dock-caption { color:#a38a92; }
+.customer-catalog-refresh .customer-reward-detail-page h1 { color:#5b4958; }
+.customer-catalog-refresh .customer-reward-detail-hero { border-color:#f0e0d4; background:linear-gradient(130deg,#fff3e5,#f5ecfb); }
+.customer-catalog-refresh .customer-reward-point-story { border-color:#f0e1d5; background:#fff8f1; }
+.customer-catalog-refresh .customer-reward-point-story > div:first-child { background:#fff0e1; }
+.customer-catalog-refresh .customer-reward-point-story strong { color:#956f80; }
+.customer-catalog-refresh .customer-reward-point-story-result strong { color:#568d75; }
+.customer-catalog-refresh .customer-coupon-use-dialog > section,
+.customer-catalog-refresh .customer-redeem-confirm-card { border-color:#f1ded0; }
+.customer-catalog-refresh .customer-coupon-use-icon,
+.customer-catalog-refresh .customer-redeem-confirm-icon { background:#fff0e3; color:#d79a7a; }
+.customer-catalog-refresh .customer-coupon-use-dialog h2,
+.customer-catalog-refresh .customer-redeem-confirm-card h2 { color:#685361; }
+.customer-catalog-refresh .customer-coupon-terms { border-color:#f1dfce; background:#fff8ef; color:#9b8390; }
+.customer-catalog-refresh .customer-coupon-terms strong { color:#aa796a; }
+.customer-catalog-refresh .customer-redeem-confirm-actions button:last-child { background:#e4a088; }
+.customer-catalog-refresh .customer-redeem-confirm-balance { background:#fff7ed; border-color:#efd6c8; }
+.customer-catalog-refresh .customer-home-news .customer-news-slide { border-color:#f0e3d8; box-shadow:0 5px 14px #946d4f0a; }
+.customer-catalog-refresh .customer-home-news .customer-news-slide-copy h2 { color:#67515f; }
+.customer-catalog-refresh .customer-news-dots button.active::after { background:#dea58d; }
+.customer-catalog-refresh .customer-news-controls > button { border-color:#f1e2d8; color:#c2917b; }
+
+/* Every selected tab rises. The labels remain on one baseline. */
+.customer-catalog-refresh .customer-soft-nav { position:fixed; z-index:20; left:50%; transform:translateX(-50%); bottom:calc(18px + env(safe-area-inset-bottom,0px)); width:min(412px,calc(100% - 28px)); height:79px; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); padding:6px 8px 5px; overflow:visible; border:1px solid #efd5c2; border-radius:28px; background:linear-gradient(180deg,#fff,#fffaf5); box-shadow:0 12px 25px #a4795c22,inset 0 1px #fff; }
+.customer-soft-nav .customer-nav-cradle { position:absolute; z-index:0; top:-16px; left:calc(8px + (100% - 16px) / 5 * (var(--customer-active-tab) + .5) - 29px); width:58px; height:44px; border:1px solid #efd5c2; border-bottom:0; border-radius:25px 25px 0 0; background:#fff; transition:left .32s cubic-bezier(.22,.9,.3,1); pointer-events:none; }
+.customer-catalog-refresh .customer-soft-nav button { position:relative; z-index:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; min-width:0; min-height:48px; height:66px; margin:0; padding:0 0 5px; border:0; border-radius:16px; background:transparent; color:#85707f; font:inherit; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+.customer-catalog-refresh .customer-soft-nav button.active { background:transparent; color:#cf8c77; font-weight:750; }
+.customer-soft-nav-icon { display:grid; place-items:center; width:42px; height:40px; flex:none; margin-bottom:0; border:2px solid transparent; border-radius:18px; background:transparent; transition:transform .28s cubic-bezier(.22,1.2,.35,1),background .2s,box-shadow .2s; }
+.customer-catalog-refresh .customer-soft-nav .customer-pastel-nav-art { width:36px; height:36px; fill:none; stroke:none; overflow:hidden; filter:saturate(.86); }
+.customer-soft-nav button.active .customer-soft-nav-icon { width:46px; height:46px; margin-bottom:-6px; border:2px solid #fff; border-radius:50%; background:radial-gradient(circle at 30% 20%,#fff8ef,#ffe4d5); box-shadow:0 5px 10px #a87e6526,inset 0 1px 2px #fff; transform:translateY(-8px); animation:customer-soft-lift .3s ease-out; }
+.customer-soft-nav button.active .customer-pastel-nav-art { width:38px; height:38px; filter:none; }
+.customer-catalog-refresh .customer-soft-nav button > span:last-child { padding:0; background:none; color:inherit; font-size:9px; font-weight:650; line-height:1.3; white-space:nowrap; }
+.customer-catalog-refresh .customer-soft-nav button:focus-visible { outline:2px solid #d5a18a; outline-offset:0; }
+.customer-soft-nav button::after { content:none; }
+@keyframes customer-soft-lift { 0% { transform:translateY(0) scale(.96); } 70% { transform:translateY(-10px) scale(1.02); } 100% { transform:translateY(-8px) scale(1); } }
+.customer-catalog-refresh .customer-soft-nav button.active::after { content:""; position:absolute; bottom:-2px; width:4px; height:4px; border-radius:50%; background:#c78370; }
+.customer-catalog-refresh .customer-soft-nav button.active { color:#a46859; }
+
+/* One birthday field opens a single coordinated date sheet. */
+.customer-birth-picker { min-width:0; }
+.customer-birth-label { display:flex; align-items:center; gap:5px; margin-bottom:7px; color:#94777e; font-size:12px; font-weight:750; }
+.customer-birth-label > span { color:#d39582; }
+.customer-birth-trigger { display:flex; align-items:center; gap:10px; width:100%; min-height:66px; padding:11px 12px; border:1px solid #eddacf; border-radius:17px; background:linear-gradient(125deg,#fffdf9,#fff5ee); color:#a3878e; font:inherit; text-align:left; cursor:pointer; }
+.customer-birth-trigger-icon { display:grid; place-items:center; width:38px; height:38px; flex:none; border-radius:12px; background:#ffecd9; color:#cd9b7a; }
+.customer-birth-trigger > span:nth-child(2) { display:grid; gap:2px; min-width:0; }
+.customer-birth-trigger strong { color:#745666; font-size:14px; font-weight:700; }
+.customer-birth-trigger small { color:#b09aa2; font-size:10px; }
+.customer-birth-trigger > svg { margin-left:auto; flex:none; color:#c69d85; }
+.customer-birth-trigger:disabled { opacity:.7; cursor:default; }
+.customer-birth-trigger:focus-visible { outline:3px solid #e6b6a0; outline-offset:2px; }
+.customer-birthday-rule { margin:0!important; padding:0 2px; color:#aa8c95; font-size:10px; }
+.customer-birth-overlay { position:fixed; z-index:160; inset:0; display:flex; justify-content:center; align-items:flex-end; }
+.customer-birth-backdrop { position:absolute; inset:0; border:0; background:#54404f70; backdrop-filter:blur(3px); }
+.customer-birth-sheet { position:relative; width:min(440px,100%); max-height:calc(100dvh - 20px); overflow:auto; padding:10px 18px calc(20px + env(safe-area-inset-bottom,0px)); border:1px solid #f1e0d3; border-radius:29px 29px 0 0; background:#fffcf8; box-shadow:0 -10px 40px #74566326; animation:customer-birth-in .25s ease-out; }
+.customer-birth-sheet-handle { width:34px; height:4px; margin:0 auto 16px; border-radius:99px; background:#e7d6cd; }
+.customer-birth-sheet header { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.customer-birth-sheet-icon { display:grid; place-items:center; width:45px; height:45px; border-radius:15px; background:#ffebda; color:#d09a77; }
+.customer-birth-sheet header small { color:#b2959d; font-size:10px; }
+.customer-birth-sheet header h2 { margin:0; color:#705461; font-size:20px; font-weight:750; }
+.customer-birth-sheet header > button { display:grid; place-items:center; width:34px; height:34px; margin-left:auto; border:0; border-radius:50%; background:#f7eee7; color:#b39a9a; cursor:pointer; }
+.customer-birth-preview { margin:0 0 15px; padding:12px 6px; border:1px solid #f3ddd0; border-radius:14px; background:#fff0e6; color:#b87e68; font-size:17px; font-weight:750; text-align:center; }
+.customer-birth-columns { display:grid; grid-template-columns:.7fr 1.5fr 1fr; gap:8px; }
+.customer-birth-column > span { display:block; margin:0 0 8px; color:#b79ca3; font-size:10px; font-weight:700; text-align:center; }
+.customer-birth-options { position:relative; height:222px; padding:8px 5px; overflow-y:auto; border:1px solid #f1e3da; border-radius:15px; background:#fff; scrollbar-width:none; overscroll-behavior:contain; }
+.customer-birth-options::-webkit-scrollbar { display:none; }
+.customer-birth-options button { display:flex; align-items:center; justify-content:center; gap:4px; width:100%; min-height:42px; margin:1px 0; padding:7px 1px; border:1px solid transparent; border-radius:10px; background:transparent; color:#b6a3aa; font:inherit; font-size:13px; cursor:pointer; }
+.customer-birth-options button[aria-selected='true'] { border-color:#edcdbb; background:#fff0e3; color:#b07a61; font-weight:800; }
+.customer-birth-options button:focus-visible { outline:2px solid #d6a08b; outline-offset:-2px; }
+.customer-birth-confirm { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; min-height:47px; margin-top:18px; border:0; border-radius:14px; background:linear-gradient(120deg,#f0b59e,#dfa089); color:#fff; font:inherit; font-size:14px; font-weight:750; box-shadow:0 4px 11px #cf98752a; cursor:pointer; }
+.customer-birth-confirm:disabled { opacity:.45; cursor:default; }
+.customer-birth-note { display:block; margin-top:9px; color:#b5a0a6; font-size:10px; text-align:center; }
+.customer-birth-error { margin:10px 0 0; color:#c78386; font-size:11px; text-align:center; }
+.customer-reward-pending { display:flex; align-items:center; gap:10px; margin:0 0 12px; padding:12px; border:1px solid #eddfd5; border-radius:16px; background:#fff7ef; color:#a0808a; }
+.customer-reward-pending > span { width:21px; height:21px; border:2px solid #edd7c9; border-top-color:#d89b7f; border-radius:50%; animation:customer-save-spin .7s linear infinite; }
+.customer-reward-pending > div { display:grid; gap:2px; }
+.customer-reward-pending strong { font-size:12px; color:#a4786b; }
+.customer-reward-pending small { font-size:10px; }
+@keyframes customer-birth-in { from { opacity:.5; transform:translateY(25px); } to { opacity:1; transform:none; } }
+@keyframes customer-save-spin { to { transform:rotate(360deg); } }
+@media(max-width:360px) { .customer-catalog-refresh .customer-soft-nav { width:calc(100% - 24px); padding-inline:5px; } .customer-soft-nav .customer-nav-cradle { left:calc(5px + (100% - 10px) / 5 * (var(--customer-active-tab) + .5) - 29px); } .customer-catalog-refresh .customer-soft-nav button > span:last-child { font-size:8px; } .customer-birth-sheet { padding-inline:13px; } .customer-birth-options button { font-size:12px; } }
+@media(prefers-reduced-motion:reduce) { .customer-soft-nav .customer-nav-cradle,.customer-soft-nav-icon { transition:none; } .customer-soft-nav button.active .customer-soft-nav-icon,.customer-birth-sheet,.customer-reward-pending > span { animation:none; } }
+
+/* Compact calendar: one month at a time, with quick month and year grids. */
+.customer-calendar-overlay { align-items:center; padding:16px; }
+.customer-calendar { position:relative; width:332px; max-width:100%; padding:14px; border:1px solid #eddfd4; border-radius:22px; background:#fffdf9; box-shadow:0 18px 50px #53434c30; color:#6a5360; }
+.customer-calendar header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.customer-calendar header > span { display:flex; align-items:center; gap:7px; color:#a26d59; }
+.customer-calendar header h2 { margin:0; font-size:15px; color:#654e5b; }
+.customer-calendar.customer-calendar button { width:auto; min-height:32px; margin:0; padding:5px; border:0; border-radius:9px; background:transparent; box-shadow:none; color:#725b67; font:inherit; font-size:12px; font-weight:500; cursor:pointer; }
+.customer-calendar.customer-calendar button:disabled { opacity:.3; cursor:default; }
+.customer-calendar.customer-calendar button:focus-visible { outline:2px solid #cda089; outline-offset:1px; }
+.customer-calendar header > button { display:grid; place-items:center; width:30px; background:#f7eee7; }
+.customer-calendar-toolbar { display:flex; align-items:center; justify-content:space-between; padding:3px; border-radius:11px; background:#fff1e7; }
+.customer-calendar-toolbar > button { display:grid; place-items:center; width:30px; }
+.customer-calendar-toolbar > div { display:flex; gap:2px; }
+.customer-calendar-toolbar > div > button { font-weight:750; padding-inline:8px; color:#986852; }
+.customer-calendar-toolbar > div > button.active { background:#fff; box-shadow:0 2px 5px #96735814; }
+.customer-calendar-body { min-height:207px; padding-top:10px; }
+.customer-calendar-week,.customer-calendar-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); text-align:center; }
+.customer-calendar-week { margin-bottom:3px; color:#957e88; font-size:10px; line-height:20px; }
+.customer-calendar.customer-calendar .customer-calendar-days button { height:29px; min-height:29px; margin:1px 2px; padding:3px; }
+.customer-calendar.customer-calendar button[aria-pressed='true'] { background:#f6daca; color:#805442; font-weight:800; }
+.customer-calendar.customer-calendar button:hover:not(:disabled):not([aria-pressed='true']) { background:#f9f1eb; }
+.customer-calendar-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.customer-calendar.customer-calendar .customer-calendar-choices button { min-height:35px; background:#faf5ef; font-size:11px; }
+.customer-calendar.customer-calendar .customer-calendar-choices button[aria-pressed='true'] { background:#f6daca; }
+.customer-calendar-year-range { margin:0 0 9px; color:#8c7781; text-align:center; font-size:11px; }
+.customer-calendar footer { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:10px; border-top:1px solid #f0e5dc; }
+.customer-calendar footer > span { color:#806572; font-size:11px; }
+.customer-calendar.customer-calendar footer > button { min-height:35px; padding:6px 17px; background:#bd8069; color:#fff; font-weight:750; border-radius:11px; }
+.customer-gender-picker { display:grid; gap:7px; }
+.customer-gender-picker > span { color:#7d636f; font-size:12px; font-weight:700; }
+.customer-gender-picker > div { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.customer-gender-picker.customer-gender-picker button { width:100%; min-height:40px; padding:5px 2px; border:1px solid #eddfd5; border-radius:11px; background:#fffdf9; color:#806875; box-shadow:none; font:inherit; font-size:12px; font-weight:500; cursor:pointer; }
+.customer-gender-picker.customer-gender-picker button[aria-checked='true'] { border-color:#dba88f; background:#fff0e5; color:#90604c; font-weight:750; }
+.customer-gender-picker button:focus-visible { outline:2px solid #c5957d; outline-offset:2px; }
+.customer-birth-trigger { min-height:56px; padding:8px 11px; }
+.customer-birth-trigger small { color:#89717d; }
+@media(max-height:420px) { .customer-calendar-overlay { align-items:flex-start; overflow:auto; } }

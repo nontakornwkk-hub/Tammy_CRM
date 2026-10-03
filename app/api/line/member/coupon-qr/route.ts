@@ -1,4 +1,5 @@
 import { verifiedMemberSession } from "@/lib/line/member-session";
+import { prepareTestItem } from "@/lib/line/test-catalog";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     if (claim.error) return Response.json({ error: "ตรวจสถานะคูปองไม่สำเร็จ" }, { status: 500 });
     return Response.json({ used: claim.data?.status === "used" }, { headers: { "Cache-Control": "no-store" } });
   }
+  if(session.catalogDb){const error=await prepareTestItem(session,"coupon",input.couponId);if(error)return Response.json({error:"เตรียมคูปองทดสอบไม่สำเร็จ กรุณาลองใหม่"},{status:409});}
   const result = await session.db.rpc("issue_member_coupon_qr_once", { p_owner_id: session.ownerId, p_member_id: session.memberId, p_coupon_id: input.couponId });
   if (result.error) {
     const errors: Record<string, string> = { NOT_ELIGIBLE: "คูปองนี้เป็นสิทธิ์เฉพาะผู้รับ", ALREADY_USED: "คุณใช้คูปองนี้แล้ว", ITEM_UNAVAILABLE: "คูปองยังไม่เปิดให้ใช้หรือหมดอายุแล้ว", LIMIT_REACHED: "คูปองถูกใช้ครบแล้ว" };

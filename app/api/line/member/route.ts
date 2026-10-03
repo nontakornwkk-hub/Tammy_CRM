@@ -87,13 +87,15 @@ export async function POST(request: Request) {
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject).maybeSingle();
   if (linked.error) return json({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
-    if (lineDisplayName || linePictureUrl) await db.from("line_member_links").update({
+    const [existing] = await Promise.all([
+      db.from("members").select("member_code,name,level,points,birth_date")
+        .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).eq("status", "active").maybeSingle(),
+      lineDisplayName || linePictureUrl ? db.from("line_member_links").update({
       ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
       ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
       profile_synced_at: new Date().toISOString() })
-      .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
-    const existing = await db.from("members").select("member_code,name,level,points,birth_date")
-      .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).eq("status", "active").maybeSingle();
+      .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject) : Promise.resolve(),
+    ]);
     if (existing.error || !existing.data) return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
     return json({ registered: true, member: publicMember(existing.data, linePictureUrl || linked.data.line_picture_url) });
   }

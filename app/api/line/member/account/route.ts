@@ -20,6 +20,13 @@ function validDate(value: string) {
     && value >= "1900-01-01" && value <= new Date().toISOString().slice(0, 10);
 }
 
+function nextBirthdayEdit(changedAt: string | null) {
+  if (!changedAt) return null;
+  const next = new Date(changedAt);
+  next.setUTCFullYear(next.getUTCFullYear() + 1);
+  return next;
+}
+
 export async function POST(request: Request) {
   let input: Input;
   try {
@@ -56,12 +63,12 @@ export async function POST(request: Request) {
 
   if (input.action === "load") {
     const [memberResult, linkResult, pointsResult] = await Promise.all([
-      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at")
+      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,birth_date_changed_at,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at")
         .eq("owner_id", ownerId).eq("id", memberId).single(),
       db.from("line_member_links").select("line_display_name,line_picture_url")
         .eq("owner_id", ownerId).eq("member_id", memberId).maybeSingle(),
       db.from("points_transactions").select("id,points_delta,transaction_type,note,created_at")
-        .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(21),
+        .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(6),
     ]);
     if (memberResult.error || !memberResult.data || linkResult.error || pointsResult.error)
       return json({ error: "โหลดข้อมูลสมาชิกไม่สำเร็จ" }, 500);
@@ -71,13 +78,13 @@ export async function POST(request: Request) {
         memberCode: member.member_code, name: member.name,
         firstName: member.first_name || member.name.split(" ")[0] || "",
         lastName: member.last_name || member.name.split(" ").slice(1).join(" "),
-        gender: member.gender || "", birthDate: member.birth_date || "", phone: member.phone || "", email: member.email || "",
+        gender: member.gender || "", birthDate: member.birth_date || "", birthdayChangedAt: member.birth_date_changed_at || "", phone: member.phone || "", email: member.email || "",
         level: member.level, points: member.points,
         privacyConsent: Boolean(member.newsletter_opt_in), consentUpdatedAt: member.privacy_consent_updated_at || "",
         lineDisplayName: linkResult.data?.line_display_name || "", linePictureUrl: linkResult.data?.line_picture_url || "",
       },
-      pointsHistory: (pointsResult.data || []).slice(0, 20),
-      hasMore: (pointsResult.data || []).length > 20,
+      pointsHistory: (pointsResult.data || []).slice(0, 5),
+      hasMore: (pointsResult.data || []).length > 5,
     });
   }
 
@@ -93,13 +100,35 @@ export async function POST(request: Request) {
       || gender && !genders.has(gender) || birthDate && !validDate(birthDate)
       || email.length > 254 || email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       return json({ error: "กรุณาตรวจชื่อ เบอร์โทร วันเกิด และอีเมลอีกครั้ง" }, 400);
-    const updated = await db.from("members").update({
+    // This row was freshly checked during session verification in this request.
+    const current = { data: session.birthday };
+    if (!current.data) return json({ error: "ไม่พบบัญชีสมาชิก" }, 404);
+    if (current.data.birth_date && !birthDate) return json({ error: "กรุณาระบุวันเกิดให้ครบ ไม่สามารถลบวันเกิดที่บันทึกแล้ว" }, 400);
+    const birthdayChanged = birthDate !== (current.data.birth_date || "");
+    const nextEdit = nextBirthdayEdit(current.data.birth_date_changed_at);
+    if (birthdayChanged && nextEdit && nextEdit.getTime() > Date.now())
+      return json({ error: `แก้วันเกิดได้อีกครั้งตั้งแต่ ${nextEdit.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" })}` }, 409);
+
+    const changes: Record<string, string | null> = {
       name: `${firstName} ${lastName}`, first_name: firstName, last_name: lastName,
-      gender: gender || null, birth_date: birthDate || null, phone, email: email || null, updated_at: new Date().toISOString(),
-    }).eq("owner_id", ownerId).eq("id", memberId).eq("status", "active").select("name").single();
+      gender: gender || null, phone, email: email || null, updated_at: new Date().toISOString(),
+    };
+    if (birthdayChanged) {
+      changes.birth_date = birthDate || null;
+      changes.birth_date_changed_at = new Date().toISOString();
+    }
+    let query = db.from("members").update(changes).eq("owner_id", ownerId).eq("id", memberId).eq("status", "active");
+    if (birthdayChanged) {
+      query = current.data.birth_date ? query.eq("birth_date", current.data.birth_date) : query.is("birth_date", null);
+      const cutoff = new Date();
+      cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+      query = query.or(`birth_date_changed_at.is.null,birth_date_changed_at.lte.${cutoff.toISOString()}`);
+    }
+    const updated = await query.select("name,birth_date_changed_at").maybeSingle();
     if (updated.error?.code === "23505") return json({ error: "เบอร์โทรนี้มีสมาชิกใช้อยู่แล้ว กรุณาใช้เบอร์อื่น" }, 409);
-    if (updated.error || !updated.data) return json({ error: "บันทึกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
-    return json({ success: true, name: updated.data.name });
+    if (updated.error) return json({ error: "บันทึกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
+    if (!updated.data) return json({ error: "ข้อมูลวันเกิดเพิ่งถูกแก้ไข กรุณาโหลดหน้าใหม่" }, 409);
+    return json({ success: true, name: updated.data.name, birthdayChangedAt: updated.data.birth_date_changed_at || "" });
   }
 
   const member = await db.from("members").select("member_code").eq("owner_id", ownerId).eq("id", memberId).single();

@@ -4,6 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, PawPrint } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
 import Image from "next/image";
+import { singleFlight } from "@/lib/single-flight";
+import { CustomerBirthdayPicker } from "./customer-birthday-picker";
+import { CustomerGenderPicker } from "./customer-gender-picker";
 
 type Member = { memberCode: string; name: string; level: string; points: number; linePictureUrl?: string | null };
 type Registration = { firstName: string; lastName: string; gender: string; birthDate: string; phone: string };
@@ -13,6 +16,10 @@ const signedOutKey = "tammy-customer-signed-out";
 const transferKey = "tammy-pending-line-transfer";
 
 const emptyForm: Registration = { firstName: "", lastName: "", gender: "", birthDate: "", phone: "" };
+const loadConfig = singleFlight<{ liffId: string }>();
+let publicLineConfig: { liffId: string; expiresAt: number } | undefined;
+const initializeLine = singleFlight<void>();
+const lookupMember = singleFlight<{ registered?: boolean; member?: Member; error?: string }>();
 
 export function LineMemberRegistration({ preview, previewScreen = "register", testLogin }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void }) {
   const [richMenuView, setRichMenuView] = useState<"points" | "rewards" | "news" | null>(null);
@@ -39,19 +46,31 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     void (async () => {
       try {
         const signedOut = localStorage.getItem(signedOutKey) === "1";
-        const configResponse = await fetch("/api/line/member/config", { cache: "no-store", signal: AbortSignal.timeout(10000) });
-        const config = await configResponse.json() as { liffId?: string; error?: string };
-        if (!configResponse.ok || !config.liffId) throw new Error(config.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
+        if (signedOut && !connectRequested) setState("login");
+        const config = await loadConfig("config", async () => {
+          if (publicLineConfig && publicLineConfig.expiresAt > Date.now()) return { liffId: publicLineConfig.liffId };
+          const response = await fetch("/api/line/member/config", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+          const data = await response.json() as { liffId?: string; error?: string };
+          if (!response.ok || !data.liffId) throw new Error(data.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
+          publicLineConfig = { liffId: data.liffId, expiresAt: Date.now() + 60000 };
+          return { liffId: data.liffId };
+        });
+        if (!active) return;
         const pendingTransfer = sessionStorage.getItem(transferKey);
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
         if (signedOut && !connectRequested) { setState("login"); return; }
         if (!connectRequested && !liffCallback && !pendingTransfer) { setState("entry"); return; }
         const { default: liff } = await import("@line/liff");
-        await Promise.race([
-          liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: false }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("LINE ใช้เวลานานเกินไป กรุณาเปิดหน้าใหม่ในแอป LINE")), 20000)),
-        ]);
+        await initializeLine(config.liffId, async () => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            await Promise.race([
+              liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: false }),
+              new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("LINE ใช้เวลานานเกินไป กรุณาลองเข้าสู่ระบบอีกครั้ง")), 20000); }),
+            ]);
+          } finally { clearTimeout(timer); }
+        });
         if (!active) return;
         if (!liff.isInClient()) {
           setState("entry");
@@ -74,13 +93,16 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!token && !access) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token || "");
         setAccessToken(access || "");
-        const response = await fetch("/api/line/member", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "lookup", idToken: token, accessToken: access }), signal: AbortSignal.timeout(16000),
+        const data = await lookupMember(token || access!, async () => {
+          const response = await fetch("/api/line/member", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "lookup", idToken: token, accessToken: access }), signal: AbortSignal.timeout(16000),
+          });
+          const result = await response.json() as { registered?: boolean; member?: Member; error?: string };
+          if (!response.ok) throw new Error(result.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
+          return result;
         });
-        const data = await response.json() as { registered?: boolean; member?: Member; error?: string; errorCode?: string };
         if (!active) return;
-        if (!response.ok) throw new Error(data.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
         if (data.registered && data.member) {
           if (finalTransfer) { setError("LINE นี้เชื่อมกับสมาชิกอยู่แล้ว กรุณาให้ร้านตรวจสอบก่อนย้ายบัญชี"); setState("unavailable"); }
           else { setMember(data.member); setState("member"); }
@@ -113,6 +135,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
 
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!form.gender) { setError("กรุณาเลือกเพศก่อนสมัครสมาชิก"); return; }
+    if (!form.birthDate) { setError("กรุณาเลือกวันเกิดก่อนสมัครสมาชิก"); return; }
     if (!termsAccepted) return;
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     if ((!idToken && !accessToken) || busy) return;
@@ -169,8 +193,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         <section className="line-signup-panel line-entry-form-panel">
           <form onSubmit={register} className="line-signup-form">
             <div className="line-signup-row"><label>ชื่อจริง <span>*</span><input autoComplete="given-name" required maxLength={80} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} placeholder="ชื่อจริง" /></label><label>นามสกุล <span>*</span><input autoComplete="family-name" required maxLength={80} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} placeholder="นามสกุล" /></label></div>
-            <label>เพศ <span>*</span><select required value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}><option value="">เลือกเพศ</option><option value="female">หญิง</option><option value="male">ชาย</option><option value="other">อื่น ๆ</option><option value="prefer_not_to_say">ไม่ประสงค์ระบุ</option></select></label>
-            <label>วันเกิด <span>*</span><input type="date" required min="1900-01-01" max={new Date().toISOString().slice(0, 10)} value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} /></label>
+            <CustomerGenderPicker required value={form.gender} onChange={gender => setForm({ ...form, gender })} />
+            <CustomerBirthdayPicker required value={form.birthDate} onChange={birthDate => setForm({ ...form, birthDate })} />
             <label>เบอร์โทรศัพท์ <span>*</span><input type="tel" autoComplete="tel" inputMode="numeric" required pattern="0[0-9]{9}" maxLength={10} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })} placeholder="0XXXXXXXXX" /><small>ใช้ตรวจสอบข้อมูลสมาชิก หากมีบัญชีเดิมอยู่แล้วร้านจะช่วยผูกบัญชีให้</small></label>
             <details className="line-signup-terms"><summary>อ่านเงื่อนไขสมาชิก</summary><p>ร้านใช้ชื่อ วันเกิด เบอร์โทร และบัญชี LINE เพื่อสมัครสมาชิก สะสมแต้ม และแสดงสิทธิพิเศษของ Tammy Pet Shop การสมัครทำได้ครั้งเดียวต่อบัญชี LINE และเบอร์โทรหนึ่งเบอร์ใช้กับสมาชิกหนึ่งราย</p></details>
             <label className="line-signup-consent"><input type="checkbox" required checked={termsAccepted} onChange={event => setTermsAccepted(event.target.checked)} /><span>ฉันอ่านและยอมรับเงื่อนไขสมาชิก</span></label>

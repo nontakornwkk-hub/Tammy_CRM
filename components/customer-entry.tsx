@@ -1,16 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { prefetchCrmPages, setVerifiedCrmUser } from "@/lib/supabase/crm-data";
-import { prefetchAdminExtras } from "@/lib/supabase/admin-preload";
+import { singleFlight } from "@/lib/single-flight";
 import { CustomerPortal } from "./customer-portal";
 import { LineMemberRegistration } from "./line-member-registration";
 
 type EntryState = "checking" | "admin" | "denied" | "line" | "test-error" | "test-login";
 type TestMember = { memberCode: string; name: string; level: string; points: number; linePictureUrl: string | null };
 const testSignedOutKey = "tammy-admin-test-signed-out";
+const loadTestMember = singleFlight<{ member: TestMember; token: string }>();
 
 export function CustomerEntry() {
   const router = useRouter();
@@ -20,21 +20,27 @@ export function CustomerEntry() {
   const [testError, setTestError] = useState("");
   const [testBusy, setTestBusy] = useState(false);
 
-  async function openTestMember() {
+  const openTestMember = useCallback(async (isActive: () => boolean = () => true) => {
     setState("checking"); setTestError("");
     try {
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
-      if (!token) throw new Error("กรุณาเข้าสู่ระบบแอดมินใหม่");
-      const response = await fetch("/api/dev/test-member", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-      const result = await response.json() as { member?: TestMember; error?: string };
-      if (!response.ok || !result.member) throw new Error(result.error || "เปิดบัญชีทดสอบไม่สำเร็จ");
+      if (!isActive()) return;
+      if (!token) { router.replace("/login?next=%2Fcustomer"); return; }
+      const result = await loadTestMember(token, async () => {
+        const response = await fetch("/api/dev/test-member", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        const data = await response.json() as { member?: TestMember; error?: string };
+        if (!response.ok || !data.member) throw new Error(data.error || "เปิดบัญชีทดสอบไม่สำเร็จ");
+        return { member: data.member, token };
+      });
+      if (!isActive()) return;
       localStorage.removeItem(testSignedOutKey);
       setTestMember(result.member); setTestToken(token); setState("admin");
     } catch (cause) {
+      if (!isActive()) return;
       setTestError(cause instanceof Error ? cause.message : "เปิดบัญชีทดสอบไม่สำเร็จ");
       setState("test-error");
     }
-  }
+  }, [router]);
 
   async function changeTestPoints(action: "addPoints" | "reset") {
     if (testBusy) return;
@@ -58,35 +64,13 @@ export function CustomerEntry() {
       return;
     }
     let active = true;
-    void (async () => {
-      if (!supabase) { setState("denied"); return; }
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
-      if (error || !data.user) { router.replace("/login?next=%2Fcustomer"); return; }
-      const access = await supabase.rpc("crm_current_access").maybeSingle();
-      if (!active) return;
-      let role = (access.data as { role?: string } | null)?.role;
-      let ownerId = (access.data as { owner_id?: string } | null)?.owner_id;
-      if (access.error) {
-        const fallback = await supabase.from("store_settings").select("owner_id").eq("owner_id", data.user.id).maybeSingle();
-        if (!active) return;
-        if (fallback.data && !fallback.error) { role = "owner"; ownerId = fallback.data.owner_id; }
-      }
-      if ((role === "owner" || role === "manager") && ownerId) {
-        setVerifiedCrmUser(data.user.id, ownerId, role);
-        void Promise.allSettled([
-          prefetchCrmPages(),
-          prefetchAdminExtras(data.user.id, ownerId, role === "owner"),
-        ]);
-        if (localStorage.getItem(testSignedOutKey) === "1") { if (active) setState("test-login"); return; }
-        if (active) await openTestMember();
-      } else setState("denied");
-    })();
+    if (localStorage.getItem(testSignedOutKey) === "1") setState("test-login");
+    else void openTestMember(() => active);
     return () => { active = false; };
-  }, [router]);
+  }, [openTestMember]);
 
   if (state === "line") return <LineMemberRegistration preview={false} />;
-  if (state === "admin" && testMember) return <><div className="customer-local-test-banner customer-database-test-banner"><span>บัญชีสมาชิกทดสอบ · ฐานข้อมูลแยกจากร้านจริง</span><div><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("addPoints")}>+500 แต้ม</button><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("reset")}>รีเซ็ตแต้ม</button></div>{testError ? <small role="alert">{testError}</small> : null}</div><CustomerPortal mode="customer" member={testMember} accessToken={`test:${testToken}`} onLogout={() => { localStorage.setItem(testSignedOutKey, "1"); setTestMember(null); setTestToken(""); setState("test-login"); }} onMemberUpdated={name => setTestMember(value => value ? { ...value, name } : value)} /></>;
+  if (state === "admin" && testMember) return <><div className="customer-local-test-banner customer-database-test-banner"><span>รายการร้านจริง · ทดสอบไม่ตัดสต็อก</span><div><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("addPoints")}>+500 แต้ม</button><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("reset")}>รีเซ็ตแต้ม</button></div>{testError ? <small role="alert">{testError}</small> : null}</div><CustomerPortal mode="customer" member={testMember} accessToken={`test:${testToken}`} onLogout={() => { localStorage.setItem(testSignedOutKey, "1"); setTestMember(null); setTestToken(""); setState("test-login"); }} onMemberUpdated={name => setTestMember(value => value ? { ...value, name } : value)} /></>;
   if (state === "test-login") return <><div className="customer-local-test-banner">โหมดทดสอบ · ฐานข้อมูลแยกจากร้านจริง</div><LineMemberRegistration preview previewScreen="login" testLogin={() => void openTestMember()} /></>;
   if (state === "test-error") return <main className="admin-auth-check" role="alert">{testError}</main>;
   if (state === "denied") return <main className="admin-auth-check" role="alert">บัญชีนี้ไม่มีสิทธิ์ดูหน้าทดสอบลูกค้า</main>;

@@ -1,9 +1,10 @@
 import { verifiedMemberSession } from "@/lib/line/member-session";
+import { prepareTestItem } from "@/lib/line/test-catalog";
 
 export const runtime = "nodejs";
 
-function json(body: Record<string, unknown>, status = 200) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+function json(body: Record<string, unknown>, status = 200, timing?: string) {
+  return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...(timing ? { "Server-Timing": timing } : {}) } });
 }
 
 export async function POST(request: Request) {
@@ -15,9 +16,15 @@ export async function POST(request: Request) {
   } catch { return json({ error: "คำขอไม่ถูกต้อง" }, 400); }
   if (input.kind === "coupon") return json({ error: "กรุณาแสดง QR ให้พนักงานสแกนที่หน้าร้าน" }, 409);
   if (!input.itemId || !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(input.itemId) || !input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId) || input.kind !== "reward") return json({ error: "รายการไม่ถูกต้อง" }, 400);
+  const started = performance.now();
   const session = await verifiedMemberSession(input);
   if ("error" in session) return json({ error: session.error }, session.status);
   const { db, ownerId, memberId } = session;
+  if(session.catalogDb){
+    const error=await prepareTestItem(session,"reward",input.itemId);
+    if(error)return json({error:error==="OUT_OF_STOCK"?"ของรางวัลหมดแล้ว":"เตรียมรายการทดสอบไม่สำเร็จ กรุณาลองใหม่"},409);
+  }
+  const authorized = performance.now();
   const result = await db.rpc("redeem_line_member_item", {
     p_owner_id: ownerId, p_member_id: memberId, p_item_id: input.itemId, p_kind: input.kind, p_request_id: input.requestId,
   });
@@ -29,5 +36,7 @@ export async function POST(request: Request) {
     return json({ error: messages[result.error.message] || "ทำรายการไม่สำเร็จ กรุณาลองใหม่" }, messages[result.error.message] ? 409 : 500);
   }
   const redemption = Array.isArray(result.data) ? result.data[0] : null;
-  return json({ success: true, redemptionId: redemption?.redemption_id, points: redemption?.remaining_points });
+  if (!redemption?.redemption_id || typeof redemption.remaining_points !== "number") return json({ error: "ไม่พบผลการบันทึก กรุณาลองอีกครั้ง" }, 500);
+  return json({ success: true, redemptionId: redemption.redemption_id, points: redemption.remaining_points, testMode:Boolean(session.catalogDb) }, 200,
+    `auth;dur=${(authorized - started).toFixed(1)},write;dur=${(performance.now() - authorized).toFixed(1)}`);
 }

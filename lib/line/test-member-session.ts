@@ -8,20 +8,22 @@ export function testServiceDb() {
   if (process.env.NODE_ENV !== "development") return null;
   const url = process.env.TEST_SUPABASE_URL;
   const key = process.env.TEST_SUPABASE_SECRET_KEY;
-  if (!url || !key) return null;
+  if (!url || !key || url.replace(/\/$/, "") === process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "")) return null;
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 export async function testAdminContext(token: string) {
   const db = testServiceDb();
   if (!db || !token) return null;
-  const actor = await crmActor(new Request("http://localhost/test-member", { headers: { Authorization: `Bearer ${token}` } }));
-  if (!actor || actor.role === "staff") return null;
   const production = serviceDb();
   if (!production) return null;
-  const shop = await production.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").maybeSingle();
+  const [actor, shop, profile] = await Promise.all([
+    crmActor(new Request("http://localhost/test-member", { headers: { Authorization: `Bearer ${token}` } })),
+    production.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").maybeSingle(),
+    db.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").maybeSingle(),
+  ]);
+  if (!actor || actor.role === "staff") return null;
   if (!shop.data || shop.data.owner_id !== actor.ownerId) return null;
-  const profile = await db.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").maybeSingle();
   if (!profile.data) return null;
-  return { db, ownerId: profile.data.owner_id as string };
+  return { db, ownerId: profile.data.owner_id as string, catalogDb: production, catalogOwnerId: actor.ownerId };
 }

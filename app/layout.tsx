@@ -31,6 +31,10 @@ import "./line-member-transfer.css";
 import "./customer-test-mode.css";
 import "./customer-account-polish.css";
 import "./coupon-analytics.css";
+import "./customer-premium.css";
+import "./customer-soft.css";
+import "./coupon-pastel.css";
+import "./member-metallic.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

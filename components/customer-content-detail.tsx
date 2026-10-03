@@ -7,15 +7,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { formatCurrentPopupPeriod, formatPopupDate, normalizePopupDisplay, type PopupDisplay } from "@/lib/popup-content";
 
-export function PopupDetailView({ item, onBack }: { item: PopupDisplay; onBack?: () => void }) {
+export function PopupDetailView({ item, onBack, className = "" }: { item: PopupDisplay; onBack?: () => void; className?: string }) {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [photoRatio, setPhotoRatio] = useState(1.6);
   const photos = item.images.length ? item.images : item.image ? [item.image] : [];
   const photo = photos[Math.min(photoIndex, photos.length - 1)];
 
-  return <main className="customer-detail-page">
+  return <main className={`customer-detail-page ${className}`}>
     <header className="customer-detail-header">
-      {onBack ? <button type="button" onClick={onBack} aria-label="กลับไปตัวอย่าง Popup"><ArrowLeft size={20}/></button> : <Link href="/customer" aria-label="กลับหน้าลูกค้า"><ArrowLeft size={20}/></Link>}
+      {onBack ? <button type="button" onClick={onBack} aria-label="กลับหน้าก่อนหน้า"><ArrowLeft size={20}/></button> : <Link href="/customer" aria-label="กลับหน้าลูกค้า"><ArrowLeft size={20}/></Link>}
       <span>รายละเอียด{item.category}</span><span aria-hidden="true">🐾</span>
     </header>
     <div className="customer-detail-hero" style={{ aspectRatio: photoRatio }}>

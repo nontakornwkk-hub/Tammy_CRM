@@ -19,9 +19,13 @@ export async function crmActor(request: Request): Promise<CrmActor | null> {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const identity = await db.auth.getUser(token);
+  // Both endpoints independently verify the same bearer token. Wait for both
+  // before granting access, while avoiding a sequential network waterfall.
+  const [identity, access] = await Promise.all([
+    db.auth.getUser(token),
+    db.rpc("crm_current_access").maybeSingle(),
+  ]);
   if (identity.error || !identity.data.user?.email_confirmed_at) return null;
-  const access = await db.rpc("crm_current_access").maybeSingle();
   const account = access.data as { owner_id?: string; role?: string } | null;
   if (access.error || !account?.owner_id || !["owner", "manager", "staff"].includes(account.role || "")) return null;
   return { userId: identity.data.user.id, ownerId: account.owner_id, role: account.role as CrmActor["role"] };

@@ -20,15 +20,17 @@ export async function verifyMemberIdentity(input: { idToken?: string; accessToke
   }
   const accessToken = input.accessToken;
   if (!accessToken || accessToken.length < 20 || accessToken.length > 8192) return null;
-  const verified = await fetch(`https://api.line.me/oauth2/v2.1/verify?${new URLSearchParams({ access_token: accessToken })}`, {
-    cache: "no-store", signal: AbortSignal.timeout(8000),
-  });
+  const [verified, profileResponse] = await Promise.all([
+    fetch(`https://api.line.me/oauth2/v2.1/verify?${new URLSearchParams({ access_token: accessToken })}`, {
+      cache: "no-store", signal: AbortSignal.timeout(8000),
+    }),
+    fetch("https://api.line.me/v2/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(8000),
+    }),
+  ]);
   if (!verified.ok) return null;
   const access = await verified.json() as { client_id?: string; expires_in?: number; scope?: string };
   if (access.client_id !== channelId || !access.expires_in || access.expires_in <= 0 || !access.scope?.split(" ").includes("profile")) return null;
-  const profileResponse = await fetch("https://api.line.me/v2/profile", {
-    headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(8000),
-  });
   if (!profileResponse.ok) return null;
   const profile = await profileResponse.json() as { userId?: string; displayName?: string; pictureUrl?: string };
   if (!profile.userId || !/^U[0-9a-f]{32}$/.test(profile.userId)) return null;
