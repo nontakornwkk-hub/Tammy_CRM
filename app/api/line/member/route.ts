@@ -83,21 +83,21 @@ export async function POST(request: Request) {
     return json({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
   }
 
-  const linked = await db.from("line_member_links").select("member_id,line_picture_url")
+  const linked = await db.from("line_member_links").select("member_id,line_picture_url,line_display_name,members!inner(member_code,name,level,points,birth_date,status)")
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject).maybeSingle();
   if (linked.error) return json({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
-    const [existing] = await Promise.all([
-      db.from("members").select("member_code,name,level,points,birth_date")
-        .eq("owner_id", shop.data.owner_id).eq("id", linked.data.member_id).eq("status", "active").maybeSingle(),
-      lineDisplayName || linePictureUrl ? db.from("line_member_links").update({
-      ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
-      ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
-      profile_synced_at: new Date().toISOString() })
-      .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject) : Promise.resolve(),
-    ]);
-    if (existing.error || !existing.data) return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
-    return json({ registered: true, member: publicMember(existing.data, linePictureUrl || linked.data.line_picture_url) });
+    const existing = (Array.isArray(linked.data.members) ? linked.data.members[0] : linked.data.members) as unknown as Record<string, unknown> | null;
+    if (!existing || existing.status !== "active") return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
+    // Avoid writing the same LINE profile on every login.
+    if ((lineDisplayName && lineDisplayName !== linked.data.line_display_name) || (linePictureUrl && linePictureUrl !== linked.data.line_picture_url)) {
+      await db.from("line_member_links").update({
+        ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
+        ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
+        profile_synced_at: new Date().toISOString(),
+      }).eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
+    }
+    return json({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
   }
 
   if (input.action === "lookup") return json({ registered: false });

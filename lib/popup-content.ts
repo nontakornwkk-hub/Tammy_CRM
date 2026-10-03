@@ -1,3 +1,4 @@
+import { notifyCatalogChanged } from "./catalog-live";
 import { supabase } from "./supabase/client";
 import { crmOwnerId } from "./supabase/crm-data";
 
@@ -135,6 +136,7 @@ export async function refreshPublishedPopupContent(): Promise<void> {
     .update({ card_design: { ...currentDesign, popup_content: resolvePopupContent(selected, catalog).filter(item => item.active) }, updated_at: new Date().toISOString() })
     .eq("slug", "tammy").eq("owner_id", auth.user.id);
   if (updated.error) throw updated.error;
+  notifyCatalogChanged();
 }
 
 export function resolvePopupContent(items: PopupContent[], catalog: PopupCatalog): PopupDisplay[] {

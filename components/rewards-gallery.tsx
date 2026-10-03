@@ -1,4 +1,5 @@
 "use client";
+import { notifyCatalogChanged } from "@/lib/catalog-live";
 
 import Image from "next/image";
 import { Camera, History, Check, ChevronDown, Gift, ImageIcon, Menu, Megaphone, Package, Pencil, Plus, RotateCcw, Search, Star, Tag, Trash2, X } from "lucide-react";
@@ -254,6 +255,7 @@ export function RewardsGallery() {
         ? await supabase.from(editing.kind).update(payload).eq("id", editing.id).select().single()
         : await supabase.from(editing.kind).insert({ ...payload, owner_id: ownerId }).select().single();
       if (result.error) throw result.error;
+      notifyCatalogChanged();
       try { await refreshPublishedPopupContent(); } catch { setError("บันทึกรายการแล้ว แต่ปรับ Popup ไม่สำเร็จ กรุณาบันทึกหน้าตั้งค่า Popup อีกครั้ง"); }
       clearNewsPreviews(); setEditing(null); setNewsImages([]); setFile(null); setFilePreview("");
       clearCachedData("rewards");
@@ -274,6 +276,7 @@ export function RewardsGallery() {
       : await supabase.from(editing.kind).delete().eq("owner_id", ownerId).eq("id", editing.id);
     setSaving(false);
     if (deleteError) { setError(deleteError.code === "23503" ? "รายการนี้มีประวัติการใช้งานอยู่ จึงลบถาวรไม่ได้" : deleteError.message); return; }
+    notifyCatalogChanged();
     try { await refreshPublishedPopupContent(); } catch { setError("ลบรายการแล้ว แต่ปรับ Popup ไม่สำเร็จ กรุณาบันทึกหน้าตั้งค่า Popup อีกครั้ง"); }
     clearCachedData("rewards");
     clearNewsPreviews(); setNewsImages([]); setEditing(null); await load(true);
@@ -293,6 +296,7 @@ export function RewardsGallery() {
         : { active: next };
       const { data, error: updateError } = await client.from(item.kind).update(payload).eq("id", item.id).select().single();
       if (updateError || !data) throw updateError || new Error("เปลี่ยนสถานะไม่สำเร็จ");
+      notifyCatalogChanged();
       clearCachedData("rewards");
       try { await refreshPublishedPopupContent(); } catch { setError("เปลี่ยนสถานะแล้ว แต่ปรับ Popup ไม่สำเร็จ กรุณาบันทึกหน้าตั้งค่า Popup อีกครั้ง"); }
     });

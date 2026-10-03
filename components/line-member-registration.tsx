@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, PawPrint } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
 import Image from "next/image";
+import { loadMemberCatalog, clearMemberCatalog } from "@/lib/customer-catalog";
 import { singleFlight } from "@/lib/single-flight";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
@@ -47,6 +48,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
       try {
         const signedOut = localStorage.getItem(signedOutKey) === "1";
         if (signedOut && !connectRequested) setState("login");
+        const sdk = import("@line/liff");
+        void sdk.catch(() => undefined);
         const config = await loadConfig("config", async () => {
           if (publicLineConfig && publicLineConfig.expiresAt > Date.now()) return { liffId: publicLineConfig.liffId };
           const response = await fetch("/api/line/member/config", { cache: "no-store", signal: AbortSignal.timeout(10000) });
@@ -61,7 +64,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         setLiffUrl(canonicalUrl);
         if (signedOut && !connectRequested) { setState("login"); return; }
         if (!connectRequested && !liffCallback && !pendingTransfer) { setState("entry"); return; }
-        const { default: liff } = await import("@line/liff");
+        const { default: liff } = await sdk;
         await initializeLine(config.liffId, async () => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           try {
@@ -93,6 +96,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!token && !access) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token || "");
         setAccessToken(access || "");
+        void loadMemberCatalog(token || undefined, access || undefined).catch(() => undefined);
         const data = await lookupMember(token || access!, async () => {
           const response = await fetch("/api/line/member", {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -126,7 +130,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   }
 
   async function logout() {
-    localStorage.setItem(signedOutKey, "1");
+    clearMemberCatalog(); localStorage.setItem(signedOutKey, "1");
     setConnectRequested(false);
     setMember(null); setIdToken(""); setAccessToken(""); setError("");
     setState("login");

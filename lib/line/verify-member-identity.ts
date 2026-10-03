@@ -1,8 +1,18 @@
 import "server-only";
 
 type Identity = { sub: string; name: string | null; picture: string | null };
+const pendingIdentities = new Map<string, Promise<Identity | null>>();
 
-export async function verifyMemberIdentity(input: { idToken?: string; accessToken?: string }, channelId: string): Promise<Identity | null> {
+export function verifyMemberIdentity(input: { idToken?: string; accessToken?: string }, channelId: string): Promise<Identity | null> {
+  const key = JSON.stringify([channelId, input.idToken || "", input.accessToken || ""]);
+  const existing = pendingIdentities.get(key);
+  if (existing) return existing;
+  const request = resolveIdentity(input, channelId).finally(() => pendingIdentities.delete(key));
+  pendingIdentities.set(key, request);
+  return request;
+}
+
+async function resolveIdentity(input: { idToken?: string; accessToken?: string }, channelId: string): Promise<Identity | null> {
   if (input.idToken && input.idToken.length >= 20 && input.idToken.length <= 8192) {
     const response = await fetch("https://api.line.me/oauth2/v2.1/verify", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },

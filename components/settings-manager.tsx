@@ -1,4 +1,5 @@
 "use client";
+import { notifyCatalogChanged } from "@/lib/catalog-live";
 
 import Image from "next/image";
 import { DateRangePicker } from "./date-range-picker";
@@ -268,6 +269,7 @@ export function SettingsManager() {
         ? await supabase.from("public_shop_profiles").upsert(profile, { onConflict: "slug" })
         : await supabase.from("public_shop_profiles").update(profile).eq("slug", "tammy").eq("owner_id", ownerId).select("slug").single();
       if (result.error) throw result.error;
+      notifyCatalogChanged();
       saveSettings(next);
       clearCachedData("points");
       setSettings(next);
