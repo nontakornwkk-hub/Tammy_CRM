@@ -35,6 +35,7 @@ import "./customer-premium.css";
 import "./customer-soft.css";
 import "./coupon-pastel.css";
 import "./member-metallic.css";
+import "./device-layout.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

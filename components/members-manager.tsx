@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { CalendarDays, Check, ChevronRight, Clock3, Crown, Download, Edit3, Heart, LockKeyhole, Mail, Menu, MessageSquareText, PawPrint, Phone, Plus, Search, Sparkles, Star, Tag, UserRound, Users, Wallet, X } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Clock3, Crown, Download, Edit3, Heart, LockKeyhole, Mail, Menu, MessageSquareText, PawPrint, Phone, Plus, Search, Sparkles, Star, Tag, Trash2, UserRound, Users, Wallet, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MemberRow, MemberTagDefinition } from "@/lib/database.types";
 import { createMember } from "@/lib/supabase/members";
@@ -76,6 +76,10 @@ export function MembersManager() {
   const [editingInternal, setEditingInternal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [purchaseCount, setPurchaseCount] = useState<number | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [tagSettingsOpen, setTagSettingsOpen] = useState(false);
@@ -191,6 +195,28 @@ export function MembersManager() {
     clearCachedData("members", "points", "reports");
     setAddOpen(false); await refresh(true); setSelectedId(result.data.id); setNotice("เพิ่มสมาชิกแล้ว");
   }
+  function closeDelete() { if (deleting) return; setDeleteOpen(false); setDeletePassword(""); setDeleteError(""); }
+  async function deleteMember() {
+    if (!selected || !deletePassword || deleting || crmRole() !== "owner" || !supabase) return;
+    const memberId = selected.id;
+    const memberCode = selected.member_code;
+    setDeleting(true); setDeleteError("");
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error("กรุณาเข้าสู่ระบบแอดมินใหม่");
+      const response = await fetch("/api/admin/members/delete", { method: "POST", cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ memberId, memberCode, password: deletePassword }) });
+      const result = await response.json() as { success?: boolean; error?: string };
+      if (!response.ok || !result.success) throw new Error(result.error || "ลบสมาชิกไม่สำเร็จ");
+      clearCachedData("members", "points", "reports");
+      setSelectedId(null); setDeleteOpen(false); setDeletePassword("");
+      setNotice("ลบสมาชิกแล้ว");
+      void refresh(true);
+    } catch (cause) { setDeletePassword(""); setDeleteError(cause instanceof Error ? cause.message : "ลบสมาชิกไม่สำเร็จ"); }
+    finally { setDeleting(false); }
+  }
   function exportMembers() {
     const rows = [["รหัสสมาชิก", "ลำดับสมาชิก", "ชื่อ", "ชื่อที่พนักงานจำ", "แท็ก", "โทรศัพท์", "อีเมล", "ระดับ", "แต้ม", "ยอดซื้อสะสม", "มาล่าสุด"], ...[...members].sort((a, b) => (a.member_number ?? Number.MAX_SAFE_INTEGER) - (b.member_number ?? Number.MAX_SAFE_INTEGER) || a.created_at.localeCompare(b.created_at)).map((m) => [m.member_code, String(m.member_number ?? ""), m.name, aliases[m.id] ?? "", (m.tags ?? []).join(" | "), m.phone ?? "", m.email ?? "", m.level, String(m.points), String(m.spending), m.last_visit ?? ""])];
     const csv = "\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n");
@@ -212,14 +238,14 @@ export function MembersManager() {
       {!demoMode ? <div className="member-tags-admin"><button type="button" className="member-tags-admin-toggle" aria-expanded={tagSettingsOpen} onClick={() => setTagSettingsOpen((open) => !open)}><Tag size={17} /> จัดการแท็ก <span>{tagDefinitions.length} แท็ก</span><ChevronRight size={17} className={tagSettingsOpen ? "open" : ""} /></button>{tagSettingsOpen ? <MemberTagSettings onChanged={() => void refresh(true)} /> : null}</div> : null}
       <section id="members-list" className="panel members-list-panel"><div className="member-tools"><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหาชื่อ รหัสสมาชิก เบอร์โทร ชื่อที่จำ หรือแท็ก" /></label><div className="member-level-filter">{(["ทั้งหมด", "Member", "Silver", "Gold", "Platinum"] as const).map((item) => <button key={item} className={`${level === item ? "active " : ""}rank-filter-${item === "ทั้งหมด" ? "all" : item.toLowerCase()}`} type="button" onClick={() => setLevel(item)}>{item}</button>)}</div></div>
         {tagCatalog.length ? <div className="member-tag-filters" aria-label="กรองตามแท็ก"><Tag size={16} /><button type="button" className={!tagFilter ? "active" : ""} onClick={() => setTagFilter(null)}>ทุกแท็ก</button>{tagCatalog.map((tag) => <button key={tag} type="button" className={`${tagFilter === tag ? "active " : ""}tag-color-${tagColorsByName[tag] ?? "sky"}`} onClick={() => setTagFilter(tag)}>{tag}<span>{members.filter((member) => (member.tags ?? []).includes(tag)).length}</span></button>)}</div> : null}
-        {loadError ? <div className="members-empty"><strong>{loadError}</strong><button type="button" onClick={() => void refresh()}>ลองอีกครั้ง</button></div> : loading ? <div className="members-empty"><strong>กำลังโหลดข้อมูลสมาชิก…</strong></div> : <>{demoMode ? <div className="member-demo-notice">โหมดตัวอย่าง · ไม่แสดงข้อมูลลูกค้าจริงหรือรหัสจากฐานข้อมูล</div> : null}<div className="members-table"><div className="members-table-head"><span>ลูกค้า</span><span>ชื่อที่พนักงานจำ</span><span>ระดับ</span><span>แต้ม</span><span>ยอดซื้อสะสม</span><span>มาล่าสุด</span><span>การติดตาม</span></div>{visible.map((member) => { const follow = followUp(member.last_visit); const profile = lineProfiles[member.id]; return <button className="members-table-row" type="button" key={member.id} onClick={() => { setSelectedId(member.id); setEditingInternal(false); }} aria-label={`ดูข้อมูล ${member.name}`}><span className="member-identity"><i>{profile?.line_picture_url?.startsWith("https://") ? <img src={profile.line_picture_url} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-member-entry-logo.png" alt="" width={44} height={44} />}</i><span><span className="member-name-line"><b>{member.name}</b>{(member.tags ?? []).length > 0 ? <Tag size={13} className="member-has-tags" aria-label="มีแท็ก" /> : null}</span><small>{member.member_code} · ลำดับที่ {member.member_number ?? "—"}</small><small>{member.phone || "ไม่มีเบอร์"}</small></span></span><span className="member-nickname">{aliases[member.id] || "—"}</span><span className={`member-badge ${member.level.toLowerCase()}`}>{member.level}</span><strong>{member.points.toLocaleString()}</strong><strong>฿{Number(member.spending).toLocaleString()}</strong><span>{displayDate(member.last_visit)}</span><span className={`follow-pill ${follow.tone}`}><i />{follow.label}</span></button>; })}</div>{visible.length === 0 ? <div className="members-empty"><Search /><strong>ไม่พบสมาชิก</strong><span>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</span></div> : null}<footer className="members-footer">แสดง {visible.length} จาก {members.length} รายการ · เรียงตามลำดับสมัคร</footer></>}
+        {loadError ? <div className="members-empty"><strong>{loadError}</strong><button type="button" onClick={() => void refresh()}>ลองอีกครั้ง</button></div> : loading ? <div className="members-empty"><strong>กำลังโหลดข้อมูลสมาชิก…</strong></div> : <>{demoMode ? <div className="member-demo-notice">โหมดตัวอย่าง · ไม่แสดงข้อมูลลูกค้าจริงหรือรหัสจากฐานข้อมูล</div> : null}<div className="members-table"><div className="members-table-head"><span>ลูกค้า</span><span>ชื่อที่พนักงานจำ</span><span>ระดับ</span><span>แต้ม</span><span>ยอดซื้อสะสม</span><span>มาล่าสุด</span><span>การติดตาม</span></div>{visible.map((member) => { const follow = followUp(member.last_visit); const profile = lineProfiles[member.id]; return <button className="members-table-row" type="button" key={member.id} onClick={() => { setSelectedId(member.id); setEditingInternal(false); }} aria-label={`ดูข้อมูล ${member.name}`}><span className="member-identity"><i>{profile?.line_picture_url?.startsWith("https://") ? <img src={profile.line_picture_url} alt="" referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-wordmark.svg" alt="" width={44} height={44} />}</i><span><span className="member-name-line"><b>{member.name}</b>{(member.tags ?? []).length > 0 ? <Tag size={13} className="member-has-tags" aria-label="มีแท็ก" /> : null}</span><small>{member.member_code} · ลำดับที่ {member.member_number ?? "—"}</small><small>{member.phone || "ไม่มีเบอร์"}</small></span></span><span className="member-nickname">{aliases[member.id] || "—"}</span><span className={`member-badge ${member.level.toLowerCase()}`}>{member.level}</span><strong>{member.points.toLocaleString()}</strong><strong>฿{Number(member.spending).toLocaleString()}</strong><span>{displayDate(member.last_visit)}</span><span className={`follow-pill ${follow.tone}`}><i />{follow.label}</span></button>; })}</div>{visible.length === 0 ? <div className="members-empty"><Search /><strong>ไม่พบสมาชิก</strong><span>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</span></div> : null}<footer className="members-footer">แสดง {visible.length} จาก {members.length} รายการ · เรียงตามลำดับสมัคร</footer></>}
       </section>
       {selected ? <div className="preview-modal member-profile-modal" role="dialog" aria-modal="true" aria-label={`ข้อมูลสมาชิก ${selected.name}`}>
         <button className="preview-backdrop" type="button" aria-label="ปิดรายละเอียด" onClick={() => setSelectedId(null)} />
         <section className="member-profile member-profile-reference">
           <button className="member-profile-close" type="button" aria-label="ปิดรายละเอียด" onClick={() => setSelectedId(null)}><X /></button>
           <header className="member-reference-hero">
-            <span className="member-reference-avatar">{lineProfiles[selected.id]?.line_picture_url?.startsWith("https://") ? <img src={lineProfiles[selected.id].line_picture_url!} alt={`รูปโปรไฟล์ LINE ของ ${selected.name}`} referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-member-entry-logo.png" alt="" width={140} height={140} />}</span>
+            <span className="member-reference-avatar">{lineProfiles[selected.id]?.line_picture_url?.startsWith("https://") ? <img src={lineProfiles[selected.id].line_picture_url!} alt={`รูปโปรไฟล์ LINE ของ ${selected.name}`} referrerPolicy="no-referrer" /> : <Image src="/assets/tammy-wordmark.svg" alt="" width={140} height={140} />}</span>
             <div className="member-reference-identity">
               <h2>{selected.name}</h2>
               <p><UserRound size={17} /> ชื่อเรียก (ภายใน) <strong>{aliases[selected.id] || "ยังไม่ได้ระบุ"}</strong> <span className={`follow-pill ${followUp(selected.last_visit).tone}`}><i />{followUp(selected.last_visit).label}</span></p>
@@ -242,7 +268,7 @@ export function MembersManager() {
               <div><span><LockKeyhole size={18} /> วันเกิด</span><strong>{selected.birth_date ? displayDate(selected.birth_date) : "ยังไม่ได้ระบุ · รอลูกค้าแจ้งข้อมูล"}</strong><LockKeyhole size={16} /></div>
               <div><span><MessageSquareText size={18} /> บัญชี LINE</span><strong>{lineProfiles[selected.id] ? `เชื่อมแล้ว · ${lineProfiles[selected.id].line_display_name || "ลูกค้า LINE"}` : "ยังไม่เชื่อม"}</strong><LockKeyhole size={16} /></div>
             </div>
-            {!demoMode && crmRole() !== "staff" ? <MemberLineTransfer memberId={selected.id} memberName={selected.name} oldLineName={lineProfiles[selected.id]?.line_display_name || null} onComplete={() => void refresh(true)} /> : null}
+            {!demoMode && crmRole() !== "staff" ? <MemberLineTransfer memberId={selected.id} memberName={selected.name} oldLineName={lineProfiles[selected.id]?.line_display_name || null} linked={Boolean(lineProfiles[selected.id])} onComplete={() => void refresh(true)} /> : null}
           </section>
           <section className="member-profile-section member-profile-internal">
             <div className="member-section-heading"><div><h3><UserRound size={21} /> ข้อมูลสำหรับพนักงาน</h3><p>ใช้เฉพาะภายในร้านเท่านั้น</p></div>{!editingInternal && !demoMode ? <button type="button" onClick={() => setEditingInternal(true)}><Edit3 size={16} /> แก้ไขข้อมูลภายใน</button> : null}</div>
@@ -259,9 +285,11 @@ export function MembersManager() {
             <div className="member-section-heading"><div><h3><PawPrint size={22} /> สัตว์เลี้ยง</h3><p>จำนวนสัตว์เลี้ยงของสมาชิก</p></div></div>
             <div className="member-pet-counts"><div><span aria-hidden="true">🐶</span><strong>สุนัข</strong><b>{dogCount} ตัว</b></div><div><span aria-hidden="true">🐱</span><strong>แมว</strong><b>{catCount} ตัว</b></div></div>
           </section>
+          {crmRole() === "owner" && !demoMode ? <div className="member-delete-entry"><button type="button" onClick={() => { setDeleteError(""); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 size={17} /> ลบสมาชิกคนนี้</button></div> : null}
           <footer className="member-reference-footer"><Heart size={17} fill="currentColor" /> ขอบคุณที่เป็นส่วนหนึ่งของครอบครัว Tammy <Heart size={17} /></footer>
         </section>
       </div> : null}
+      {deleteOpen && selected ? <div className="preview-modal member-add-modal member-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-member-title"><button className="preview-backdrop" type="button" aria-label="ปิด" onClick={closeDelete} /><form onSubmit={event => { event.preventDefault(); void deleteMember(); }}><button className="preview-close" type="button" aria-label="ปิด" onClick={closeDelete} disabled={deleting}><X /></button><h2 id="delete-member-title">ลบสมาชิก {selected.name}?</h2><p>รหัส {selected.member_code} · แต้ม {selected.points.toLocaleString()} คะแนน</p><p>ข้อมูลสมาชิก แต้ม ประวัติแต้ม สัตว์เลี้ยง คูปองที่รับ และประวัติแลกรางวัลจะถูกลบถาวร ยอดขาย POS เดิมจะยังอยู่โดยไม่ผูกชื่อสมาชิก</p><label>รหัสผ่านบัญชีเจ้าของร้าน<input type="password" value={deletePassword} onChange={event => setDeletePassword(event.target.value)} autoComplete="current-password" required disabled={deleting} autoFocus /></label>{deleteError ? <p className="member-delete-error" role="alert">{deleteError}</p> : null}<div><button type="button" onClick={closeDelete} disabled={deleting}>ยกเลิก</button><button type="submit" disabled={!deletePassword || deleting}><Trash2 size={17} /> {deleting ? "กำลังตรวจรหัสและลบ…" : "ยืนยันลบถาวร"}</button></div></form></div> : null}
       {addOpen ? <div className="preview-modal member-add-modal" role="dialog" aria-modal="true" aria-labelledby="add-member-title"><button className="preview-backdrop" type="button" aria-label="ปิด" onClick={() => setAddOpen(false)} /><form action={addMember}><button className="preview-close" type="button" aria-label="ปิด" onClick={() => setAddOpen(false)}><X /></button><h2 id="add-member-title">เพิ่มสมาชิกใหม่</h2><p>ระบบจะสร้างรหัสสมาชิกและบันทึกลงฐานข้อมูล</p><label>ชื่อ–นามสกุล<input name="name" required /></label><label>เบอร์โทรศัพท์<input name="phone" required /></label><label>อีเมล<input name="email" type="email" /></label><div><button type="button" onClick={() => setAddOpen(false)}>ยกเลิก</button><button type="submit" disabled={saving}><Plus size={18} /> {saving ? "กำลังบันทึก…" : "เพิ่มสมาชิก"}</button></div></form></div> : null}
       {notice ? <div className="member-toast" role="status" onAnimationEnd={() => setNotice("")}><Check size={18} /> {notice}</div> : null}
     </main>

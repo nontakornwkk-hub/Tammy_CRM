@@ -72,7 +72,7 @@ export function CustomerRewardDetail({ id }: { id: string }) {
     </header>
     {loading ? <p className="customer-reward-load">กำลังโหลดรายละเอียดของรางวัล…</p> : error ? <div className="customer-reward-load" role="alert"><p>{error}</p><Link href="/customer?tab=rewards">กลับไปหน้าของรางวัล</Link></div> : reward ? <>
       <div className="customer-reward-hero">
-        {reward.image_url ? <Image className="customer-reward-hero-photo" src={reward.image_url} alt={reward.title} fill sizes="(max-width: 520px) 100vw, 520px" unoptimized /> : <><Image className="customer-reward-hero-mascot" src="/assets/tammy-member-entry-logo.png" alt="" width={255} height={255} /><span><Gift size={54} /><small>Tammy Pet Shop</small></span></>}
+        {reward.image_url ? <Image className="customer-reward-hero-photo" src={reward.image_url} alt={reward.title} fill sizes="(max-width: 520px) 100vw, 520px" unoptimized /> : <><Image className="customer-reward-hero-mascot" src="/assets/tammy-wordmark.svg" alt="" width={255} height={255} /><span><Gift size={54} /><small>Tammy Pet Shop</small></span></>}
         <span className="customer-reward-hero-badge"><PawPrint size={16} /> {price} แต้ม</span>
       </div>
       <div className="customer-reward-sheet">
