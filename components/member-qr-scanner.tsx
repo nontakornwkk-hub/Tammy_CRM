@@ -73,12 +73,12 @@ export function MemberQrScanner({ onScan, onClose, error }: { onScan: (code: str
     <button className="preview-backdrop" type="button" aria-label="ปิดสแกน QR" onClick={onClose} />
     <section>
       <button className="preview-close" type="button" onClick={onClose} aria-label="ปิด"><X /></button>
-      <h2 id="member-qr-title"><Camera size={22} /> สแกนสมาชิกหรือคูปอง</h2>
-      <p>สแกนบัตรสมาชิกเพื่อเลือกผู้รับแต้ม หรือสแกน QR คูปองเพื่อใช้สิทธิ์ ระบบอ่านได้แม้แป้นพิมพ์อยู่ภาษาไทย</p>
+      <h2 id="member-qr-title"><Camera size={22} /> สแกนสมาชิก / คูปอง / รางวัล</h2>
+      <p>สแกนบัตรสมาชิกเพื่อเลือกผู้รับแต้ม หรือสแกน QR คูปองและรางวัลเกมเพื่อใช้สิทธิ์ ระบบอ่านได้แม้แป้นพิมพ์อยู่ภาษาไทย</p>
       <div className="member-qr-video"><video ref={videoRef} muted playsInline autoPlay aria-label="ภาพจากกล้องสำหรับสแกน QR" /></div>
       <p className="member-qr-status" role="status">{cameraStatus}</p>
       {cameraFailed && <button type="button" className="member-qr-retry" onClick={() => { setCameraFailed(false); setCameraStatus("กำลังเปิดกล้อง…"); setRetry(value => value + 1); }}><RotateCcw size={15} /> ลองเปิดกล้องอีกครั้ง</button>}
-      <form onSubmit={submit}><label htmlFor="member-code-input"><Keyboard size={17} /> สแกน QR หรือกรอกรหัสสมาชิก</label><div><input ref={inputRef} id="member-code-input" value={code} onChange={(event) => updateCode(event.target.value)} onKeyDown={handleScannerKey} placeholder="รหัสสมาชิกหรือ QR คูปอง" autoComplete="off" autoCapitalize="characters" spellCheck={false} required /><button type="submit">ตรวจ QR</button></div></form>
+      <form onSubmit={submit}><label htmlFor="member-code-input"><Keyboard size={17} /> สแกน QR หรือกรอกรหัสสมาชิก</label><div><input ref={inputRef} id="member-code-input" value={code} onChange={(event) => updateCode(event.target.value)} onKeyDown={handleScannerKey} placeholder="รหัสสมาชิก / คูปอง / รางวัล" autoComplete="off" autoCapitalize="characters" spellCheck={false} required /><button type="submit">ตรวจ QR</button></div></form>
       {error ? <p className="rewards-gallery-error" role="alert">{error}</p> : null}
     </section>
   </div>;

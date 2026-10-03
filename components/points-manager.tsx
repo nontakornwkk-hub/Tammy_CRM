@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -29,7 +29,7 @@ import { PromotionDisplay } from "./promotion-display";
 import { MemberQrScanner } from "./member-qr-scanner";
 import { CouponQrScanner } from "./coupon-qr-scanner";
 import { ProfilePhoto } from "./profile-photo";
-import { normalizeCouponScan, normalizeMemberScan } from "@/lib/member-code";
+import { normalizeCouponScan, normalizeGameScan, normalizeMemberScan } from "@/lib/member-code";
 
 type MemberLevel = "Platinum" | "Gold" | "Silver" | "Member";
 type Customer = {
@@ -180,8 +180,9 @@ export function PointsManager() {
     return true;
   }
 
+  useEffect(()=>{if(loading)return;const url=new URL(window.location.href);const scan=url.searchParams.get("scan");if(!scan)return;selectByCode(scan);url.searchParams.delete("scan");window.history.replaceState(null,"",url.pathname+url.search+url.hash);},[loading,customers]);
   function routeScan(rawCode: string) {
-    const couponQr = normalizeCouponScan(rawCode);
+    const couponQr = normalizeGameScan(rawCode) || normalizeCouponScan(rawCode);
     if (couponQr) { setScannerOpen(false); setCouponScanQr(couponQr); setScannerError(""); return true; }
     return selectByCode(rawCode);
   }
@@ -282,7 +283,7 @@ export function PointsManager() {
               <h2 id="confirm-points-title">ยืนยันการให้แต้ม?</h2>
               <p>กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนทำรายการ</p>
               <div className="confirm-customer">
-                <span className="pet-avatar"><Image src="/assets/shop-logo-original.png" alt="" width={44} height={44} /></span>
+                <span className="pet-avatar"><ProfilePhoto src={linePictures[selected.id]} size={44} alt={`รูปโปรไฟล์ของ ${selected.name}`} /></span>
                 <span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span>
               </div>
               <div className="confirm-summary">
@@ -308,7 +309,7 @@ export function PointsManager() {
               <span className="success-icon"><CheckCircle2 /></span>
               <h2 id="points-success-title">ให้แต้มสำเร็จ!</h2>
               <p>ระบบบันทึกรายการเรียบร้อยแล้ว</p>
-              <div className="success-customer"><span className="pet-avatar"><Image src="/assets/shop-logo-original.png" alt="" width={44} height={44} /></span><span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span></div>
+              <div className="success-customer"><span className="pet-avatar"><ProfilePhoto src={linePictures[selected.id]} size={44} alt={`รูปโปรไฟล์ของ ${selected.name}`} /></span><span><strong>{selected.name}</strong><small>{selected.nickname} • {selected.phone}</small></span></div>
               <div className="success-points"><span>ได้รับ</span><strong>+{successReceipt.earned} แต้ม</strong><small>แต้มคงเหลือใหม่ {successReceipt.total.toLocaleString()} แต้ม</small></div>
               <button className="success-done" type="button" onClick={() => setSuccessOpen(false)}>เสร็จสิ้น</button>
             </section>

@@ -9,7 +9,8 @@ import { ProfilePhoto } from "./profile-photo";
 type Page = { rows: HistoryEntry[]; nextCursor: HistoryCursor | null };
 const snapshots = new Map<string, { page: Page; at: number }>();
 export function HistoryList({ filter, start = "", end = "", revision, grouped = false, onSelect }: { filter: string; start?: string; end?: string; revision: number; grouped?: boolean; onSelect: (entry: HistoryEntry) => void }) {
-  const key = `${historyScope()}:${filter}:${start}:${end}:${revision}`;
+  const scopeKey = `${historyScope()}:${filter}:${start}:${end}`;
+  const key = `${scopeKey}:${revision}`;
   const cached = snapshots.get(key);
   const [page, setPage] = useState<Page>(() => cached?.page || { rows: [], nextCursor: null });
   const [loading, setLoading] = useState(!cached);
@@ -19,10 +20,13 @@ export function HistoryList({ filter, start = "", end = "", revision, grouped = 
   const sentinel = useRef<HTMLButtonElement>(null);
   const loadingMore = useRef(false);
   const controller = useRef<AbortController | null>(null);
+  const previousScope = useRef(scopeKey);
   useEffect(() => {
     const abort = new AbortController(); controller.current = abort;
     const saved = snapshots.get(key);
-    setPage(saved?.page || { rows: [], nextCursor: null }); setError(""); setLoading(!saved);
+    const sameScope = previousScope.current === scopeKey;
+    previousScope.current = scopeKey;
+    setPage(saved?.page || (sameScope ? page : { rows: [], nextCursor: null })); setError(""); setLoading(!saved && (!sameScope || page.rows.length === 0));
     if (saved && Date.now() - saved.at < 30000) return () => abort.abort();
     void historyRequest(new URLSearchParams({ filter, start, end }), abort.signal).then(result => {
       if (abort.signal.aborted) return;

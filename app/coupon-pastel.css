@@ -1,5 +1,19 @@
 .coupon-pastel-ticket { --ticket-bg:#fff2ec; --ticket-tint:#ffdacd; --ticket-ink:#6c2433; --ticket-accent:#ef8c7c; --ticket-line:#f5b3a0; position:relative; display:grid; grid-template-columns:30% minmax(0,1fr); min-height:140px; overflow:hidden; border:1px solid var(--ticket-line); border-radius:20px; background:linear-gradient(110deg,var(--ticket-tint),var(--ticket-bg) 65%); box-shadow:0 5px 12px #73503c14,inset 0 1px 2px #fff9; color:var(--ticket-ink); }
 .coupon-pastel-ticket--mint { --ticket-bg:#edfcf5; --ticket-tint:#c5f1dd; --ticket-ink:#154d3f; --ticket-accent:#54b994; --ticket-line:#a3dfc5; }
+/* Member coupons use a compact ticket size independent of reward cards. */
+.customer-coupon-tickets .customer-coupon-ticket .coupon-pastel-ticket{min-height:112px;grid-template-columns:27% minmax(0,1fr);border-radius:17px}
+.customer-coupon-tickets .coupon-pastel-offer{padding:10px 6px;border-right-width:2px}
+.customer-coupon-tickets .coupon-pastel-offer>span{font-size:11px}
+.customer-coupon-tickets .coupon-pastel-offer strong{font-size:34px;letter-spacing:-1px}
+.customer-coupon-tickets .coupon-pastel-offer strong small{font-size:19px}
+.customer-coupon-tickets .coupon-pastel-offer>b{font-size:13px}
+.customer-coupon-tickets .coupon-pastel-copy{padding:9px 11px;gap:2px}
+.customer-coupon-tickets .coupon-pastel-copy h2{font-size:13px}
+.customer-coupon-tickets .coupon-pastel-bottom{margin-top:3px;gap:5px}
+.customer-coupon-tickets .coupon-pastel-rights{padding:3px 6px}
+.customer-coupon-tickets .coupon-pastel-action{min-height:34px;padding:5px 9px}
+.customer-catalog-refresh .customer-coupon-tickets{gap:10px}
+@media(max-width:360px){.customer-coupon-tickets .customer-coupon-ticket .coupon-pastel-ticket{grid-template-columns:25% minmax(0,1fr)}.customer-coupon-tickets .coupon-pastel-copy{padding-inline:9px}.customer-coupon-tickets .coupon-pastel-offer strong{font-size:30px}}
 .coupon-pastel-ticket--rose { --ticket-bg:#fff0f5; --ticket-tint:#f9d4e2; --ticket-ink:#7d3456; --ticket-accent:#db85a3; --ticket-line:#efb9cd; }
 .coupon-pastel-ticket--lavender { --ticket-bg:#f6f2ff; --ticket-tint:#e4dafa; --ticket-ink:#514174; --ticket-accent:#a391d1; --ticket-line:#cec0ec; }
 .coupon-pastel-ticket--honey { --ticket-bg:#fff9e8; --ticket-tint:#fae9b8; --ticket-ink:#6d5123; --ticket-accent:#c5a05b; --ticket-line:#ead394; }

@@ -23,7 +23,7 @@ const navigation = [
   { label: "สมาชิก", detail: "จัดการข้อมูลสมาชิก", art: "members", href: "/members" },
   { label: "แดชบอร์ดวิเคราะห์", detail: "สรุปยอดและรายงาน", art: "reports", href: "/reports" },
   { label: "ของรางวัล คูปอง และข่าวสาร", detail: "จัดการของรางวัล คูปอง โปรโมชั่น", art: "rewards", href: "/rewards" },
-  { label: "ลุ้นของรางวัล", detail: "ตั้งค่ากิจกรรมลุ้นรางวัล", art: "lucky", href: null },
+  { label: "ลุ้นของรางวัล", detail: "เกม สิทธิ์สะสม และรับรางวัล", art: "lucky", href: "/games" },
   { label: "ตั้งค่าระบบ", detail: "จัดการระบบและสิทธิ์ผู้ใช้", art: "settings", href: "/settings" },
 ];
 
@@ -47,12 +47,12 @@ function sameBrand(a: Brand, b: Brand) {
   return a.logo === b.logo && a.name === b.name && a.subtitle === b.subtitle && a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 }
 
-export function Sidebar({ activePath, onClose }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports"; onClose?: () => void }) {
+export function Sidebar({ activePath, onClose, preview = false }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/games"; onClose?: () => void; preview?: boolean }) {
   const router = useRouter();
   const [brand, setBrand] = useState<Brand>(() => cachedBrand ?? defaultBrand);
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
-  const role = crmRole();
-  const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings"));
+  const role = preview ? "owner" : crmRole();
+  const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings" || href === "/games"));
 
   useEffect(() => {
     const refresh = () => {
@@ -86,16 +86,16 @@ export function Sidebar({ activePath, onClose }: { activePath: "/points" | "/mem
       <button className="sidebar-close" type="button" onClick={onClose} aria-label="ปิดเมนู"><X size={20} /></button>
 
       <nav className="sidebar-nav" aria-label="เมนูหลัก">
-        {visibleNavigation.map(({ label, detail, art, href }) => href === null ? (
+        {visibleNavigation.map(({ label, art, href }) => href === null ? (
           <div key={art} className="nav-item nav-placeholder" aria-disabled="true" title="ยังไม่เปิดใช้งาน">
             {art === "points" ? <span className="sidebar-clean-points" aria-hidden="true"><CustomerNavIcon tab="rewards" /></span> : <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true" />}
-            <span className="sidebar-menu-copy"><strong>{label}</strong><span className="sidebar-mobile-label">{art === "reports" ? "รายงาน" : art === "rewards" ? "สิทธิพิเศษ" : art === "settings" ? "ตั้งค่า" : label}</span><small>{detail}</small></span>
+            <span className="sidebar-menu-copy"><strong>{label}</strong><span className="sidebar-mobile-label">{art === "reports" ? "รายงาน" : art === "rewards" ? "สิทธิพิเศษ" : art === "settings" ? "ตั้งค่า" : label}</span></span>
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />
           </div>
         ) : (
           <Link key={label} href={href} prefetch title={label} aria-label={label} aria-current={activePath === href ? "page" : undefined} className={`nav-item${activePath === href ? " active" : ""}`} onClick={() => onClose?.()} onMouseEnter={() => { router.prefetch(href); void prefetchCrmPage(href); }} onFocus={() => { router.prefetch(href); void prefetchCrmPage(href); }}>
             {art === "points" ? <span className="sidebar-clean-points" aria-hidden="true"><CustomerNavIcon tab="rewards" /></span> : <span className={`sidebar-picture sidebar-picture-${art}`} aria-hidden="true" />}
-            <span className="sidebar-menu-copy"><strong>{label}</strong><span className="sidebar-mobile-label">{art === "reports" ? "รายงาน" : art === "rewards" ? "สิทธิพิเศษ" : art === "settings" ? "ตั้งค่า" : label}</span><small>{detail}</small></span>
+            <span className="sidebar-menu-copy"><strong>{label}</strong><span className="sidebar-mobile-label">{art === "reports" ? "รายงาน" : art === "rewards" ? "สิทธิพิเศษ" : art === "settings" ? "ตั้งค่า" : label}</span></span>
             <ChevronRight className="sidebar-menu-chevron" size={18} aria-hidden="true" />
           </Link>
         ))}

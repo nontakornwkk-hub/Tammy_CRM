@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { crmOwnerId, verifiedCrmUser } from "@/lib/supabase/crm-data";
 import { cachedAdminExtras } from "@/lib/supabase/admin-preload";
+import { PointsHistoryCleanup } from "./points-history-cleanup";
 
 type Usage = {
   database_bytes: number;
@@ -65,8 +66,10 @@ export function DatabaseUsageCard() {
       {storage ? <div className="database-usage-meter"><div className="database-usage-meter-heading"><span><HardDrive size={17} /> รูปภาพและไฟล์</span><strong>{formatBytes(storage.storage_bytes)}</strong></div><div className="database-usage-meter-limit">จาก {formatBytes(STORAGE_LIMIT)} <b>{percent(storage.storage_bytes, STORAGE_LIMIT).toFixed(1)}%</b></div><progress value={Math.min(storage.storage_bytes, STORAGE_LIMIT)} max={STORAGE_LIMIT} aria-label="พื้นที่ไฟล์ของโปรเจกต์นี้เทียบกับโควตาองค์กร" /><small>{storage.storage_objects.toLocaleString()} ไฟล์ในโปรเจกต์ · โควตา Free ใช้ร่วมกันทั้งองค์กร</small></div> : null}
     </div>
     {usage ? <div className="database-usage-details"><span>ประวัติแต้ม <strong>{formatBytes(usage.points_transactions_bytes)}</strong> ({usage.points_transactions_count.toLocaleString()} รายการ)</span><span>สมาชิก <strong>{usage.members_count.toLocaleString()}</strong> คน</span></div> : null}
+    {usage && percent(usage.database_bytes, DATABASE_LIMIT) >= 75 ? <p className="database-usage-warning"><strong>พื้นที่ฐานข้อมูลใกล้เต็ม</strong> ควรดาวน์โหลดและจัดการประวัติเก่าก่อนถึง 500 MB</p> : null}
+    <PointsHistoryCleanup onDeleted={() => void refresh()} />
     {storage && storage.unknown_size_objects > 0 ? <p className="database-usage-note">มี {storage.unknown_size_objects.toLocaleString()} ไฟล์ที่ไม่มีข้อมูลขนาด ยอดไฟล์อาจต่ำกว่าความจริง</p> : null}
     <div className="database-usage-footer"><p>ยอดไฟล์คือขนาดปัจจุบันของโปรเจกต์นี้ แต่ Storage คิดโควตาจากค่าเฉลี่ยทั้งองค์กร และฐานข้อมูลมีโควตาแยกต่างหาก <a href="https://supabase.com/dashboard/org/gsjpmpzxpkxbwqfalger/usage" target="_blank" rel="noreferrer">ดูยอดจริงใน Supabase Usage</a></p>{usage && storage ? <p>ประวัติแต้มใช้ {formatBytes(usage.points_transactions_bytes)}; หากต้องลดพื้นที่ ควรตรวจไฟล์ที่ไม่ใช้ก่อนลบประวัติ</p> : null}</div>
-    <details className="database-usage-warning"><summary>ข้อควรทราบก่อนลบประวัติแต้ม</summary><p>ยอดแต้มและแรงค์ปัจจุบันเก็บในข้อมูลสมาชิก จึงไม่เปลี่ยนเพราะลบประวัติ แต่รายงานย้อนหลังและการตรวจโบนัสอาจเปลี่ยนได้ ระบบจึงยังไม่เปิดปุ่มลบจนกว่าจะมีการสำรองและสรุปรายงานก่อน</p></details>
+    <details className="database-usage-warning"><summary>ข้อควรทราบก่อนลบประวัติแต้ม</summary><p>ไฟล์ CSV อาจมีข้อมูลส่วนบุคคลและยอดซื้อ ควรเก็บไว้ในที่ปลอดภัยและตรวจข้อกำหนดการเก็บเอกสารของร้านก่อนลบ หลังลบแล้วประวัติและรายงานย้อนหลังบางส่วนจะไม่ครบ</p></details>
   </section>;
 }

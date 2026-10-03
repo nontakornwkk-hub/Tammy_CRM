@@ -62,13 +62,15 @@ export function TransactionHistory({ revision, onChanged }: { revision: number; 
   async function confirm() {
     if (!detail || !fresh || !detail.ready || !action || !detail.actions.includes(action) || busy || reason.trim().length < 3) return;
     setBusy(true); setDetailError("");
+    dialog.current?.close(); setSelected(null);
+    setNotice(`กำลัง${actionLabels[action]}…`);
     try {
       const response = await fetch("/api/admin/transactions", { method: "POST", headers: { ...await authorization(), "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id, kind: detail.kind, action, reason }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "ทำรายการไม่สำเร็จ");
       setNotice(`${actionLabels[action]}สำเร็จ · แต้มคงเหลือ ${Number(result.result.points_after).toLocaleString("th-TH")}`);
-      clearTransactionDetails(); dialog.current?.close(); setSelected(null); setRefresh(value => value + 1); onChanged();
-    } catch (cause) { setDetailError(cause instanceof Error ? cause.message : "ทำรายการไม่สำเร็จ"); }
+      clearTransactionDetails(); setRefresh(value => value + 1); onChanged();
+    } catch (cause) { setNotice(`ทำรายการไม่สำเร็จ: ${cause instanceof Error ? cause.message : "กรุณาลองอีกครั้ง"}`); }
     finally { setBusy(false); }
   }
   const delta = detail ? action === "restore_rights" ? 0 : detail.reversalPoints : 0;
@@ -83,7 +85,7 @@ export function TransactionHistory({ revision, onChanged }: { revision: number; 
       </div>
       {notice ? <p className="transaction-history-notice" role="status">{notice}</p> : null}
       <p className="transaction-history-help">{mode === "range" ? "คลิกวันเดียวเพื่อดูในกล่อง · คลิกวันสิ้นสุดอีกวันเพื่อเปิดช่วงเวลากลางหน้า" : "เลื่อนลงเพื่อดูเพิ่ม · กดรายการเพื่อดูรายละเอียด"}</p>
-      <HistoryList key={filter + ":" + inlineDay + ":" + combinedRevision} filter={filter} start={inlineDay} end={inlineDay} revision={combinedRevision} onSelect={openEntry} />
+      <HistoryList filter={filter} start={inlineDay} end={inlineDay} revision={combinedRevision} onSelect={openEntry} />
     </section>
     <dialog className="transaction-detail-dialog history-all-dialog" ref={listDialog} aria-labelledby="history-all-title" onClose={() => setListView(null)}>
       <div className="transaction-detail-heading"><div><small><Sparkles size={13} /> ประวัติของร้าน</small><h2 id="history-all-title">{listView?.all ? "รายการทั้งหมด" : "รายการตามช่วงเวลา"}</h2></div><button type="button" aria-label="ปิดประวัติทั้งหมด" onClick={() => listDialog.current?.close()}><X size={19} /></button></div>
@@ -93,7 +95,7 @@ export function TransactionHistory({ revision, onChanged }: { revision: number; 
         {listView?.start ? <button type="button" className="history-clear-range" onClick={() => showList()}>ทุกช่วงเวลา</button> : null}
       </div>
       <p className="transaction-history-help">{listView?.all ? "แบ่งรายการตามเดือน · เลื่อนลงเพื่อดูย้อนหลัง" : "กดรายการเพื่อเปิดรายละเอียด · เลื่อนลงเพื่อดูเพิ่ม"}</p>
-      {listView ? <HistoryList key={filter + ":" + listView.start + ":" + listView.end + ":" + combinedRevision} filter={filter} start={listView.start} end={listView.end || listView.start} revision={combinedRevision} grouped={listView.all} onSelect={openEntry} /> : <p className="history-empty">เลือกวันสิ้นสุดเพื่อแสดงรายการ</p>}
+      {listView ? <HistoryList filter={filter} start={listView.start} end={listView.end || listView.start} revision={combinedRevision} grouped={listView.all} onSelect={openEntry} /> : <p className="history-empty">เลือกวันสิ้นสุดเพื่อแสดงรายการ</p>}
     </dialog>
     <dialog className="transaction-detail-dialog" ref={dialog} aria-labelledby="transaction-detail-title" onCancel={event => { if (busy) event.preventDefault(); }} onClose={() => { if (!busy) setSelected(null); }}>
       <div className="transaction-detail-heading"><div><small><Sparkles size={13} /> ประวัติรายการ</small><h2 id="transaction-detail-title">รายละเอียดรายการ</h2></div><button type="button" disabled={busy} aria-label="ปิดรายละเอียด" onClick={() => { dialog.current?.close(); setSelected(null); }}><X /></button></div>

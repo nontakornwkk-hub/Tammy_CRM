@@ -7,8 +7,8 @@ import { supabase } from "@/lib/supabase/client";
 
 type Transfer = { id: string; status: "waiting" | "claimed"; new_line_display_name: string | null; new_line_picture_url: string | null };
 
-export function MemberLineTransfer({ memberId, memberName, oldLineName, onComplete }: {
-  memberId: string; memberName: string; oldLineName: string | null; linked?: boolean; onComplete: () => void;
+export function MemberLineTransfer({ memberId, memberName, oldLineName, linked, onComplete }: {
+  memberId: string; memberName: string; oldLineName: string | null; linked: boolean; onComplete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
@@ -17,6 +17,7 @@ export function MemberLineTransfer({ memberId, memberName, oldLineName, onComple
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const alreadyLinked = linked;
 
   const load = useCallback(async () => {
     const token = (await supabase?.auth.getSession())?.data.session?.access_token;
@@ -71,20 +72,20 @@ export function MemberLineTransfer({ memberId, memberName, oldLineName, onComple
   }
 
   return <>
-    <button type="button" className="member-line-transfer-trigger" onClick={() => { setError(""); setOpen(true); }}><Link2 size={15} /> เปลี่ยน LINE</button>
+    <button type="button" className="member-line-transfer-trigger" onClick={() => { setError(""); setOpen(true); }}><Link2 size={15} /> {alreadyLinked ? "เปลี่ยน LINE" : "เชื่อม LINE ภายหลัง"}</button>
     {open ? <div className="preview-modal member-line-transfer-modal" role="dialog" aria-modal="true" aria-labelledby="member-line-transfer-title">
       <button type="button" className="preview-backdrop" aria-label="ปิดหน้าต่าง" onClick={() => setOpen(false)} />
       <section className="member-line-transfer-card">
         <button className="member-line-transfer-close" type="button" aria-label="ปิด" onClick={() => setOpen(false)}><X size={19} /></button>
         <span className="member-line-transfer-kicker">การเชื่อมต่อ LINE</span>
-        <h2 id="member-line-transfer-title">เปลี่ยน LINE ของ {memberName}</h2>
-        <p>ตรวจตัวลูกค้าที่หน้าร้านก่อนเริ่ม แล้วให้ลูกค้าใช้ LINE ใหม่สแกน QR นี้ การสแกนยังไม่เปลี่ยนบัญชีจนกว่าร้านจะยืนยัน</p>
-        <div className="member-line-transfer-compare"><span>LINE เดิม<strong>{oldLineName || "ยังไม่เชื่อม"}</strong></span><span aria-hidden="true">→</span><span>LINE ใหม่<strong>{transfer?.new_line_display_name || "รอลูกค้าสแกน"}</strong></span></div>
-        {!transfer ? <button className="member-line-transfer-start" type="button" disabled={busy} onClick={() => void act("start")}>สร้าง QR สำหรับ LINE ใหม่</button> : <>
+        <h2 id="member-line-transfer-title">{alreadyLinked ? "เปลี่ยน LINE" : "เชื่อม LINE"} ของ {memberName}</h2>
+        <p>ตรวจตัวลูกค้าที่หน้าร้านก่อนเริ่ม แล้วให้ลูกค้าสแกน QR ด้วย LINE ที่ต้องการใช้ ระบบจะผูกกับสมาชิกเดิมหลังร้านยืนยัน โดยแต้มและประวัติยังอยู่ครบ</p>
+        <div className="member-line-transfer-compare"><span>{alreadyLinked ? "LINE เดิม" : "สถานะปัจจุบัน"}<strong>{oldLineName || (alreadyLinked ? "เชื่อมแล้ว" : "ยังไม่เชื่อม LINE")}</strong></span><span aria-hidden="true">→</span><span>LINE ที่จะเชื่อม<strong>{transfer?.new_line_display_name || "รอลูกค้าสแกน"}</strong></span></div>
+        {!transfer ? <button className="member-line-transfer-start" type="button" disabled={busy} onClick={() => void act("start")}>สร้าง QR สำหรับ{alreadyLinked ? "เปลี่ยน" : "เชื่อม"} LINE</button> : <>
           {qr && transfer.status === "waiting" ? <div className="member-line-transfer-qr"><Image src={qr} width={200} height={200} alt="QR สำหรับเชื่อม LINE ใหม่" unoptimized /><small>QR ใช้ได้ครั้งเดียวจนกว่าจะยกเลิกคำขอ</small></div> : null}
           {transfer.status === "claimed" ? <div className="member-line-transfer-ready"><Check size={18} /> ลูกค้าสแกนและยืนยัน LINE ใหม่แล้ว ตรวจชื่อก่อนดำเนินการ</div> : <p className="member-line-transfer-wait"><RotateCcw size={14} /> รอลูกค้าเปิดด้วย LINE ใหม่</p>}
           {transfer.status === "waiting" && url ? <button className="member-line-transfer-copy" type="button" onClick={() => void navigator.clipboard.writeText(url)}>คัดลอกลิงก์ให้ลูกค้า</button> : null}
-          {confirming ? <div className="member-line-transfer-confirm"><strong>ยืนยันย้ายการเชื่อม LINE?</strong><p>LINE เดิมจะเข้าบัญชีนี้ไม่ได้อีก แต้ม ประวัติ และคูปองยังอยู่กับสมาชิกคนเดิม</p><div><button type="button" onClick={() => setConfirming(false)}>กลับ</button><button type="button" disabled={busy} onClick={() => void act("complete")}>ยืนยันเปลี่ยน LINE</button></div></div> : null}
+          {confirming ? <div className="member-line-transfer-confirm"><strong>ยืนยัน{alreadyLinked ? "เปลี่ยน" : "เชื่อม"} LINE?</strong><p>{alreadyLinked ? "LINE เดิมจะเข้าบัญชีนี้ไม่ได้อีก " : ""}แต้ม ประวัติ และคูปองยังอยู่กับสมาชิกคนเดิม</p><div><button type="button" onClick={() => setConfirming(false)}>กลับ</button><button type="button" disabled={busy} onClick={() => void act("complete")}>ยืนยัน{alreadyLinked ? "เปลี่ยน" : "เชื่อม"} LINE</button></div></div> : null}
           <div className="member-line-transfer-actions"><button type="button" disabled={busy} onClick={() => void act("cancel")}>ยกเลิกคำขอ</button>{transfer.status === "claimed" && !confirming ? <button type="button" disabled={busy} onClick={() => setConfirming(true)}>ตรวจแล้ว ดำเนินการต่อ</button> : null}</div>
         </>}
         {error ? <p className="member-line-transfer-error" role="alert">{error}</p> : null}
