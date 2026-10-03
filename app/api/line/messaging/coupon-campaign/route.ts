@@ -76,7 +76,7 @@ async function prepare(db: NonNullable<ReturnType<typeof serviceDb>>, ownerId: s
       .eq("owner_id", ownerId).eq("id", selection.couponId).maybeSingle(),
     db.from("member_tag_definitions").select("name").eq("owner_id", ownerId),
     allRows<Member>(db, "members", "id,tags,level,spending,last_visit,newsletter_opt_in,status", ownerId),
-    allRows<Link>(db, "line_member_links", "id,member_id,line_user_id", ownerId),
+    allRows<Link>(db, "members", "id,member_id:id,line_user_id", ownerId),
     db.from("redemptions").select("member_id").eq("owner_id", ownerId).eq("coupon_id", selection.couponId).neq("status", "cancelled"),
     db.from("member_coupon_claims").select("member_id,status").eq("owner_id", ownerId).eq("coupon_id", selection.couponId),
   ]);

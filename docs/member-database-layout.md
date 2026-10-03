@@ -1,17 +1,26 @@
-# Member data in Supabase
+# Member data in Supabase — consolidated storage
 
-Open `public.members_overview` in the Supabase Table Editor to see member and LINE data together.
+Open `public.members` in Supabase. Member and LINE data are physically stored in the same row. The former `line_member_links` table and temporary `members_overview` view are removed after the application deployment has been verified.
 
-Columns are arranged by use: order and identity, contacts, membership balances, pet counts, LINE connection, personal details, historical codes, timestamps and internal UUIDs.
+LINE columns are `line_user_id`, `line_display_name`, `line_picture_url`, `line_linked_at`, and `line_profile_synced_at`. A partial unique index enforces one LINE subject per shop. UUIDs, public codes, member numbers, balances, and existing history are preserved.
 
 - Sort `member_number` ascending for the original member sequence.
-- `list_order` shows contiguous row numbers without changing existing member numbers. Explicitly sort by this column when reading through the API.
-- `historical_codes` combines `previous_member_code`, `former_member_code` and `legacy_member_code` into one display field. These are earlier QR/POS identities, not additional members.
-- LINE details come from the matching shop and member in `line_member_links`.
-- The overview is read-only. Edit member values in `members` or through the CRM; use the existing LINE registration/transfer flows to change account links.
+- Old member-code columns continue to support previously printed QR/POS codes. They are not extra member records.
+- Use the existing LINE registration/transfer flows to change account links.
 
-This is an ordinary SQL view, not a copied or materialized table. It stores its query definition, not a second copy of member rows or profile images. Existing tables, codes and history are preserved. It does not reclaim existing database storage. Physically moving LINE columns while retaining the original values would duplicate storage; reclaiming storage requires a separate migration and rollback plan.
+## Deployment and verification
 
-Production inspection on 3 October 2026: public tables and indexes use about 1.59 MiB. Table count alone is not a reliable measure of storage. Keep operational history and relational tables that serve separate functions.
+1. Create encrypted, Git-ignored backups using `scripts/backup-member-line-data.mjs test` and `production`. The script verifies decryption and ownership consistency. Backup data and the local decryption key are under `artifacts/private-member-backups`; never commit them.
+2. Apply phase 1, `merge_line_identity_into_members`: copy existing values, add uniqueness and backend-only identity mutation guard, temporarily sync both storage locations for compatibility during deployment.
+3. Test phase 2 on the isolated test database: registration, repeat registration, transfer, deletion, ownership, protected column access and record counts.
+4. Deploy the application using direct member queries. Browser queries explicitly select ordinary member fields; LINE reads remain in authenticated backend routes.
+5. Apply phase 2, `remove_merged_line_member_links`: verify every old link matches the copied values, rewrite registration/transfer/deletion functions, remove temporary sync triggers, overview and original link table. Do not use CASCADE. Failure rolls back the migration transaction.
+6. Verify the three original production LINE links map to the same member UUIDs and compare membership balances/identities to the encrypted snapshot.
 
-The view uses `security_invoker`, so reads obey permissions and RLS on both source tables. Anonymous access is revoked. Team users continue to have only their existing access; this view does not grant additional LINE access.
+## Access and rollback
+
+Underlying member RLS remains enabled. Authenticated browser users receive SELECT grants for ordinary member columns, not LINE columns. Only service-side routes can change LINE identity. The three revised RPCs are SECURITY INVOKER and service-role-only.
+
+Before phase 2, rollback can restore the previous application while both storage locations remain synchronized. After phase 2, stop affected writes before rollback, rebuild the old link schema/functions from the backed-up migration sources, restore encrypted link rows with their original UUIDs, reconcile LINE changes made since the snapshot, and redeploy the previous application. Do not blindly restore the whole members snapshot over more recent points or purchases. Keep the encrypted backup and local key until rollback is no longer needed.
+
+Removing the original table reclaims its heap and four indexes; the new unique member LINE index uses some space. Report measured net storage rather than claiming that reducing table count alone saves a particular amount.

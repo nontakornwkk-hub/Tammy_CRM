@@ -25,10 +25,10 @@ gate=new Promise(r=>release=r);const inFlight=cache.loadMemberCatalog('member-a'
 // Login lookup joins the member in one read and skips identical profile writes.
 for (const status of ['active','inactive']) {
   const tables=[];let writes=0;
-  const db={from(table){tables.push(table);const q={select(columns){if(table==='line_member_links')assert.match(columns,/members!inner/);return q;},eq(){return q;},update(){writes++;return q;},single(){return Promise.resolve({data:{owner_id:'owner'},error:null});},maybeSingle(){return Promise.resolve({data:table==='line_connections'?{login_channel_id:'channel'}:{member_id:'id',line_display_name:'Test',line_picture_url:null,members:{member_code:'M001',name:'Test',points:750,level:'Member',status}},error:null});}};return q;}};
+  const db={from(table){tables.push(table);const q={select(columns){if(table==='members')assert.match(columns,/line_picture_url/);return q;},eq(){return q;},update(){writes++;return q;},single(){return Promise.resolve({data:{owner_id:'owner'},error:null});},maybeSingle(){return Promise.resolve({data:table==='line_connections'?{login_channel_id:'channel'}:{id:'id',line_display_name:'Test',line_picture_url:null,member_code:'M001',name:'Test',points:750,level:'Member',status},error:null});}};return q;}};
   const login=load('app/api/line/member/route.ts',{'@supabase/supabase-js':{createClient:()=>db},'@/lib/line/verify-member-identity':{verifyMemberIdentity:async()=>({sub:'U'+'a'.repeat(32),name:'Test',picture:null})}},{process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://example.com',SUPABASE_SECRET_KEY:'server-test-key'}}});
   const response=await login.POST(new Request('http://localhost/login',{method:'POST',body:JSON.stringify({action:'lookup',accessToken:'valid'})}));
-  assert.equal(response.status,status==='active'?200:403);assert.equal(writes,0);assert.ok(!tables.includes('members'),'No second member read on login');
+  assert.equal(response.status,status==='active'?200:403);assert.equal(writes,0);assert.equal(tables.filter(table=>table==='members').length,1,'Exactly one member read on login');assert.ok(!tables.includes('line_member_links'));
 }
 let verifications=0;
 const identity=load('lib/line/verify-member-identity.ts',{'server-only':{}},{URLSearchParams,fetch:async()=>{verifications++;return Response.json({aud:'channel',sub:'U'+'a'.repeat(32)});}});

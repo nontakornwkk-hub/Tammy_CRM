@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try { identity = await verifyMemberIdentity(input, channelId); }
   catch { return noStore({ error: "ตรวจสอบบัญชี LINE ไม่สำเร็จ" }, 502); }
   if (!identity) return noStore({ error: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง" }, 401);
-  const existing = await db.from("line_member_links").select("member_id")
+  const existing = await db.from("members").select("id")
     .eq("owner_id", requestRow.data.owner_id).eq("line_user_id", identity.sub).maybeSingle();
   if (existing.error) return noStore({ error: "ตรวจบัญชี LINE ไม่สำเร็จ" }, 500);
   if (existing.data) return noStore({ error: "LINE นี้เชื่อมกับสมาชิกอยู่แล้ว กรุณาให้ร้านตรวจสอบ" }, 409);

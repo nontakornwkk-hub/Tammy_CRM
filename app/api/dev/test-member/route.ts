@@ -18,11 +18,11 @@ export async function GET(request: Request) {
       newsletter_opt_in: false, notes: testMemberMarker, tags: ["บัญชีทดสอบ"],
     }).select("id,member_code,name,level,points").single();
     if (member.error || !member.data) return noStore({ error: "สร้างสมาชิกทดสอบไม่สำเร็จ" }, 500);
-    await test.db.from("line_member_links").insert({
-      owner_id: test.ownerId, member_id: member.data.id,
+    await test.db.from("members").update({
       line_user_id: `U${randomUUID().replaceAll("-", "")}`,
       line_display_name: "LINE ทดสอบของแอดมิน",
-    });
+      line_linked_at: new Date().toISOString(),
+    }).eq("owner_id", test.ownerId).eq("id", member.data.id);
   }
   return noStore({ member: {
     memberCode: member.data.member_code, name: member.data.name, level: member.data.level,

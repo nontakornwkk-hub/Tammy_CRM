@@ -39,13 +39,13 @@ async function resolveMemberSession(input: { idToken?: string; accessToken?: str
   try {
     const identity = await verifyMemberIdentity(input, channelId);
     if (!identity) return { error: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง", status: 401 };
-    // The foreign-key join verifies the link and active membership in one trip.
-    const linked = await db.from("line_member_links").select("member_id,members!inner(id,birth_date,birth_date_changed_at)")
+    // LINE identity and membership now live in the same row.
+    const linked = await db.from("members").select("id,birth_date,birth_date_changed_at")
       .eq("owner_id", ownerId).eq("line_user_id", identity.sub)
-      .eq("members.owner_id", ownerId).eq("members.status", "active").maybeSingle();
+      .eq("status", "active").maybeSingle();
     if (linked.error || !linked.data) return { error: "กรุณาสมัครสมาชิกก่อน", status: 403 };
-    const member = (Array.isArray(linked.data.members) ? linked.data.members[0] : linked.data.members) as unknown as { birth_date: string | null; birth_date_changed_at: string | null };
+    const member = linked.data;
     if (!member) return { error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน", status: 403 };
-    return { db, ownerId, memberId: linked.data.member_id, birthday: { birth_date: member.birth_date, birth_date_changed_at: member.birth_date_changed_at } };
+    return { db, ownerId, memberId: linked.data.id, birthday: { birth_date: member.birth_date, birth_date_changed_at: member.birth_date_changed_at } };
   } catch { return { error: "ติดต่อ LINE ไม่สำเร็จ", status: 502 }; }
 }

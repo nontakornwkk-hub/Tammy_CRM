@@ -1,3 +1,4 @@
+import { memberColumns } from "./member-columns";
 import type { MemberRow, MemberTagDefinition } from "@/lib/database.types";
 import { supabase } from "./client";
 
@@ -63,7 +64,7 @@ function client() {
 export async function fetchMembersData(ownerId: string) {
   const db = client();
   const [members, pets, tags] = await Promise.all([
-    db.from("members").select("*").eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
+    db.from("members").select(memberColumns).eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
     db.from("pets").select("member_id,name,species,breed,sex,birth_date").eq("owner_id", ownerId).order("created_at"),
     db.from("member_tag_definitions").select("*").eq("owner_id", ownerId).order("created_at"),
   ]);
@@ -75,7 +76,7 @@ export async function fetchPointsData(ownerId: string) {
   const db = client();
   const year = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric" }).format(new Date()));
   const [members, transactions, settings, birthdays] = await Promise.all([
-    db.from("members").select("*").eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
+    db.from("members").select(memberColumns).eq("owner_id", ownerId).order("member_number", { ascending: true }).order("created_at", { ascending: true }),
     db.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").eq("owner_id", ownerId).eq("transaction_type", "earn").gt("points_delta", 0).order("created_at", { ascending: false }).limit(100),
     db.from("store_settings").select("extra,points_spend,points_earned").eq("owner_id", ownerId).maybeSingle(),
     db.from("points_transactions").select("member_id,birthday_bonus_year").eq("owner_id", ownerId).eq("birthday_bonus_year", year),

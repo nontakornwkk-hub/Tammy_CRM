@@ -9,8 +9,8 @@ export async function GET(request: Request) {
   if (!db) return noStore({ error: "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า SUPABASE_SECRET_KEY" }, 503);
   const rows: Array<{ member_id: string; line_display_name: string | null; line_picture_url: string | null; profile_synced_at: string | null }> = [];
   for (let offset = 0; offset < 10000; offset += 1000) {
-    const result = await db.from("line_member_links").select("member_id,line_display_name,line_picture_url,profile_synced_at")
-      .eq("owner_id", actor.ownerId).order("linked_at").range(offset, offset + 999);
+    const result = await db.from("members").select("member_id:id,line_display_name,line_picture_url,profile_synced_at:line_profile_synced_at")
+      .eq("owner_id", actor.ownerId).not("line_user_id", "is", null).order("line_linked_at").order("id").range(offset, offset + 999);
     if (result.error) return noStore({ error: "โหลดโปรไฟล์ LINE ไม่สำเร็จ" }, 500);
     rows.push(...(result.data || []));
     if ((result.data || []).length < 1000) break;

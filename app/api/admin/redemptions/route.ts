@@ -16,7 +16,7 @@ export async function GET(request:Request) {
   if(result.error)return noStore({error:"โหลดประวัติไม่สำเร็จ กรุณาลองใหม่"},500);
   const rows=(result.data||[]) as unknown as Row[];
   const displayed=rows.slice(0,50),ids=[...new Set(displayed.map(row=>row.member_id))];
-  const links=ids.length?await db.from("line_member_links").select("member_id,line_picture_url,line_display_name").eq("owner_id",actor.ownerId).in("member_id",ids):{data:[],error:null};
+  const links=ids.length?await db.from("members").select("member_id:id,line_picture_url,line_display_name").eq("owner_id",actor.ownerId).in("id",ids):{data:[],error:null};
   if(links.error)return noStore({error:"โหลดโปรไฟล์สมาชิกไม่สำเร็จ กรุณาลองใหม่"},500);
   const profiles=new Map((links.data||[]).map(link=>[link.member_id,link]));
   return noStore({hasMore:rows.length>50,rows:displayed.map(row=>({id:row.id,kind:row.reward_id?"reward":"coupon",title:one(row.reward_id?row.rewards:row.coupons)?.title||"รายการที่เก็บในประวัติ",points:row.points_spent,status:row.status,date:row.redeemed_at,member:{name:one(row.members)?.name||profiles.get(row.member_id)?.line_display_name||"สมาชิก",code:one(row.members)?.member_code||"",picture:safeLineUrl(profiles.get(row.member_id)?.line_picture_url)}}))});

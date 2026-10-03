@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase/client";
 type Transfer = { id: string; status: "waiting" | "claimed"; new_line_display_name: string | null; new_line_picture_url: string | null };
 
 export function MemberLineTransfer({ memberId, memberName, oldLineName, onComplete }: {
-  memberId: string; memberName: string; oldLineName: string | null; onComplete: () => void;
+  memberId: string; memberName: string; oldLineName: string | null; linked?: boolean; onComplete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [transfer, setTransfer] = useState<Transfer | null>(null);

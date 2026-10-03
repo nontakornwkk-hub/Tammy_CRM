@@ -1,5 +1,7 @@
 "use client";
 
+import { memberColumns } from "@/lib/supabase/member-columns";
+
 import Image from "next/image";
 import { CalendarDays, Check, ChevronRight, Clock3, Crown, Download, Edit3, Heart, LockKeyhole, Mail, Menu, MessageSquareText, PawPrint, Phone, Plus, Search, Sparkles, Star, Tag, Trash2, UserRound, Users, Wallet, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -144,7 +146,7 @@ export function MembersManager() {
     const nickname = String(form.get("nickname") ?? "").trim();
     const notes = String(form.get("notes") ?? "").trim();
     setSaving(true);
-    const { data, error } = await supabase.from("members").update({ notes }).eq("id", selected.id).select("*").single();
+    const { data, error } = await supabase.from("members").update({ notes }).eq("id", selected.id).select(memberColumns).single();
     setSaving(false);
     if (error || !data) { setNotice(`บันทึกไม่สำเร็จ: ${error?.message ?? "ไม่พบสมาชิก"}`); return; }
     const nextAliases = { ...aliases, [selected.id]: nickname };
@@ -156,7 +158,7 @@ export function MembersManager() {
   }
   async function saveMemberTags(member: MemberRow, nextTags: string[]) {
     if (!supabase) return false;
-    const { data, error } = await supabase.from("members").update({ tags: nextTags }).eq("id", member.id).eq("owner_id", crmOwnerId() || "").select("*").single();
+    const { data, error } = await supabase.from("members").update({ tags: nextTags }).eq("id", member.id).eq("owner_id", crmOwnerId() || "").select(memberColumns).single();
     if (error || !data) { setNotice(`บันทึกแท็กไม่สำเร็จ: ${error?.message ?? "ไม่พบสมาชิก"}`); return false; }
     setMembers((current) => current.map((item) => item.id === member.id ? data as MemberRow : item));
     clearCachedData("members");

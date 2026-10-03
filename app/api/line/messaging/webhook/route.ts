@@ -17,14 +17,12 @@ function isPointsRequest(event: LineEvent) {
 }
 
 async function replyPoints(db: NonNullable<ReturnType<typeof serviceDb>>, ownerId: string, subject: string, replyToken: string, accessToken: string) {
-  const link = await db.from("line_member_links").select("member_id")
+  const link = await db.from("members").select("name,points,level,status")
     .eq("owner_id", ownerId).eq("line_user_id", subject).maybeSingle();
   if (link.error) throw link.error;
   let message: Record<string, unknown> = { type: "text", text: "ไม่พบข้อมูลสมาชิก กรุณาเชื่อมบัญชีสมาชิกก่อน" };
   if (link.data) {
-    const member = await db.from("members").select("name,points,level,status")
-      .eq("owner_id", ownerId).eq("id", link.data.member_id).maybeSingle();
-    if (member.error) throw member.error;
+    const member = link;
     if (member.data?.status === "active") {
       const points = Number(member.data.points || 0).toLocaleString("th-TH");
       const name = String(member.data.name || "สมาชิก").trim().replace(/^คุณ\s*/u, "").slice(0, 80);
@@ -110,7 +108,7 @@ export async function POST(request: Request) {
         picture = data.pictureUrl?.startsWith("https://") ? data.pictureUrl : null;
       }
     } catch { /* A message remains readable even if LINE profile is unavailable. */ }
-    if (name) await db.from("line_member_links").update({ line_display_name: name, line_picture_url: picture, profile_synced_at: new Date().toISOString() })
+    if (name) await db.from("members").update({ line_display_name: name, line_picture_url: picture, line_profile_synced_at: new Date().toISOString() })
       .eq("owner_id", result.data.owner_id).eq("line_user_id", subject);
     if (isPointsRequest(event) && event.replyToken) {
       try { await replyPoints(db, result.data.owner_id, subject, event.replyToken, result.data.access_token); }

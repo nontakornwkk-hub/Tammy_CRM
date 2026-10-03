@@ -83,18 +83,18 @@ export async function POST(request: Request) {
     return json({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
   }
 
-  const linked = await db.from("line_member_links").select("member_id,line_picture_url,line_display_name,members!inner(member_code,name,level,points,birth_date,status)")
+  const linked = await db.from("members").select("id,line_picture_url,line_display_name,member_code,name,level,points,birth_date,status")
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject).maybeSingle();
   if (linked.error) return json({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
-    const existing = (Array.isArray(linked.data.members) ? linked.data.members[0] : linked.data.members) as unknown as Record<string, unknown> | null;
+    const existing = linked.data;
     if (!existing || existing.status !== "active") return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
     // Avoid writing the same LINE profile on every login.
     if ((lineDisplayName && lineDisplayName !== linked.data.line_display_name) || (linePictureUrl && linePictureUrl !== linked.data.line_picture_url)) {
-      await db.from("line_member_links").update({
+      await db.from("members").update({
         ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
         ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
-        profile_synced_at: new Date().toISOString(),
+        line_profile_synced_at: new Date().toISOString(),
       }).eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
     }
     return json({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
@@ -117,8 +117,8 @@ export async function POST(request: Request) {
     if (result.error.message.includes("INVALID_REGISTRATION")) return json({ error: "ข้อมูลสมัครไม่ถูกต้อง" }, 400);
     return json({ error: "สมัครสมาชิกไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
   }
-  if (lineDisplayName) await db.from("line_member_links").update({ line_display_name: lineDisplayName,
-    line_picture_url: linePictureUrl, profile_synced_at: new Date().toISOString() })
+  if (lineDisplayName) await db.from("members").update({ line_display_name: lineDisplayName,
+    line_picture_url: linePictureUrl, line_profile_synced_at: new Date().toISOString() })
     .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
   return json({ registered: true, member: publicMember(result.data as Record<string, unknown>, linePictureUrl) }, 201);
 }

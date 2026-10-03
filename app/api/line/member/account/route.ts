@@ -62,15 +62,13 @@ export async function POST(request: Request) {
   }
 
   if (input.action === "load") {
-    const [memberResult, linkResult, pointsResult] = await Promise.all([
-      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,birth_date_changed_at,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at,dog_count,cat_count")
+    const [memberResult, pointsResult] = await Promise.all([
+      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,birth_date_changed_at,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at,dog_count,cat_count,line_display_name,line_picture_url")
         .eq("owner_id", ownerId).eq("id", memberId).single(),
-      db.from("line_member_links").select("line_display_name,line_picture_url")
-        .eq("owner_id", ownerId).eq("member_id", memberId).maybeSingle(),
       db.from("points_transactions").select("id,points_delta,transaction_type,note,created_at")
         .eq("owner_id", ownerId).eq("member_id", memberId).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(6),
     ]);
-    if (memberResult.error || !memberResult.data || linkResult.error || pointsResult.error)
+    if (memberResult.error || !memberResult.data || pointsResult.error)
       return json({ error: "โหลดข้อมูลสมาชิกไม่สำเร็จ" }, 500);
     const member = memberResult.data;
     return json({
@@ -82,7 +80,7 @@ export async function POST(request: Request) {
         level: member.level, points: member.points,
         dogCount: member.dog_count ?? 0, catCount: member.cat_count ?? 0,
         privacyConsent: Boolean(member.newsletter_opt_in), consentUpdatedAt: member.privacy_consent_updated_at || "",
-        lineDisplayName: linkResult.data?.line_display_name || "", linePictureUrl: linkResult.data?.line_picture_url || "",
+        lineDisplayName: member.line_display_name || "", linePictureUrl: member.line_picture_url || "",
       },
       pointsHistory: (pointsResult.data || []).slice(0, 5),
       hasMore: (pointsResult.data || []).length > 5,

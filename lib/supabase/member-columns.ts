@@ -1,0 +1,2 @@
+// LINE identifiers are service-only columns. Browser queries must be explicit.
+export const memberColumns = "id,owner_id,member_code,name,phone,email,level,points,spending,last_visit,status,newsletter_opt_in,notes,tags,created_at,updated_at,birth_date,first_name,last_name,gender,privacy_consent_updated_at,privacy_consent_version,legacy_member_code,member_number,previous_member_code,former_member_code,birth_date_changed_at,dog_count,cat_count";
