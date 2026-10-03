@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase/client";
 import { cachedData, clearCachedData, crmOwnerId, fetchPointsData, loadCachedData } from "@/lib/supabase/crm-data";
 import { cachedLinePictures, rememberLinePictures } from "@/lib/supabase/line-profile-cache";
 import { Sidebar } from "./sidebar";
-import { DateRangePicker } from "./date-range-picker";
+import { TransactionHistory } from "./transaction-history";
 import { PromotionDisplay } from "./promotion-display";
 import { MemberQrScanner } from "./member-qr-scanner";
 import { CouponQrScanner } from "./coupon-qr-scanner";
@@ -51,7 +51,6 @@ type Customer = {
 };
 
 const levelClass: Record<MemberLevel, string> = { Platinum: "platinum", Gold: "gold", Silver: "silver", Member: "member" };
-type PointTransaction = { id: string; created_at: string; member_id: string; sale_amount: number; points_delta: number; transaction_type: string; note: string };
 type LineProfile = { member_id: string; line_picture_url: string | null };
 const ALIAS_KEY = "tammy-member-staff-aliases-v1";
 type PointsData = Awaited<ReturnType<typeof fetchPointsData>>;
@@ -78,10 +77,10 @@ export function PointsManager() {
     return cached ? toCustomers(cached.members) : [];
   });
   const [selectedId, setSelectedId] = useState("");
-  const [transactions, setTransactions] = useState<PointTransaction[]>(() => cachedData<PointsData>("points")?.transactions ?? []);
   const [birthdayClaims, setBirthdayClaims] = useState<Set<string>>(() => new Set(cachedData<PointsData>("points")?.birthdays.map((row) => row.member_id) ?? []));
   const [loading, setLoading] = useState(() => !cachedData<PointsData>("points"));
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -96,11 +95,6 @@ export function PointsManager() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [successReceipt, setSuccessReceipt] = useState({ earned: 0, total: 0 });
-  const [historyDate, setHistoryDate] = useState("");
-  const [dailyTransactions, setDailyTransactions] = useState<PointTransaction[]>([]);
-  const [dailyLoading, setDailyLoading] = useState(false);
-  const [dailyError, setDailyError] = useState("");
-  const [dailyRefresh, setDailyRefresh] = useState(0);
   const [systemSettings, setSystemSettings] = useState(defaultSettings);
   const selected = customers.find((customer) => customer.id === selectedId) ?? customers[0] ?? { id: "", memberCode: "", previousMemberCode: "", legacyMemberCode: "", formerMemberCode: "", memberNumber: Number.MAX_SAFE_INTEGER, name: "ยังไม่ได้เลือกลูกค้า", nickname: "", phone: "-", level: "Member" as const, points: 0, spending: 0, birthDate: "", createdAt: "", pinned: false };
   const sale = Number(saleInput) || 0;
@@ -147,7 +141,7 @@ export function PointsManager() {
     const mapped = toCustomers(result.members);
     setCustomers(mapped);
     setSelectedId((current) => current || mapped[0]?.id || "");
-    setTransactions(result.transactions);
+
     setBirthdayClaims(new Set(result.birthdays.map((row) => row.member_id)));
     setLoading(false);
     try {
@@ -164,45 +158,6 @@ export function PointsManager() {
     } catch (error) { setError(error instanceof Error ? error.message : "โหลดข้อมูลไม่สำเร็จ"); }
     setLoading(false);
   })(); }, [loadAttempt]);
-
-  useEffect(() => {
-    if (!historyDate || !supabase) return;
-    const ownerId = crmOwnerId();
-    if (!ownerId) return;
-    let active = true;
-    setDailyLoading(true);
-    setDailyError("");
-    setDailyTransactions([]);
-    void (async () => {
-      try {
-        const start = new Date(`${historyDate}T00:00:00+07:00`);
-        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-        const rows: PointTransaction[] = [];
-        for (let offset = 0;; offset += 1000) {
-          const { data, error: queryError } = await supabase!.from("points_transactions")
-            .select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note")
-            .eq("owner_id", ownerId)
-            .eq("transaction_type", "earn")
-            .gt("points_delta", 0)
-            .gte("created_at", start.toISOString())
-            .lt("created_at", end.toISOString())
-            .order("created_at", { ascending: false })
-            .range(offset, offset + 999);
-          if (queryError) throw queryError;
-          rows.push(...(data ?? []));
-          if (!data || data.length < 1000) break;
-        }
-        if (active) setDailyTransactions(rows);
-      } catch (cause) {
-        if (active) setDailyError(cause instanceof Error ? cause.message : "โหลดรายการของวันนี้ไม่สำเร็จ");
-      } finally {
-        if (active) setDailyLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [historyDate, dailyRefresh]);
-
-  const shownTransactions = (historyDate ? dailyTransactions : transactions).filter((row) => row.transaction_type === "earn" && row.points_delta > 0).slice(0, 5);
 
   const visible = useMemo(() => customers.filter((customer) => {
     if (scannedId && customer.id !== scannedId) return false;
@@ -239,9 +194,7 @@ export function PointsManager() {
       if (awardError) throw awardError;
       if (!data?.id) throw new Error("ฐานข้อมูลไม่ยืนยันรายการให้แต้ม");
       const total = Number(data.points);
-      const recent = await supabase.from("points_transactions").select("id,created_at,member_id,sale_amount,points_delta,transaction_type,note").eq("owner_id", crmOwnerId() || "").eq("transaction_type", "earn").gt("points_delta", 0).order("created_at", { ascending: false }).limit(100);
-      if (!recent.error) setTransactions(recent.data || []);
-      if (historyDate) setDailyRefresh((current) => current + 1);
+      setHistoryRevision(value => value + 1);
       setCustomers((current) => current.map((customer) => customer.id === selected.id ? { ...customer, points: total, level: data.level as MemberLevel, spending: Number(data.spending) } : customer));
       clearCachedData("points", "members", "reports");
       if (award.promotion?.type === "birthday") setBirthdayClaims((current) => new Set(current).add(selected.id));
@@ -316,11 +269,7 @@ export function PointsManager() {
               <button className="confirm-points" type="button" disabled={loading || !selected.id || sale <= 0 || earned <= 0 || !systemSettings.accumulationEnabled} onClick={() => setConfirmOpen(true)}><Gift /> ยืนยันให้แต้ม</button>
             </section>
 
-            <section className="panel recent-points">
-              <div className="recent-title"><h3><Clock3 /> {historyDate ? "ประวัติให้แต้มตามวันที่เลือก" : "ประวัติให้แต้มล่าสุด"}</h3><div className="recent-date-actions"><DateRangePicker single start={historyDate} end="" onChange={(day) => setHistoryDate(day)} label="เลือกวันที่ของรายการแต้ม" />{historyDate ? <button type="button" onClick={() => setHistoryDate("")}>ดูล่าสุด</button> : null}</div></div>
-              <div className="recent-head"><span>วันที่</span><span>ลูกค้า</span><span>รายการ</span><span>แต้ม</span></div>
-              {dailyLoading ? <p className="rewards-gallery-empty" role="status">กำลังโหลดรายการของวันที่เลือก…</p> : dailyError ? <p className="rewards-gallery-error" role="alert">{dailyError}</p> : shownTransactions.length === 0 ? <p className="rewards-gallery-empty">{historyDate ? "ไม่มีรายการแต้มในวันที่เลือก" : "ยังไม่มีรายการแต้ม"}</p> : shownTransactions.map((row) => <div className="recent-row" key={row.id}><span>{new Date(row.created_at).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })}</span><span>{customers.find((customer) => customer.id === row.member_id)?.name || "สมาชิก"}</span><span title={row.note}>{row.transaction_type === "earn" ? `${Number(row.sale_amount).toLocaleString()} บาท` : row.note || "ปรับแต้ม"}</span><span className={row.points_delta >= 0 ? "green" : "negative"}>{row.points_delta > 0 ? "+" : ""}{row.points_delta}</span></div>)}
-            </section>
+            <TransactionHistory revision={loadAttempt + historyRevision} onChanged={() => { clearCachedData("points", "members", "reports"); setLoadAttempt(value => value + 1); }} />
             <div className="secure-note"><ShieldCheck /><span><strong>ข้อมูลลูกค้าปลอดภัย</strong><small>รายการทั้งหมดได้รับการบันทึกอย่างปลอดภัย</small></span></div>
           </aside>
         </div>

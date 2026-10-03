@@ -38,7 +38,7 @@ import { supabase } from "@/lib/supabase/client";
 import { clearCachedData, crmOwnerId, crmRole } from "@/lib/supabase/crm-data";
 import { bangkokToday, PROMOTION_PATTERN_COUNT, promotionPattern, type PointPromotion } from "@/lib/promotions";
 import { PromotionDisplay } from "./promotion-display";
-import { CardDesignSettings } from "./card-design-settings";
+import { LineConnectionPanel } from "./line-connection-panel";
 import { normalizeCardDesign } from "@/lib/card-design";
 import { Sidebar } from "./sidebar";
 import { PopupContentSettings } from "./popup-content-settings";
@@ -46,14 +46,14 @@ import { DatabaseUsageCard } from "./database-usage-card";
 import { TeamSecuritySettings } from "./team-security-settings";
 import { loadPopupCatalog, normalizePopupContent, resolvePopupContent } from "@/lib/popup-content";
 
-type Tab = "shop" | "points" | "card" | "content" | "team";
+type Tab = "shop" | "points" | "connection" | "content" | "team";
 type TeamMember = { id: number; name: string; email: string; role: "ผู้ดูแลระบบ" | "ผู้จัดการร้าน" | "พนักงาน"; active: boolean };
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "shop", label: "ข้อมูลร้านและภาพลักษณ์" },
   { id: "points", label: "สมาชิก แต้ม และแรงค์" },
-  { id: "card", label: "บัตรสมาชิกและมาสคอต" },
   { id: "content", label: "เนื้อหาและสิทธิพิเศษ" },
+  { id: "connection", label: "การเชื่อมต่อ" },
   { id: "team", label: "ทีมงานและความปลอดภัย" },
 ];
 
@@ -100,7 +100,11 @@ export function SettingsManager() {
   const role = crmRole();
   const ownerMode = role === "owner";
   const personalOnly = role === "staff";
-  const [activeTab, setActiveTab] = useState<Tab>(() => crmRole() === "staff" ? "team" : "shop");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (crmRole() === "staff") return "team";
+    const requested = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("tab");
+    return tabs.some(tab => tab.id === requested) ? requested as Tab : "shop";
+  });
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [team, setTeam] = useState(initialTeam);
   const [dirty, setDirty] = useState(false);
@@ -112,7 +116,7 @@ export function SettingsManager() {
   useEffect(() => {
     void loadPopupCatalog().catch(() => {});
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
-    if (requestedTab === "team") setActiveTab("team");
+    if (!personalOnly && tabs.some(tab => tab.id === requestedTab)) setActiveTab(requestedTab as Tab);
     setSettings(loadSettings());
     if (!supabase) return;
     void supabase.from("public_shop_profiles").select("*").eq("slug", "tammy").maybeSingle().then(({ data }) => {
@@ -295,16 +299,19 @@ export function SettingsManager() {
         <header className="page-header settings-header">
           <button className="mobile-menu" type="button" onClick={() => setMobileMenu(true)} aria-label="เปิดเมนู"><Menu /></button>
           <div className="heading-copy"><h1>{personalOnly ? "บัญชีของฉัน" : "ตั้งค่าระบบ"}</h1><p>{personalOnly ? "ตั้งรหัสผ่านและดูความปลอดภัยของบัญชี" : "จัดการข้อมูลร้าน สมาชิก และสิทธิ์การใช้งาน"}</p></div>
-          {!personalOnly && activeTab !== "team" ? <div className="header-actions"><span className={`save-state${dirty ? " dirty" : ""}`}><i /> {dirty ? "ยังไม่ได้บันทึก" : "บันทึกแล้ว"}</span><button className="button primary" type="button" onClick={persist} disabled={saving}><Save size={19} /> {saving ? "กำลังบันทึก…" : saved ? "บันทึกการตั้งค่า" : "บันทึกการเปลี่ยนแปลง"}</button></div> : null}
+          {!personalOnly && activeTab !== "team" && activeTab !== "connection" ? <div className="header-actions"><span className={`save-state${dirty ? " dirty" : ""}`}><i /> {dirty ? "ยังไม่ได้บันทึก" : "บันทึกแล้ว"}</span><button className="button primary" type="button" onClick={persist} disabled={saving}><Save size={19} /> {saving ? "กำลังบันทึก…" : saved ? "บันทึกการตั้งค่า" : "บันทึกการเปลี่ยนแปลง"}</button></div> : null}
         </header>
 
         {!personalOnly ? <nav className="settings-tabs" aria-label="หมวดการตั้งค่า">
-          {tabs.map((tab) => <button type="button" key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.id === "team" && !ownerMode ? "บัญชีของฉัน" : tab.label}</button>)}
+          {tabs.map((tab) => <button type="button" key={tab.id} className={activeTab === tab.id ? "active" : ""} aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => { setActiveTab(tab.id); const url = new URL(window.location.href); url.searchParams.set("tab", tab.id); window.history.replaceState(null, "", url); }}>{tab.id === "team" && !ownerMode ? "บัญชีของฉัน" : tab.label}</button>)}
         </nav> : null}
 
         {!personalOnly && activeTab === "shop" ? <ShopTab settings={settings} update={update} /> : null}
         {!personalOnly && activeTab === "points" ? <PointsTab settings={settings} update={update} /> : null}
-        {!personalOnly && activeTab === "card" ? <CardTab settings={settings} update={update} /> : null}
+        {!personalOnly ? <section className="settings-connections" hidden={activeTab !== "connection"} aria-label="การเชื่อมต่อ">
+          <div className="settings-connections-intro"><span className="connections-intro-icon"><ShieldCheck size={24} /></span><div><h2>เชื่อมต่อบริการของร้าน</h2><p>จัดการฐานข้อมูลและบัญชี LINE ได้ในที่เดียว</p></div><span className="connections-security-note"><LockKeyhole size={14} /> คีย์ลับถูกซ่อน</span></div>
+          {ownerMode ? <LineConnectionPanel /> : <div className="settings-card"><h2>การเชื่อมต่อของร้าน</h2><p>เจ้าของร้านสามารถจัดการฐานข้อมูลและบัญชี LINE ได้จากหน้านี้</p></div>}
+        </section> : null}
         {!personalOnly && activeTab === "content" ? <PopupContentSettings settings={settings} update={update} /> : null}
         {activeTab === "team" ? <TeamSecuritySettings ownerMode={ownerMode} /> : null}
         {ownerMode && activeTab === "team" ? <div className="database-usage-wrap"><DatabaseUsageCard /></div> : null}
@@ -597,9 +604,6 @@ function PointsTab({ settings, update }: { settings: AppSettings; update: Update
   </div>;
 }
 
-function CardTab({ settings, update }: { settings: AppSettings; update: Update }) {
-  return <CardDesignSettings settings={settings} update={update} />;
-}
 
 function ContentTab({ settings, update }: { settings: AppSettings; update: Update }) {
   const [content, setContent] = useState([["โปรพิเศษประจำเดือน", true], ["ลดอาหารสัตว์ 10%", true], ["ขนมแมวเลีย 4 ชิ้น", true]] as Array<[string, boolean]>);

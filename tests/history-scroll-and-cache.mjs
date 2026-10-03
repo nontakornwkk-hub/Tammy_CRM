@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFile } from 'node:fs/promises';
+import ts from '../node_modules/typescript/lib/typescript.js';
+import * as domain from '../lib/transaction-history.ts';
+assert.equal(domain.historyMonth('2026-09-30T17:00:00Z').key,domain.historyMonth('2026-10-15T00:00:00Z').key);
+assert.notEqual(domain.historyMonth('2026-09-30T16:59:59Z').key,domain.historyMonth('2026-10-15T00:00:00Z').key);
+const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+const cursor={at:'2026-10-01T00:00:00+00:00',id:id(1),kind:'points'};
+assert.deepEqual(domain.parseHistoryCursor(JSON.stringify(cursor)),cursor);
+for(const value of ['bad',JSON.stringify({...cursor,at:'2026-10-01T00:00:00Z,owner_id.not.is.null'}),JSON.stringify({...cursor,id:'x'}),JSON.stringify({...cursor,kind:'other'})])assert.throws(()=>domain.parseHistoryCursor(value));
+async function load(path,deps,globals={}) {
+ const exports={}; const source=await readFile(new URL('../'+path,import.meta.url),'utf8');
+ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>{if(!(n in deps))throw Error(n);return deps[n]},URL,URLSearchParams,Request,Response,Date,Map,JSON,Promise,console,...globals});return exports;
+}
+const member='member';
+const points=Array.from({length:1203},(_,n)=>({id:id(n),member_id:member,owner_id:'owner',created_at:`2026-10-${String(28-Math.floor(n/60)).padStart(2,'0')}T00:00:00+00:00`,note:'',points_delta:2,sale_amount:100,transaction_type:'earn',rank_bonus_level:null}));
+const redemptions=points.slice(0,103).map(p=>({...p,redeemed_at:p.created_at,points_spent:5,status:'completed',reward_id:'reward',coupon_id:null}));
+let role='owner';let largest=0;
+const db={from(table){let rows=table==='points_transactions'?points:table==='redemptions'?redemptions:table==='members'?[{id:member,owner_id:'owner',name:'Member',member_code:'TM001',line_picture_url:'https://profile.line-scdn.net/member.jpg'}]:[];const sorts=[];const q={select(){return q},eq(k,v){rows=rows.filter(r=>r[k]===v);return q},neq(k,v){rows=rows.filter(r=>r[k]!==v);return q},is(k,v){rows=rows.filter(r=>r[k]==v);return q},gte(k,v){rows=rows.filter(r=>Date.parse(r[k])>=Date.parse(v));return q},lt(k,v){rows=rows.filter(r=>Date.parse(r[k])<Date.parse(v));return q},lte(k,v){rows=rows.filter(r=>Date.parse(r[k])<=Date.parse(v));return q},in(k,v){rows=rows.filter(r=>v.includes(r[k]));return q},or(condition){const m=condition.match(/^(\w+)\.lt\.(.+),and\(\w+\.eq\..+,id\.gt\.(.+)\)$/);assert.ok(m,condition);rows=rows.filter(r=>Date.parse(r[m[1]])<Date.parse(m[2])||Date.parse(r[m[1]])===Date.parse(m[2])&&r.id>m[3]);return q},order(k,options={ascending:true}){sorts.push([k,options.ascending]);return q},limit(n){largest=Math.max(largest,n);rows.sort((a,b)=>{for(const [k,asc]of sorts){const c=k==='id'?a[k].localeCompare(b[k]):Date.parse(a[k])-Date.parse(b[k]);if(c)return asc?c:-c}return 0});rows=rows.slice(0,n);return q},then(resolve){return Promise.resolve({data:rows,error:null}).then(resolve)}};return q}};
+const route=await load('app/api/admin/transactions/route.ts',{'@/lib/transaction-history':domain,'@/lib/line/server':{crmActor:async()=>({role,ownerId:'owner'}),serviceDb:()=>db,safeLineUrl:value=>value?.startsWith("https://")?value:null,noStore:(data,status=200)=>Response.json(data,{status})}});
+let next=null;const seen=[];
+do {const params=new URLSearchParams({filter:'all'});if(next)params.set('cursor',JSON.stringify(next));const response=await route.GET(new Request('http://localhost/api?'+params));assert.equal(response.status,200);const data=await response.json();seen.push(...data.rows);next=data.nextCursor;}while(next);
+assert.equal(seen.length,1306);assert.ok(seen.every(row=>row.memberPicture==='https://profile.line-scdn.net/member.jpg'&&row.memberCode==='TM001'));assert.equal(new Set(seen.map(r=>r.kind+':'+r.id)).size,1306);
+assert.deepEqual(seen.map(r=>r.kind+':'+r.id),[...seen].sort(domain.compareHistory).map(r=>r.kind+':'+r.id));assert.equal(largest,21);
+role='staff';assert.equal((await route.GET(new Request('http://localhost/api?filter=all'))).status,403);
+assert.equal((await route.GET(new Request('http://localhost/api?filter=earn&cursor=invalid'))).status,400);
+let user='owner',calls=0,release;
+const entry=seen[0];const fakeFetch=async()=>{calls++;if(release)await new Promise(r=>{release=r});return{ok:true,json:async()=>({detail:{...entry,currentPoints:100}})}};
+const client=await load('lib/transaction-history-client.ts',{'@/lib/supabase/client':{supabase:{auth:{getSession:async()=>({data:{session:{access_token:'test-token'}}})}}},'@/lib/supabase/crm-data':{crmOwnerId:()=>user,verifiedCrmUser:()=>user,crmRole:()=>role}},{fetch:fakeFetch});
+role='owner';await Promise.all([client.loadTransaction(entry),client.loadTransaction(entry)]);assert.equal(calls,1);assert.equal(client.cachedTransaction(entry).currentPoints,100);
+await client.loadTransaction(entry);assert.equal(calls,1);await client.loadTransaction(entry,true);assert.equal(calls,2);
+user='another';assert.equal(client.cachedTransaction(entry),null);
+client.clearTransactionDetails();assert.equal(client.cachedTransaction(entry),null);
+release=()=>{};const pending=client.loadTransaction(entry);await new Promise(r=>setTimeout(r,0));user='changed';release();await assert.rejects(pending,/บัญชี/);assert.equal(client.cachedTransaction(entry),null);
+console.log('PASS: Bangkok month grouping; stable cursor scrolling beyond 1000 rows; tied source dates without duplicates; staff restrictions; detail prefetch deduplication, fresh validation and account isolation.');

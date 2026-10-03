@@ -1,3 +1,4 @@
+import { loadConnectionStatus } from "../connection-status";
 import { supabase } from "./client";
 
 export type AdminExtras = {
@@ -17,6 +18,7 @@ export function clearAdminExtras() { cache = null; }
 
 export async function prefetchAdminExtras(userId: string, ownerId: string, ownerMode: boolean) {
   if (!supabase) return;
+  if (ownerMode) void loadConnectionStatus().catch(() => undefined);
   if (cachedAdminExtras(userId, ownerId)) return;
   const [sessions, team, database, storage] = await Promise.all([
     supabase.rpc("crm_my_sessions"),

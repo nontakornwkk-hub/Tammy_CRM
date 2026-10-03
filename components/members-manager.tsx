@@ -23,10 +23,7 @@ type OverviewFilter = "all" | "new" | "followup" | "birthday";
 const ALIAS_KEY = "tammy-member-staff-aliases-v1";
 const bangkokDayFormatter = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric", month: "numeric", day: "numeric" });
 const bangkokMonthFormatter = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric", month: "numeric" });
-const demoMembers: MemberRow[] = [
-  { id: "demo-1", owner_id: "", member_code: "DEMO-001", name: "ลูกค้าตัวอย่าง 1", phone: "08x-xxx-xxxx", email: null, level: "Gold", points: 120, spending: 2400, last_visit: null, status: "active", newsletter_opt_in: false, notes: "", tags: [], created_at: "", updated_at: "" },
-  { id: "demo-2", owner_id: "", member_code: "DEMO-002", name: "ลูกค้าตัวอย่าง 2", phone: "08x-xxx-xxxx", email: null, level: "Member", points: 0, spending: 0, last_visit: null, status: "active", newsletter_opt_in: false, notes: "", tags: [], created_at: "", updated_at: "" },
-];
+
 
 function daysSince(date: string | null) {
   if (!date) return null;
@@ -71,7 +68,7 @@ export function MembersManager() {
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(() => !cachedData<MembersData>("members"));
   const [loadError, setLoadError] = useState("");
-  const [demoMode, setDemoMode] = useState(false);
+  const demoMode = !supabase;
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LevelFilter>("ทั้งหมด");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -93,13 +90,13 @@ export function MembersManager() {
   const refresh = useCallback(async (force = false) => {
     if (!cachedData<MembersData>("members")) setLoading(true);
     setLoadError("");
-    if (!supabase) { setMembers(demoMembers); setDemoMode(true); setLoading(false); return; }
+    if (!supabase) { setMembers([]); setPets([]); setLoadError("ยังไม่ได้เชื่อมต่อฐานข้อมูล"); setLoading(false); return; }
     try {
       const ownerId = crmOwnerId();
       if (!ownerId) throw new Error("ยังไม่พบสิทธิ์ของร้าน");
       setCachedPictures(cachedLinePictures(ownerId));
       const result = await loadCachedData(ownerId, "members", () => fetchMembersData(ownerId), force);
-      setDemoMode(false); setMembers(result.members); setPets(result.pets); setTagDefinitions(result.tags);
+      setMembers(result.members); setPets(result.pets); setTagDefinitions(result.tags);
       setLoading(false);
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;

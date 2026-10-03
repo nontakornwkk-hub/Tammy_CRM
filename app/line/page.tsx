@@ -1,5 +1,5 @@
-import { LineManager } from "@/components/line-manager";
+import { redirect } from "next/navigation";
 
 export default function LinePage() {
-  return <LineManager />;
+  redirect("/settings?tab=connection");
 }

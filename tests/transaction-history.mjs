@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { historyBounds, availableActions } from '../lib/transaction-history.ts';
+assert.deepEqual(historyBounds('',''),null);
+assert.deepEqual(historyBounds('2026-10-01','2026-10-03'),{from:'2026-09-30T17:00:00.000Z',to:'2026-10-03T17:00:00.000Z'});
+assert.deepEqual(historyBounds('2026-10-03','2026-10-03'),{from:'2026-10-02T17:00:00.000Z',to:'2026-10-03T17:00:00.000Z'});
+for(const range of [['2026-02-30','2026-03-01'],['2026-10-03',''],['2026-10-04','2026-10-03'],['bad','bad']])assert.throws(()=>historyBounds(...range));
+assert.deepEqual(availableActions('earn',0,'completed',null),['cancel']);
+assert.deepEqual(availableActions('coupon',0,'completed',null),['cancel','restore_rights']);
+assert.deepEqual(availableActions('reward',50,'completed',null),['cancel','refund_points','restore_rights']);
+assert.deepEqual(availableActions('reward',50,'completed',{points_refunded:true}),['cancel','restore_rights']);
+assert.deepEqual(availableActions('reward',50,'cancelled',{rights_restored:true}),['cancel','refund_points']);
+assert.deepEqual(availableActions('reward',50,'completed',{cancelled:true}),[]);
+assert.deepEqual(availableActions('adjustment',10,'completed',null),[]);
+console.log('PASS: Bangkok inclusive date boundaries, invalid ranges, and action availability by type and reversal state.');

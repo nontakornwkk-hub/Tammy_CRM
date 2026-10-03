@@ -1,0 +1,116 @@
+/* Shared customer navigation: equal geometry and one selected state for all tabs. */
+.customer-portal .customer-unified-nav {
+  box-sizing: border-box;
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(480px, calc(100% - 24px));
+  height: 82px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  padding: 8px 6px;
+  border: 1px solid #ece6f2;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 8px 28px rgba(77, 55, 108, .10), 0 2px 6px rgba(77, 55, 108, .04);
+  z-index: 6;
+  isolation: isolate;
+}
+.customer-portal .customer-unified-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 44px;
+  height: 64px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #756c80;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 200ms ease, transform 180ms ease;
+}
+.customer-portal .customer-unified-nav .customer-unified-nav-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 38px;
+  border-radius: 14px;
+  background: transparent;
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+.customer-portal .customer-unified-nav .customer-pastel-nav-art {
+  display: block;
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: none;
+  filter: saturate(.82);
+  transition: filter 200ms ease;
+}
+.customer-portal .customer-unified-nav button > span:last-child {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.customer-portal .customer-unified-nav button.active {
+  color: #7352b6;
+  background: transparent;
+}
+.customer-portal .customer-unified-nav button.active .customer-unified-nav-icon {
+  background: #eee7fa;
+  transform: translateY(-2px);
+}
+.customer-portal .customer-unified-nav button.active .customer-pastel-nav-art {
+  filter: saturate(1);
+}
+.customer-portal .customer-unified-nav button.active > span:last-child {
+  font-weight: 700;
+}
+.customer-portal .customer-unified-nav button:active {
+  transform: scale(.96);
+}
+.customer-portal .customer-unified-nav button:focus-visible {
+  outline: 2px solid #9475cf;
+  outline-offset: 1px;
+}
+@media (hover: hover) {
+  .customer-portal .customer-unified-nav button:not(.active):hover .customer-unified-nav-icon {
+    background: #f6f2fb;
+    transform: translateY(-2px);
+  }
+}
+@media (max-width: 360px) {
+  .customer-portal .customer-unified-nav { width: calc(100% - 16px); gap: 0; padding-inline: 3px; }
+  .customer-portal .customer-unified-nav button > span:last-child { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .customer-portal .customer-unified-nav button,
+  .customer-portal .customer-unified-nav .customer-unified-nav-icon,
+  .customer-portal .customer-unified-nav .customer-pastel-nav-art { transition: none; }
+  .customer-portal .customer-unified-nav button:active { transform: none; }
+}
+
+.customer-database-test-banner + .customer-portal .customer-unified-nav {
+  width: min(416px, calc(100% - 24px));
+}
+@media (max-width: 360px) {
+  .customer-database-test-banner + .customer-portal .customer-unified-nav {
+    width: calc(100% - 16px);
+  }
+}

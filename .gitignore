@@ -12,3 +12,4 @@ artifacts/
 .vercel
 tmp/
 *.tsbuildinfo
+.tmp/transaction-verification/
