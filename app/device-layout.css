@@ -81,3 +81,17 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   .customer-coupon-use-close,.preview-close { min-width:40px; min-height:40px; }
   .customer-news-controls > button { min-width:40px; min-height:40px; }
 }
+
+/* Compact member pet summary and accessible count fields. */
+.customer-pet-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.customer-pet-summary > div { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border-radius: 16px; background: #fff4ec; color: #765848; }
+.customer-pet-summary > div:last-child { background: #f4effb; color: #70608a; }
+.customer-pet-icon { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 13px; background: #ffe6d5; color: #ba805e; }
+.customer-pet-icon.is-cat { background: #e9ddf8; color: #9774bc; }
+.customer-pet-summary strong { display: block; font-size: 23px; line-height: 1.4; }
+.customer-pet-summary strong small { font-size: 12px; font-weight: 500; }
+.customer-pet-hint { margin: 12px 0 0; font-size: 11px; color: #8c7d8e; }
+.customer-pet-fields { margin: 0; padding: 14px; border: 1px solid #efded5; border-radius: 16px; min-width: 0; background: #fffbf8; }
+.customer-pet-fields legend { padding: 0 6px; font-weight: 600; color: #765848; }
+.customer-pet-fields label > span { display: flex; align-items: center; gap: 6px; }
+.customer-pet-fields > small { display: block; margin-top: 8px; color: #8c7d8e; }

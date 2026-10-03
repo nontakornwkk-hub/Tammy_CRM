@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 type Input = {
   action?: string; idToken?: string; accessToken?: string; memberCode?: string; offset?: number; consent?: boolean;
-  profile?: { firstName?: string; lastName?: string; gender?: string; birthDate?: string; phone?: string; email?: string };
+  profile?: { firstName?: string; lastName?: string; gender?: string; birthDate?: string; phone?: string; email?: string; dogCount?: number; catCount?: number };
 };
 
 const genders = new Set(["male", "female", "other", "prefer_not_to_say"]);
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   if (input.action === "load") {
     const [memberResult, linkResult, pointsResult] = await Promise.all([
-      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,birth_date_changed_at,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at")
+      db.from("members").select("member_code,name,first_name,last_name,gender,birth_date,birth_date_changed_at,phone,email,level,points,newsletter_opt_in,privacy_consent_updated_at,dog_count,cat_count")
         .eq("owner_id", ownerId).eq("id", memberId).single(),
       db.from("line_member_links").select("line_display_name,line_picture_url")
         .eq("owner_id", ownerId).eq("member_id", memberId).maybeSingle(),
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
         lastName: member.last_name || member.name.split(" ").slice(1).join(" "),
         gender: member.gender || "", birthDate: member.birth_date || "", birthdayChangedAt: member.birth_date_changed_at || "", phone: member.phone || "", email: member.email || "",
         level: member.level, points: member.points,
+        dogCount: member.dog_count ?? 0, catCount: member.cat_count ?? 0,
         privacyConsent: Boolean(member.newsletter_opt_in), consentUpdatedAt: member.privacy_consent_updated_at || "",
         lineDisplayName: linkResult.data?.line_display_name || "", linePictureUrl: linkResult.data?.line_picture_url || "",
       },
@@ -90,6 +91,10 @@ export async function POST(request: Request) {
 
   if (input.action === "update") {
     const profile = input.profile;
+    for (const count of [profile?.dogCount, profile?.catCount]) {
+      if (count !== undefined && (!Number.isSafeInteger(count) || count < 0 || count > 999))
+        return json({ error: "จำนวนสัตว์เลี้ยงต้องเป็นจำนวนเต็ม ตั้งแต่ 0 ถึง 999 ตัว" }, 400);
+    }
     const firstName = profile?.firstName?.trim() || "";
     const lastName = profile?.lastName?.trim() || "";
     const phone = profile?.phone?.replace(/\D/g, "") || "";
@@ -109,10 +114,12 @@ export async function POST(request: Request) {
     if (birthdayChanged && nextEdit && nextEdit.getTime() > Date.now())
       return json({ error: `แก้วันเกิดได้อีกครั้งตั้งแต่ ${nextEdit.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" })}` }, 409);
 
-    const changes: Record<string, string | null> = {
+    const changes: Record<string, string | number | null> = {
       name: `${firstName} ${lastName}`, first_name: firstName, last_name: lastName,
       gender: gender || null, phone, email: email || null, updated_at: new Date().toISOString(),
     };
+    if (profile?.dogCount !== undefined) changes.dog_count = profile.dogCount;
+    if (profile?.catCount !== undefined) changes.cat_count = profile.catCount;
     if (birthdayChanged) {
       changes.birth_date = birthDate || null;
       changes.birth_date_changed_at = new Date().toISOString();

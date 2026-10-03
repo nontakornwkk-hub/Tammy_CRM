@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ChevronRight, Clock3, LogOut, Minus, Pencil, Plus, ShieldCheck, Star, Trash2, UserRound, X } from "lucide-react";
+import { Cat, Dog, Check, ChevronRight, Clock3, LogOut, Minus, Pencil, Plus, ShieldCheck, Star, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
 
 type Profile = {
+  dogCount: number; catCount: number;
   memberCode: string; name: string; firstName: string; lastName: string; gender: string;
   birthDate: string; birthdayChangedAt: string; phone: string; email: string; level: string; points: number;
   lineDisplayName: string; linePictureUrl: string; privacyConsent: boolean; consentUpdatedAt: string;
@@ -14,6 +15,7 @@ type Profile = {
 type PointEntry = { id: string; points_delta: number; transaction_type: string; note: string; created_at: string };
 
 const previewProfile: Profile = {
+  dogCount: 0, catCount: 0,
   memberCode: "TMA0001", name: "คุณแอดมิน", firstName: "คุณ", lastName: "แอดมิน", gender: "", birthDate: "",
   phone: "", email: "", level: "Gold", points: 90, birthdayChangedAt: "", lineDisplayName: "", linePictureUrl: "", privacyConsent: false, consentUpdatedAt: "",
 };
@@ -160,9 +162,12 @@ useEffect(() => {
           <p className="customer-birthday-rule" role="note">{birthdayLocked && nextBirthdayEdit ? `วันเกิดแก้ได้ปีละครั้ง · แก้ได้อีกครั้ง ${dateLabel(nextBirthdayEdit.toISOString())}` : "วันเกิดแก้ได้ปีละครั้ง โปรดตรวจสอบก่อนบันทึก"}</p>
           <label>เบอร์โทรศัพท์<input type="tel" required inputMode="numeric" autoComplete="tel" pattern="0[0-9]{9}" maxLength={10} value={form.phone} onChange={event => setForm({ ...form, phone: event.target.value.replace(/\D/g, "") })} /><small>เปลี่ยนเองได้ เบอร์ใหม่ต้องยังไม่ซ้ำกับสมาชิกคนอื่น</small></label>
           <label>อีเมล (ถ้ามี)<input type="email" maxLength={254} autoComplete="email" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} placeholder="ไม่จำเป็นต้องกรอก" /></label>
+          <fieldset className="customer-pet-fields"><legend>สัตว์เลี้ยงของฉัน</legend><div className="customer-account-form-row">{([{ key: "dogCount", label: "สุนัข", Icon: Dog }, { key: "catCount", label: "แมว", Icon: Cat }] as const).map(({ key, label, Icon }) => <label key={key}><span><Icon size={18} />{label} (ตัว)</span><input type="number" required min={0} max={999} step={1} inputMode="numeric" value={Number.isNaN(form[key]) ? "" : form[key] ?? 0} onChange={event => setForm({ ...form, [key]: event.target.value === "" ? NaN : Number(event.target.value) })} /></label>)}</div><small>ถ้าไม่ได้เลี้ยง ให้ใส่ 0</small></fieldset>
           <button className="customer-account-save" type="submit" disabled={busy}>{busy ? "กำลังบันทึก…" : "บันทึกข้อมูล"}</button>
         </form> : <div className="customer-account-details"><div><span>ชื่อ–นามสกุล</span><strong>{shown.name}</strong></div><div><span>เพศ</span><strong>{genderLabel(shown.gender)}</strong></div><div><span>วันเกิด</span><strong>{shown.birthDate ? dateLabel(shown.birthDate) : "ยังไม่ระบุ"}</strong></div><div><span>เบอร์โทร</span><strong>{shown.phone || "ยังไม่ระบุ"}</strong></div><div><span>อีเมล</span><strong>{shown.email || "ยังไม่ระบุ"}</strong></div></div>}
       </section>
+
+      <section className="customer-account-card customer-pets"><div className="customer-account-section-head"><div><small>เพื่อนตัวน้อยของคุณ</small><h2>สัตว์เลี้ยงของฉัน</h2></div></div><div className="customer-pet-summary"><div><span className="customer-pet-icon"><Dog size={24} /></span><span>สุนัข<strong>{shown.dogCount ?? 0} <small>ตัว</small></strong></span></div><div><span className="customer-pet-icon is-cat"><Cat size={24} /></span><span>แมว<strong>{shown.catCount ?? 0} <small>ตัว</small></strong></span></div></div><p className="customer-pet-hint">เปลี่ยนจำนวนได้ที่ปุ่มแก้ไขข้อมูลส่วนตัว</p></section>
 
       <section className="customer-account-card customer-account-history"><div className="customer-account-section-head"><h2>{showAllHistory ? "ประวัติแต้มทั้งหมด" : "ประวัติแต้มล่าสุด"}</h2>{(pointsHistory.length > 5 || hasMore) ? <button type="button" className="customer-history-view-all" onClick={() => { if (!showAllHistory && hasMore && pointsHistory.length <= 5) void loadHistory(); setShowAllHistory(value => !value); }}>{showAllHistory ? "ย่อรายการ" : "ดูทั้งหมด"}<ChevronRight size={16} /></button> : <Clock3 size={19} />}</div>
         {pointsHistory.length ? <div className="customer-account-history-list">{visibleHistory.map(item => <div key={item.id} className="customer-account-history-item"><span className={`customer-account-history-icon ${item.points_delta >= 0 ? "is-positive" : "is-negative"}`}>{item.points_delta >= 0 ? <Plus size={17} /> : <Minus size={17} />}</span><div><strong>{item.note || (item.points_delta >= 0 ? "ได้รับแต้ม" : "ใช้แต้ม")}</strong><small>{dateLabel(item.created_at)} · {new Date(item.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" })}</small></div><b className={item.points_delta >= 0 ? "is-positive" : ""}>{item.points_delta > 0 ? "+" : ""}{item.points_delta.toLocaleString("th-TH")}</b></div>)}</div> : <p className="customer-account-empty">ยังไม่มีประวัติแต้ม</p>}
