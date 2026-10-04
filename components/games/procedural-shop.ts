@@ -1,23 +1,62 @@
 import * as T from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-// Small pet-shop set built entirely from geometry, including products and lighting.
+/** A miniature pet boutique, entirely modeled geometry with no image textures. */
 export function createProceduralShop(){
-  const root=new T.Group();
-  const materials=new Map<string,T.MeshStandardMaterial>();
-  const mat=(color:string)=>{if(!materials.has(color))materials.set(color,new T.MeshStandardMaterial({color,roughness:.65}));return materials.get(color)!;};
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat(color));m.position.set(x,y,z);m.receiveShadow=true;root.add(m);return m;};
-  box(0,2,-2.2,6,4.5,.1,"#dfb67b");
-  for(let x=-3;x<3;x+=.4)box(x,2,-2.135,.014,4.4,.01,"#c99562");
-  box(0,-.07,0,6,.1,5,"#b8804f");for(let x=-3;x<3;x+=.5)box(x,-.011,0,.015,.008,5,"#9c633d");
-  box(-2.45,2.7,-2,.85,2.2,.08,"#1b5f99");box(-2.45,2.7,-1.94,.7,2,.015,"#8dccdc");box(-2.45,2.7,-1.89,.045,2.1,.03,"#236698");box(-2.45,2.7,-1.89,.76,.045,.03,"#236698");
+  const root=new T.Group(), materials=new Map<string,T.MeshStandardMaterial>();
+  const mat=(color:string,metalness=0)=>{const key=color+metalness;if(!materials.has(key))materials.set(key,new T.MeshStandardMaterial({color,roughness:metalness?.3:.72,metalness}));return materials.get(key)!;};
+  const add=(g:T.BufferGeometry,color:string,x:number,y:number,z:number,metalness=0)=>{const m=new T.Mesh(g,mat(color,metalness));m.position.set(x,y,z);m.receiveShadow=true;m.castShadow=true;root.add(m);return m;};
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,round=.02)=>add(new RoundedBoxGeometry(w,h,d,2,Math.min(round,w/4,h/4,d/4)),color,x,y,z);
+  const ball=(x:number,y:number,z:number,a:number,b:number,c:number,color:string)=>{const m=add(new T.SphereGeometry(1,16,12),color,x,y,z);m.scale.set(a,b,c);return m;};
+  const cylinder=(x:number,y:number,z:number,r:number,h:number,color:string)=>add(new T.CylinderGeometry(r,r,h,24),color,x,y,z);
+  const badge=(x:number,y:number,z:number,s:number,color:string)=>{ball(x,y-.025*s,z,.055*s,.047*s,.012,color);for(const [a,b] of [[-.055,.045],[0,.07],[.055,.045]])ball(x+a*s,y+b*s,z,.025*s,.032*s,.012,color);};
+  // Broad surfaces extend behind the camera frame; individual planks catch warm light.
+  box(0,2,-2.8,11,7,.2,"#bb8152");
+  for(let i=0;i<25;i++)box(-5.3+i*.44,2,-2.67,.43,7,.055,i%3===0?"#d8aa79":"#dbb181");
+  box(0,-.14,0,11,.22,10,"#905c38");
+  for(let row=0;row<12;row++)for(let col=0;col<5;col++)box(-5.4+col*2.4+(row%2)*.8,-.018,-4.2+row*.74,2.38,.04,.724,["#c58b55","#c9915e","#d09b65"][(row+col)%3],.008);
+  // Blue shop window with an actual inset frame, sill and small outdoor foliage.
+  box(-2.6,2.55,-2.49,1.3,2.6,.2,"#234c69");box(-2.6,2.55,-2.36,1.13,2.42,.05,"#b2d8e0");
+  for(const x of [-3.17,-2.6,-2.03])box(x,2.55,-2.27,.045,2.48,.065,"#346988");
+  for(const y of [1.34,2.55,3.76])box(-2.6,y,-2.27,1.2,.045,.065,"#346988");
+  box(-2.6,1.29,-2.15,1.5,.1,.45,"#ba8150");
+  // Side cabinets have thickness, inset backs, product bags, jars and paw labels.
   for(const side of [-1,1]){
-    const x=side*2.48;box(x,1.85,-1.67,.84,2.6,.13,"#9b663f");
-    for(let shelf=0;shelf<3;shelf++){const y=.65+shelf*.84;box(x,y,-1.43,.9,.075,.56,"#c89257");for(let i=0;i<3;i++){const px=x-.27+i*.27,color=["#1975a9","#3c946e","#e9973c"][(i+shelf)%3];box(px,y+.23,-1.4,.18,.38,.2,color);box(px,y+.23,-1.285,.13,.14,.009,"#ffe9be");box(px,y+.44,-1.4,.17,.025,.19,"#e9bc74");}}
+    const x=side*2.7;box(x,1.42,-1.83,1.12,2.65,.16,"#9b633e");
+    for(const edge of [-.58,.58])box(x+edge,1.42,-1.56,.085,2.8,.66,"#ae7344");
+    for(let shelf=0;shelf<4;shelf++){
+      const y=.15+shelf*.82;box(x,y,-1.48,1.25,.095,.82,"#c48e54");box(x,y+.027,-1.052,1.26,.08,.035,"#e3b271");
+      if(shelf===3)continue;
+      for(let i=0;i<3;i++){
+        const px=x-.38+i*.38,color=["#347889","#468577","#cf8252"][(i+shelf)%3];
+        if((i+shelf)%2){box(px,y+.29,-1.35,.26,.48,.23,color,.045);box(px,y+.545,-1.35,.28,.055,.22,"#ead19d");box(px,y+.27,-1.22,.21,.24,.016,"#fff1d4");badge(px,y+.28,-1.2,.9,color);}
+        else {cylinder(px,y+.23,-1.35,.133,.36,color);cylinder(px,y+.425,-1.35,.138,.045,"#d8b675");box(px,y+.24,-1.208,.19,.19,.014,"#f5e6c8");badge(px,y+.25,-1.19,.8,color);}
+      }
+    }
   }
-  for(const side of [-1,1]){
-    const x=side*1.68;box(x,4.06,-1.5,.013,.5,.013,"#573a30");const shade=new T.Mesh(new T.ConeGeometry(.23,.17,24),mat("#eab34d"));shade.position.set(x,3.8,-1.5);root.add(shade);const bulb=new T.Mesh(new T.SphereGeometry(.08,16,10),new T.MeshStandardMaterial({color:"#fff2bd",emissive:"#ffc45e",emissiveIntensity:2}));bulb.position.set(x,3.72,-1.5);root.add(bulb);const lamp=new T.PointLight("#ffc573",1.4,3);lamp.position.copy(bulb.position);root.add(lamp);
+  // Framed paw sign over the back counter.
+  box(1.18,3.32,-2.45,1.8,.95,.16,"#9e602e",.12);box(1.18,3.32,-2.345,1.64,.79,.08,"#efc680",.1);
+  badge(1.18,3.42,-2.285,2.1,"#8c582e");
+  for(let i=0;i<5;i++)box(.78+i*.2,3.12,-2.29,.11,.025,.015,"#ae723d");
+  // Counter behind the wheel, with drawer pulls and a tiny register.
+  box(.8,.54,-1.97,2.45,1.04,.55,"#ae7448");box(.8,1.08,-1.91,2.65,.12,.8,"#d6a367");
+  for(let i=0;i<3;i++){box(-.04+i*.8,.71,-1.67,.72,.34,.045,"#c58c58");ball(-.04+i*.8,.71,-1.628,.09,.014,.018,"#ebbf6d");}
+  box(1.45,1.18,-1.84,.45,.09,.33,"#2c4654");const register=box(1.45,1.39,-1.87,.38,.32,.075,"#294452");register.rotation.x=-.18;box(1.45,1.4,-1.81,.3,.23,.016,"#a0c5bf");
+  // Pendant lamps and warm pools of light.
+  for(const x of [-1.66,1.9]){
+    cylinder(x,4.04,-1.9,.014,.72,"#473b34");
+    add(new T.ConeGeometry(.29,.2,32,1,true),"#b7833c",x,3.61,-1.9,.35);
+    const bulb=add(new T.SphereGeometry(.09,16,12),"#fff2c6",x,3.51,-1.9);(bulb.material as T.MeshStandardMaterial).emissive.set("#ffdca0");(bulb.material as T.MeshStandardMaterial).emissiveIntensity=2;
+    const lamp=new T.PointLight("#ffbb66",2,5);lamp.position.set(x,3.45,-1.8);root.add(lamp);
   }
-  const bowl=new T.Mesh(new T.CylinderGeometry(.18,.14,.14,24),mat("#126dab"));bowl.position.set(-2.65,.08,1);root.add(bowl);
-  for(let i=0;i<7;i++){const kibble=new T.Mesh(new T.SphereGeometry(.035,8,6),mat("#ac5f2b"));kibble.position.set(-2.65+Math.cos(i*2.4)*.1,.165,1+Math.sin(i*2.4)*.1);root.add(kibble);}
-  return root;
+  // Plants and foreground bowl soften the set without competing with the pets.
+  for(const [x,y,z] of [[-3.32,.13,-1.1],[2.76,2.7,-1.6]]){
+    const pot=add(new T.CylinderGeometry(.15,.11,.23,24),"#cb8158",x,y+.11,z);
+    for(let i=0;i<7;i++){const a=i*2.4,leaf=ball(x+Math.cos(a)*.1,y+.32+(i%3)*.09,z+Math.sin(a)*.1,.065,.18,.045,i%2?"#477e51":"#73944f");leaf.rotation.z=Math.cos(a)*.65;}
+    pot.receiveShadow=true;
+  }
+  const bowl=add(new T.CylinderGeometry(.23,.18,.15,32),"#296b95",-2.55,.095,1.1,.2);badge(-2.55,.12,1.305,.75,"#f0d4a0");
+  const rim=add(new T.TorusGeometry(.215,.018,8,32),"#e4c184",-2.55,.176,1.1,.5);rim.rotation.x=Math.PI/2;
+  for(let i=0;i<12;i++)ball(-2.55+Math.cos(i*2.4)*.15,.17,1.1+Math.sin(i*2.4)*.15,.035,.028,.035,"#92552b");
+  bowl.receiveShadow=true;return root;
 }

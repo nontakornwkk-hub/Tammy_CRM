@@ -66,7 +66,7 @@ export function WheelScene({ prizes, spin, onFinish,view,cinematic=false }: { pr
     let renderer:T.WebGLRenderer; try { renderer=new T.WebGLRenderer({antialias:true,alpha:cinematic,powerPreference:"high-performance"}); } catch {setFailed(true);return;}
     setFailed(false); let disposed=false, frame=0, visible=true, lastKey=completed.current||"", move:{start:number;from:number;to:number;key:string}|null=null;
     const scene=new T.Scene();if(!cinematic){scene.background=new T.Color("#d8b18a");scene.fog=new T.Fog("#d8b18a",12,24);}
-    const camera=cinematic?new T.OrthographicCamera(-2.1,2.1,2.1,-2.1,.1,40):new T.PerspectiveCamera(34,1,.1,40);
+    const camera=new T.PerspectiveCamera(34,1,.1,40);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=T.PCFSoftShadowMap; renderer.outputColorSpace=T.SRGBColorSpace; renderer.toneMapping=T.ACESFilmicToneMapping; renderer.toneMappingExposure=cinematic?.95:1.25;
     el.appendChild(renderer.domElement);
     const pmrem=new T.PMREMGenerator(renderer), room=new RoomEnvironment();const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;room.dispose();pmrem.dispose();
@@ -97,7 +97,7 @@ export function WheelScene({ prizes, spin, onFinish,view,cinematic=false }: { pr
     for(let i=0;i<3;i++)mesh(crate,new T.BoxGeometry(.79,.008,.006),material("#996137"),0,-.105+i*.11,.356);
     for(const x of [-.33,.33])for(const y of [-.115,.125])sphere(crate,material("#6c5845",.5),x,y,.367,.015);
     for(const x of [-1.1,1.1]){const bone=new T.Group();bone.position.set(x,.27,1.33);bone.rotation.z=x<0?.5:-.5;scene.add(bone);mesh(bone,new T.BoxGeometry(.22,.075,.05),gold);for(const side of [-1,1])for(const y of [-.035,.035])sphere(bone,gold,side*.12,y,0,.05);}
-    const resize=()=>{const w=el.clientWidth,h=el.clientHeight; if(!w||!h)return;renderer.setSize(w,h,false);if(camera instanceof T.OrthographicCamera){const extent=view?.camera==="close"?2.7:3;camera.left=-extent;camera.right=extent;camera.top=extent*h/w;camera.bottom=-extent*h/w;camera.position.set(.25,3.1,9);}else{camera.aspect=w/h;camera.position.set(0,3.2,Math.max(view?.camera==="close"?6.4:7.5,(view?.camera==="close"?3.7:4.4)/(2*Math.tan(T.MathUtils.degToRad(17))*camera.aspect)));}camera.lookAt(0,2.02,0);camera.updateProjectionMatrix();};resize();const ro=new ResizeObserver(resize);ro.observe(el);
+    const resize=()=>{const w=el.clientWidth,h=el.clientHeight; if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;const distance=Math.max(cinematic?6:view?.camera==="close"?6.4:7.5,(cinematic?(view?.camera==="close"?5.5:6):(view?.camera==="close"?3.7:4.4))/(2*Math.tan(T.MathUtils.degToRad(17))*camera.aspect));camera.position.set(0,cinematic?2.02+distance*.1:3.2,distance);camera.lookAt(0,2.02,0);camera.updateProjectionMatrix();};resize();const ro=new ResizeObserver(resize);ro.observe(el);
     const io=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;});io.observe(el);
     const lost=(event:Event)=>{event.preventDefault();setFailed(true);};renderer.domElement.addEventListener("webglcontextlost",lost);
     const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;

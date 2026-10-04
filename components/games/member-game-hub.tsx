@@ -12,7 +12,7 @@ const when=(date:string)=>new Date(date).toLocaleString("th-TH",{dateStyle:"medi
 function prizeText(p:PublicPrize){return p.kind==="points"?`${p.points.toLocaleString()} แต้ม`:p.kind==="coupon"?`ส่วนลด ${p.discountValue}${p.discountType==="percent"?"%":" บาท"}`:"รับของที่ร้าน";}
 type Pending={gameKey:string;requestId:string;version:number};
 export function MemberGameHub({ member, idToken, accessToken, preview=false, onPointsUpdated }: { member: { memberCode: string; name: string; points: number; linePictureUrl?: string|null }; idToken?: string; accessToken?: string; preview?: boolean; onPointsUpdated?: (points:number)=>void }) {
-  const [data,setData]=useState<MemberGames>(empty), [key,setKey]=useState("paw-wheel"), [practice,setPractice]=useState(preview), [busy,setBusy]=useState(false), [error,setError]=useState(""), [spin,setSpin]=useState<StageSpin|null>(null), [slots,setSlots]=useState<PublicPrize[]|null>(null), [dialog,setDialog]=useState<"rules"|"history"|"rewards"|"win"|null>(null), [result,setResult]=useState<GamePlay|null>(null), [qr,setQr]=useState(""), [selected,setSelected]=useState<GameGrant|null>(null);
+  const [data,setData]=useState<MemberGames>(empty), [key,setKey]=useState("paw-wheel"), [practice,setPractice]=useState(preview), [busy,setBusy]=useState(false), [checking,setChecking]=useState(false), [unavailable,setUnavailable]=useState(""), [error,setError]=useState(""), [spin,setSpin]=useState<StageSpin|null>(null), [slots,setSlots]=useState<PublicPrize[]|null>(null), [dialog,setDialog]=useState<"rules"|"history"|"rewards"|"win"|"availability"|null>(null), [result,setResult]=useState<GamePlay|null>(null), [qr,setQr]=useState(""), [selected,setSelected]=useState<GameGrant|null>(null);
   const lock=useRef(false), outcome=useRef<GamePlay|null>(null), demo=useRef(false), pending=useRef<Pending|null>(null), mounted=useRef(true), pointsCallback=useRef(onPointsUpdated), dialogRef=useRef<HTMLDialogElement>(null);
   pointsCallback.current=onPointsUpdated;
   const storageKey=`tammy-game-pending:${accessToken?.startsWith("test:")?"test":"live"}:${member.memberCode}`;
@@ -24,14 +24,42 @@ export function MemberGameHub({ member, idToken, accessToken, preview=false, onP
   useEffect(()=>{if(!selected||dialog!=="rewards")return;let current=true;setQr("");void QRCode.toDataURL(`TAMMY-GAME:${selected.qr_token}`,{width:280,margin:2}).then(v=>{if(current)setQr(v);});const timer=setInterval(()=>void refresh().catch(()=>{}),5000);return()=>{current=false;clearInterval(timer);};},[selected,refresh,dialog]);
   const game=data.games.find(g=>g.key===key)||data.games[0];const playingDemo=practice||preview;const displayed=slots || (playingDemo?practicePrizes:game?.prizes.length?game.prizes:practicePrizes);
   const finish=()=>{const play=outcome.current;if(!play)return;setResult(play);setDialog("win");setBusy(false);lock.current=false;if(!demo.current){if(typeof play.points_after==="number")onPointsUpdated?.(play.points_after);void refresh().catch(e=>setError(e.message));}};
-  const start=async()=>{
-    if(lock.current)return;lock.current=true;setBusy(true);setError("");demo.current=playingDemo;
+  const start=async(forcePractice=false)=>{
+    if(lock.current)return;
+    const asPractice=(forcePractice||playingDemo)&&!pending.current;
+    lock.current=true;setBusy(true);setChecking(!asPractice);setError("");demo.current=asPractice;
     try{
       let play:GamePlay;
-      if(playingDemo){const r=new Uint32Array(1);crypto.getRandomValues(r);play={id:crypto.randomUUID(),game_key:"practice",prize:practicePrizes[r[0]%practicePrizes.length],created_at:new Date().toISOString(),tickets_before:0,tickets_after:0,slots:practicePrizes};}
-      else {if(!game&&!pending.current)throw new Error("ร้านยังไม่เปิดกิจกรรม ลองโหมดฝึกก่อนได้ครับ");const req=pending.current||{gameKey:game!.key,requestId:crypto.randomUUID(),version:game!.version};pending.current=req;try{sessionStorage.setItem(storageKey,JSON.stringify(req));}catch{}const json=await call({action:"play",...req});play=json.play;pending.current=null;try{sessionStorage.removeItem(storageKey);}catch{} }
+      if(asPractice){
+        if(forcePractice){setPractice(true);setDialog(null);}
+        const r=new Uint32Array(1);crypto.getRandomValues(r);
+        play={id:crypto.randomUUID(),game_key:"practice",prize:practicePrizes[r[0]%practicePrizes.length],created_at:new Date().toISOString(),tickets_before:0,tickets_after:0,slots:practicePrizes};
+      }else{
+        let req=pending.current;
+        if(!req){
+          // Refresh at the moment of play: newly granted rights must work immediately.
+          const latest:MemberGames=await call({action:"status"});
+          if(!mounted.current)return;
+          setData(latest);
+          const active=latest.games.find(g=>g.key===key)||latest.games[0];
+          const balance=Math.max(0,latest.wallet.balance)+(latest.wallet.testBalance||0);
+          if(!latest.ready||!active?.prizes.length||balance<1){
+            setUnavailable(!latest.ready||!active?.prizes.length?"ร้านยังไม่มีรอบรางวัลที่พร้อมเล่น ตอนนี้ฝึกหมุนฟรีก่อนได้เลย":"ยังไม่มีสิทธิ์เล่นรางวัลจริง สะสมยอดซื้อเพื่อรับสิทธิ์ หรือฝึกหมุนฟรีก่อนได้เลย");
+            setDialog("availability");setBusy(false);lock.current=false;return;
+          }
+          req={gameKey:active.key,requestId:crypto.randomUUID(),version:active.version};
+          pending.current=req;try{sessionStorage.setItem(storageKey,JSON.stringify(req));}catch{}
+        }
+        const json=await call({action:"play",...req});play=json.play;
+        pending.current=null;try{sessionStorage.removeItem(storageKey);}catch{}
+      }
+      if(!mounted.current)return;
       outcome.current=play;setSlots(play.slots||displayed);setSpin({key:play.id,targetId:play.prize.id});
-    }catch(e){const err=e as Error&{status?:number};setError(err.message);if(err.status&&err.status<500){pending.current=null;try{sessionStorage.removeItem(storageKey);}catch{}void refresh().catch(()=>{});}setBusy(false);lock.current=false;}
+    }catch(e){
+      const err=e as Error&{status?:number};setError(err.message);
+      if(err.status&&err.status<500){pending.current=null;try{sessionStorage.removeItem(storageKey);}catch{}void refresh().catch(()=>{});}
+      setBusy(false);lock.current=false;
+    }finally{if(mounted.current)setChecking(false);}
   };
   const currentGrant=selected?data.grants.find(g=>g.id===selected.id)||selected:null;
   const grantUsable=currentGrant?.status==="available"&&(!currentGrant.expires_at||new Date(currentGrant.expires_at).getTime()>Date.now());
@@ -41,10 +69,11 @@ export function MemberGameHub({ member, idToken, accessToken, preview=false, onP
     {data.games.length>1&&<div className="paw-game-picker">{data.games.map(g=><button key={g.key} disabled={busy} className={game?.key===g.key?"selected":""} onClick={()=>{setKey(g.key);setSlots(null);setSpin(null);}}>{g.name}</button>)}</div>}
     <div className="paw-purchase"><div><span>ซื้อสะสมครบ <b>฿{data.program.purchaseThreshold.toLocaleString()}</b> รับ 1 สิทธิ์</span><b>อีก ฿{Math.max(0,data.program.purchaseThreshold-data.wallet.carry).toLocaleString()}</b></div><progress value={Math.min(data.wallet.carry,data.program.purchaseThreshold)} max={data.program.purchaseThreshold}/><small>{data.program.earningEnabled?"สะสมจากยอดซื้อใหม่ · สิทธิ์เก็บไว้เล่นครั้งต่อไปได้":"ร้านยังไม่เปิดสะสมสิทธิ์จากยอดซื้อ"}{data.wallet.balance<0&&" · สิทธิ์จากรายการที่ยกเลิกจะชดเชยด้วยยอดซื้อครั้งถัดไป"}</small></div>
     <GameStage engine={game?.engine||"wheel"} prizes={displayed} spin={spin} onFinish={finish} cinematic/>
-    <div className="paw-controls"><button className="paw-spin" disabled={busy||!playingDemo&&!pending.current&&(!game||Math.max(0,data.wallet.balance)+(data.wallet.testBalance||0)<1)} onClick={()=>void start()}><PawPrint/>{busy?"วงล้อกำลังหมุน…":pending.current?"ตรวจรอบเดิม":playingDemo?"หมุนทดลองเล่น":"หมุนรับรางวัล"}<Play size={19}/></button><p>{playingDemo?"โหมดฝึก · ไม่ใช้สิทธิ์และไม่ได้รับรางวัลจริง":"ใช้ 1 สิทธิ์ต่อรอบ · ผลบันทึกอัตโนมัติ"}</p>{!preview&&<button className="paw-practice" disabled={busy||Boolean(pending.current)} onClick={()=>{setPractice(v=>!v);setSlots(null);setSpin(null);}}>{practice?"กลับไปเล่นรับรางวัล":"ลองฝึกเล่นฟรี"}</button>}</div>
+    <div className="paw-controls"><button className="paw-spin" disabled={busy} onClick={()=>void start()}><PawPrint/>{checking?"กำลังตรวจสิทธิ์…":busy?"วงล้อกำลังหมุน…":pending.current?"ตรวจรอบเดิม":playingDemo?"หมุนทดลองเล่น":"หมุนรับรางวัล"}<Play size={19}/></button><p>{playingDemo?"โหมดฝึก · ไม่ใช้สิทธิ์และไม่ได้รับรางวัลจริง":"ใช้ 1 สิทธิ์ต่อรอบ · ผลบันทึกอัตโนมัติ"}</p>{!preview&&<button className="paw-practice" disabled={busy||Boolean(pending.current)} onClick={()=>{setPractice(v=>!v);setSlots(null);setSpin(null);}}>{practice?"กลับไปเล่นรับรางวัล":"ลองฝึกเล่นฟรี"}</button>}</div>
     {error&&<p className="paw-alert" role="status">{error}<button onClick={()=>void refresh().then(()=>setError("")).catch(e=>setError(e.message))}>ตรวจอีกครั้ง</button></p>}
     <nav className="paw-actions"><button onClick={()=>setDialog("rules")}><BookOpen/>กติกา</button><button onClick={()=>setDialog("history")}><History/>ประวัติ</button><button onClick={()=>{setSelected(null);setDialog("rewards");}}><Gift/>รางวัลของฉัน</button></nav>
-    {dialog&&createPortal(<dialog ref={dialogRef} className="paw-dialog" aria-label={dialog==="rules"?"กติกาวงล้ออุ้งเท้า":dialog==="history"?"ประวัติการเล่น":dialog==="rewards"?"รางวัลของฉัน":"ผลการหมุนรางวัล"} onCancel={()=>setDialog(null)} onClick={e=>{if(e.target===e.currentTarget)setDialog(null);}}><div className="paw-dialog-inner"><button className="paw-close" aria-label="ปิด" onClick={()=>setDialog(null)}><X/></button>
+    {dialog&&createPortal(<dialog ref={dialogRef} className="paw-dialog" aria-label={dialog==="availability"?"สิทธิ์เล่นเกม":dialog==="rules"?"กติกาวงล้ออุ้งเท้า":dialog==="history"?"ประวัติการเล่น":dialog==="rewards"?"รางวัลของฉัน":"ผลการหมุนรางวัล"} onCancel={()=>setDialog(null)} onClick={e=>{if(e.target===e.currentTarget)setDialog(null);}}><div className="paw-dialog-inner"><button className="paw-close" aria-label="ปิด" onClick={()=>setDialog(null)}><X/></button>
+      {dialog==="availability"&&<><div className="paw-win-icon"><Ticket size={48}/></div><h2>มาลองหมุนกันก่อน</h2><p>{unavailable}</p><button className="paw-primary" onClick={()=>void start(true)}><Play size={18}/> ฝึกหมุนฟรี</button><p>โหมดฝึกไม่ใช้สิทธิ์ และไม่แจกของรางวัลจริง</p></>}
       {dialog==="win"&&result&&<><div className="paw-win-icon">{result.prize.image?<img src={result.prize.image} alt=""/>:result.prize.kind==="points"?"🪙":result.prize.kind==="coupon"?"🎟️":"🎁"}</div><small>{demo.current?"ผลทดลองเล่น":"ยินดีด้วย!"}</small><h2>{result.prize.title}</h2><p>{prizeText(result.prize)}</p><p>{demo.current?"รอบนี้เป็นการฝึก ไม่เพิ่มแต้มและไม่แจกของรางวัลจริง":result.prize.kind==="points"?"เพิ่มแต้มเข้าบัญชีเรียบร้อยแล้ว":"เก็บรางวัลไว้แล้ว เปิด QR ในรางวัลของฉันเพื่อรับที่ร้าน"}</p><button className="paw-primary" onClick={()=>{setDialog(result.prize.kind!=="points"&&!demo.current?"rewards":null);setSelected(null);}}> {result.prize.kind!=="points"&&!demo.current?"เปิดรางวัลของฉัน":"เล่นต่อ"}</button></>}
       {dialog==="rules"&&<><small>HOW TO PLAY</small><h2>กติกาวงล้ออุ้งเท้า</h2><ol><li>ยอดซื้อใหม่สะสมครบ {data.program.purchaseThreshold.toLocaleString()} บาท รับ 1 สิทธิ์ ยอดที่เหลือยกไปครั้งถัดไป</li><li>ใช้ 1 สิทธิ์ต่อรอบ เก็บสิทธิ์ไว้เล่นภายหลังได้ ไม่มีสิทธิ์ฟรีรายวัน</li><li>แต้มเข้าบัญชีอัตโนมัติ คูปองและสินค้าเก็บใน “รางวัลของฉัน”</li><li>คูปองมีเงื่อนไขและวันหมดอายุตามที่แสดงบนรางวัล ต้องแสดง QR ให้พนักงาน</li><li>โหมดฝึกไม่มีรางวัลจริง หากเน็ตหลุด ระบบตรวจรอบเดิมให้ ไม่หักสิทธิ์ซ้ำ</li><li>ยกเลิกยอดซื้อแล้วสิทธิ์จากยอดนั้นจะถูกปรับคืน หากใช้ไปแล้ว ยอดซื้อถัดไปจะชดเชยก่อน</li></ol><p>ขนาดช่องบนวงล้อเป็นภาพประกอบ การได้รับรางวัลขึ้นอยู่กับเงื่อนไขกิจกรรมและจำนวนรางวัลคงเหลือ</p></>}
       {dialog==="history"&&<><small>PLAY HISTORY</small><h2>ประวัติการเล่น</h2><p>100 รายการล่าสุด</p>{!data.plays.length?<p className="paw-empty">เริ่มหมุนครั้งแรกแล้วประวัติจะอยู่ตรงนี้ 🐾</p>:data.plays.map(p=><div className="paw-history" key={p.id}><span>{p.prize.kind==="points"?"🪙":"🎁"}</span><div><b>{p.prize.title}</b><small>{when(p.created_at)}</small></div><b>−1 สิทธิ์</b></div>)}</>}
