@@ -11,18 +11,20 @@ export function createProceduralShop(){
   const cylinder=(x:number,y:number,z:number,r:number,h:number,color:string)=>add(new T.CylinderGeometry(r,r,h,24),color,x,y,z);
   const badge=(x:number,y:number,z:number,s:number,color:string)=>{ball(x,y-.025*s,z,.055*s,.047*s,.012,color);for(const [a,b] of [[-.055,.045],[0,.07],[.055,.045]])ball(x+a*s,y+b*s,z,.025*s,.032*s,.012,color);};
   // Broad surfaces extend behind the camera frame; individual planks catch warm light.
-  box(0,2,-2.8,11,7,.2,"#bb8152");
-  for(let i=0;i<25;i++)box(-5.3+i*.44,2,-2.67,.43,7,.055,i%3===0?"#d8aa79":"#dbb181");
-  box(0,-.14,0,11,.22,10,"#905c38");
-  for(let row=0;row<12;row++)for(let col=0;col<5;col++)box(-5.4+col*2.4+(row%2)*.8,-.018,-4.2+row*.74,2.38,.04,.724,["#c58b55","#c9915e","#d09b65"][(row+col)%3],.008);
+  box(0,2,-2.8,18,15,.2,"#bb8152");
+  for(let i=0;i<42;i++)box(-9+i*.44,4,-2.67,.43,15,.055,i%3===0?"#d8aa79":"#dbb181");
+  box(0,-.14,0,18,.22,22,"#905c38");
+  for(let row=0;row<27;row++)for(let col=0;col<9;col++)box(-10+col*2.4+(row%2)*.8,-.018,-9.5+row*.74,2.38,.04,.724,["#c58b55","#c9915e","#d09b65"][(row+col)%3],.008);
+  for(const x of [-3.6,0,3.6])box(x,5.4,-.8,.18,.2,5,"#835336");
+  box(0,5.5,-2.4,18,.22,.35,"#875632");
   // Blue shop window with an actual inset frame, sill and small outdoor foliage.
-  box(-2.6,2.55,-2.49,1.3,2.6,.2,"#234c69");box(-2.6,2.55,-2.36,1.13,2.42,.05,"#b2d8e0");
-  for(const x of [-3.17,-2.6,-2.03])box(x,2.55,-2.27,.045,2.48,.065,"#346988");
-  for(const y of [1.34,2.55,3.76])box(-2.6,y,-2.27,1.2,.045,.065,"#346988");
-  box(-2.6,1.29,-2.15,1.5,.1,.45,"#ba8150");
+  box(-2.6,2.55,-2.49,1.3,4.1,.2,"#234c69");box(-2.6,2.55,-2.36,1.13,3.9,.05,"#b2d8e0");
+  for(const x of [-3.17,-2.6,-2.03])box(x,2.55,-2.27,.045,3.96,.065,"#346988");
+  for(const y of [0.6,2.55,4.5])box(-2.6,y,-2.27,1.2,.045,.065,"#346988");
+  box(-2.6,0.54,-2.15,1.5,.1,.45,"#ba8150");
   // Side cabinets have thickness, inset backs, product bags, jars and paw labels.
   for(const side of [-1,1]){
-    const x=side*2.7;box(x,1.42,-1.83,1.12,2.65,.16,"#9b633e");
+    const first=root.children.length;const x=side*2.7;box(x,1.42,-1.83,1.12,2.65,.16,"#9b633e");
     for(const edge of [-.58,.58])box(x+edge,1.42,-1.56,.085,2.8,.66,"#ae7344");
     for(let shelf=0;shelf<4;shelf++){
       const y=.15+shelf*.82;box(x,y,-1.48,1.25,.095,.82,"#c48e54");box(x,y+.027,-1.052,1.26,.08,.035,"#e3b271");
@@ -33,11 +35,13 @@ export function createProceduralShop(){
         else {cylinder(px,y+.23,-1.35,.133,.36,color);cylinder(px,y+.425,-1.35,.138,.045,"#d8b675");box(px,y+.24,-1.208,.19,.19,.014,"#f5e6c8");badge(px,y+.25,-1.19,.8,color);}
       }
     }
+    const cabinet=new T.Group();cabinet.position.set(x,0,-1.7);root.add(cabinet);root.updateMatrixWorld(true);for(const part of root.children.slice(first,-1))cabinet.attach(part);cabinet.rotation.y=-side*.24;
   }
   // Framed paw sign over the back counter.
   box(1.18,3.32,-2.45,1.8,.95,.16,"#9e602e",.12);box(1.18,3.32,-2.345,1.64,.79,.08,"#efc680",.1);
   badge(1.18,3.42,-2.285,2.1,"#8c582e");
-  for(let i=0;i<5;i++)box(.78+i*.2,3.12,-2.29,.11,.025,.015,"#ae723d");
+  const lettering:Record<string,number[][][]>={T:[[[-.08,.1],[.08,.1]],[[0,.1],[0,-.1]]],A:[[[-.08,-.1],[0,.1],[.08,-.1]],[[-.04,0],[.04,0]]],M:[[[-.08,-.1],[-.08,.1],[0,-.015],[.08,.1],[.08,-.1]]],Y:[[[-.08,.1],[0,0],[.08,.1]],[[0,0],[0,-.1]]]};
+  [..."TAMMY"].forEach((letter,index)=>lettering[letter].forEach(points=>{const line=new T.CatmullRomCurve3(points.map(([x,y])=>new T.Vector3(1.18+(index-2)*.24+x,3.14+y,-2.28)),false,"catmullrom",0);add(new T.TubeGeometry(line,16,.014,6,false),"#75431f",0,0,0);}));
   // Counter behind the wheel, with drawer pulls and a tiny register.
   box(.8,.54,-1.97,2.45,1.04,.55,"#ae7448");box(.8,1.08,-1.91,2.65,.12,.8,"#d6a367");
   for(let i=0;i<3;i++){box(-.04+i*.8,.71,-1.67,.72,.34,.045,"#c58c58");ball(-.04+i*.8,.71,-1.628,.09,.014,.018,"#ebbf6d");}
