@@ -1,3 +1,7 @@
+# Latest direction: reference artwork
+
+The user has now explicitly approved using image artwork. The active game renderer is ArtWheelScene. It uses five generated reference-derived WebP layers, a live SVG prize rotor and the existing game API. The procedural Three.js files remain as earlier source, but GameStage now loads the artwork renderer. Member bottom navigation remains unchanged. Asset purposes and final prompt set are in public/assets/games/reference-art/README.md.
+
 # วงล้ออุ้งเท้า: เกม 3D จากโค้ดตามคำขอล่าสุด
 
 ผู้ใช้ปรับข้อกำหนดให้ตัวเกมไม่ใช้ภาพประกอบ ฉบับนี้จึงแทนฉากร้านและสัตว์จาก WebP ด้วยโมเดล procedural 3D ทั้งหมด ไม่ใช้ภาพฉาก ภาพซ้อน sprite sheet หรือโมเดลที่ต้องดาวน์โหลด รูปโปรไฟล์สมาชิกและ QR รับรางวัลยังเป็นข้อมูล UI ตามหน้าที่เดิม

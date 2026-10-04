@@ -60,3 +60,30 @@
 @container (max-width:360px){.paw-game--cinematic .paw-title{margin:10px 0 9px}.paw-game--cinematic .paw-stage-space{aspect-ratio:1.15/1}}
 
 .paw-game--cinematic .game-stage-loading{position:absolute;inset:0;height:100%;aspect-ratio:auto;z-index:0;background:#d7b283}
+
+/* Reference artwork, with a live prize rotor behind a stationary illustrated frame. */
+.paw-art-scene{isolation:isolate;pointer-events:none}
+.paw-art-backdrop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;z-index:0;user-select:none}
+.paw-art-wheel{position:absolute;width:var(--art-wheel-width,61%);aspect-ratio:1122/1402;left:50%;top:var(--art-wheel-top,16%);transform:translateX(-50%);z-index:1}
+.paw-art-frame{position:relative;width:100%;height:100%;object-fit:contain;display:block;z-index:2;filter:drop-shadow(0 5px 3px #633c1633)}
+.paw-art-rotor{position:absolute;left:7.4%;top:8.6%;width:85.2%;aspect-ratio:1;transform-origin:50% 50%;z-index:1;border-radius:50%;will-change:transform;background:#bd852b;box-shadow:inset 0 0 6px #422a1955}
+.paw-art-rotor>svg{display:block;width:100%;height:100%}
+.paw-art-pets{position:absolute;width:100%;aspect-ratio:3/2;left:0;bottom:var(--art-pet-bottom,10%);z-index:3}
+.paw-art-pet{position:absolute;width:50%;height:100%;overflow:hidden;transform-origin:50% 95%}
+.paw-art-pet img{position:absolute;top:0;width:200%;height:100%;max-width:none;object-fit:contain;user-select:none}
+.paw-art-pet--dog{left:0;animation:paw-photo-dog 4.5s ease-in-out infinite}
+.paw-art-pet--cat{right:0;animation:paw-photo-cat 5.2s ease-in-out infinite}
+.paw-art-pet--dog img{left:0}.paw-art-pet--cat img{right:0}
+.paw-art-scene.is-spinning .paw-art-pet--dog{animation-duration:1.5s}.paw-art-scene.is-spinning .paw-art-pet--cat{animation-duration:1.8s}
+.paw-art-scene--day .paw-art-backdrop{filter:brightness(1.1)}
+.paw-game--cinematic .paw-title[data-art-title="true"]{margin:5px 0 8px}
+.paw-game--cinematic .paw-title-art{width:86%;max-width:430px;height:auto;display:block;margin:0 auto;filter:drop-shadow(0 4px 3px #261a2b44)}
+.paw-game--cinematic .paw-title[data-art-title="true"] h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.paw-game--cinematic .paw-stage-space{aspect-ratio:1.08/1}
+.paw-game--cinematic .paw-controls{margin-top:-20px}
+.paw-game--cinematic .paw-scene.paw-art-scene--immersive{border-radius:0}
+@keyframes paw-photo-dog{0%,100%{transform:rotate(-.35deg) translateY(0)}50%{transform:rotate(.35deg) translateY(-2px)}}
+@keyframes paw-photo-cat{0%,100%{transform:rotate(.4deg) translateY(0)}50%{transform:rotate(-.3deg) translateY(-1.5px)}}
+@media(prefers-reduced-motion:reduce){.paw-art-pet{animation:none!important}}
+
+.paw-game--cinematic .paw-controls{margin-top:-65px}
