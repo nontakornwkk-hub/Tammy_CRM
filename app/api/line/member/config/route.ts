@@ -12,5 +12,5 @@ export async function GET() {
   catch(cause) { return noStore({error:(cause as Error).message},503); }
   if (!liffId || !loginChannelId) return noStore({ error: "ยังไม่ได้ตั้งค่า LINE Login และ LIFF" }, 503);
   if (!liffMatchesLoginChannel(loginChannelId, liffId)) return noStore({ error: "LINE Login Channel ID ไม่ตรงกับ LIFF ID กรุณาแก้การเชื่อมต่อ LINE" }, 503);
-  return noStore({ liffId });
+  return Response.json({ liffId }, { headers: { "Cache-Control":"public, max-age=60, s-maxage=60, stale-while-revalidate=60" } });
 }

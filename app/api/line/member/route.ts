@@ -1,3 +1,4 @@
+import { prepareLineIdToken } from "@/lib/line/id-token";
 import { after } from "next/server";
 import { memberShopContext } from "@/lib/line/shop-context";
 import { createClient } from "@supabase/supabase-js";
@@ -47,14 +48,13 @@ function publicMember(member: Record<string, unknown>, linePictureUrl: string | 
 
 export async function POST(request: Request) {
   const started=performance.now();
-  const reply=(body:Record<string,unknown>,status=200)=>{const response=json(body,status);response.headers.set("Server-Timing",`total;dur=${(performance.now()-started).toFixed(1)}`);return response;};
+  const timings:string[]=[];
+  let stage=performance.now();
+  const reply=(body:Record<string,unknown>,status=200)=>{const response=json(body,status);response.headers.set("Server-Timing",[...timings,`total;dur=${(performance.now()-started).toFixed(1)}`].join(", "));return response;};
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !secretKey) return reply({ error: "ระบบสมัครผ่าน LINE ยังตั้งค่าไม่ครบ" }, 503);
   const db = createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  let ownerId:string,channelId:string;
-  try { ({ownerId,channelId}=await memberShopContext(db)); }
-  catch(cause) { return reply({error:(cause as Error).message},503); }
 
   let input: Record<string, unknown>;
   try {
@@ -64,11 +64,19 @@ export async function POST(request: Request) {
   } catch {
     return reply({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, 400);
   }
+  if (!input || typeof input !== "object") return reply({error:"คำขอไม่ถูกต้อง"},400);
   if ((!input.idToken || typeof input.idToken !== "string") && (!input.accessToken || typeof input.accessToken !== "string"))
     return reply({ error: "กรุณาเข้าสู่ระบบผ่าน LINE อีกครั้ง" }, 401);
   if (input.action !== "lookup" && input.action !== "register") return reply({ error: "คำขอไม่ถูกต้อง" }, 400);
   if (input.action === "register" && !validRegistration(input.registration))
     return reply({ error: "กรุณากรอกข้อมูลให้ครบและตรวจสอบเบอร์โทรกับวันเกิด" }, 400);
+
+  prepareLineIdToken(typeof input.idToken === "string" ? input.idToken : undefined);
+  let ownerId:string,channelId:string;
+  try { ({ownerId,channelId}=await memberShopContext(db)); }
+  catch(cause) { return reply({error:(cause as Error).message},503); }
+
+  timings.push(`shop;dur=${(performance.now()-stage).toFixed(1)}`);stage=performance.now();
 
   let lineSubject: string;
   let lineDisplayName: string | null = null;
@@ -83,8 +91,10 @@ export async function POST(request: Request) {
     return reply({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
   }
 
+  timings.push(`identity;dur=${(performance.now()-stage).toFixed(1)}`);stage=performance.now();
   const linked = await db.from("members").select("id,line_picture_url,line_display_name,member_code,name,level,points,birth_date,status")
     .eq("owner_id", ownerId).eq("line_user_id", lineSubject).maybeSingle();
+  timings.push(`member;dur=${(performance.now()-stage).toFixed(1)}`);
   if (linked.error) return reply({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
     const existing = linked.data;

@@ -2,10 +2,12 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, PawPrint } from "lucide-react";
-import { CustomerPortal } from "./customer-portal";
+import dynamic from "next/dynamic";
+import { loadCustomerPortal } from "@/lib/customer-portal-loader";
 import Image from "next/image";
 import { CustomerStoreLogo } from "./customer-store-logo";
-import { prefetchMemberData, clearMemberDisplayData, warmGameArtwork } from "@/lib/member-bootstrap";
+import { prefetchMemberData, clearMemberDisplayData } from "@/lib/member-bootstrap";
+import { shouldInitializeLine } from "@/lib/line/login-flow";
 import { singleFlight } from "@/lib/single-flight";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
@@ -22,6 +24,7 @@ const loadConfig = singleFlight<{ liffId: string }>();
 let publicLineConfig: { liffId: string; expiresAt: number } | undefined;
 const initializeLine = singleFlight<void>();
 const lookupMember = singleFlight<{ registered?: boolean; member?: Member; error?: string }>();
+const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.CustomerPortal), { ssr: false });
 
 export function LineMemberRegistration({ preview, previewScreen = "register", testLogin }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void }) {
   const [richMenuView, setRichMenuView] = useState<"points" | "rewards" | "news" | null>(null);
@@ -39,7 +42,6 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
 
   useEffect(() => {
     if (preview) return;
-    warmGameArtwork();
     const query = new URLSearchParams(window.location.search);
     const requestedTransfer = query.get("lineTransfer");
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
@@ -54,7 +56,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         void sdk.catch(() => undefined);
         const config = await loadConfig("config", async () => {
           if (publicLineConfig && publicLineConfig.expiresAt > Date.now()) return { liffId: publicLineConfig.liffId };
-          const response = await fetch("/api/line/member/config", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+          const response = await fetch("/api/line/member/config", { cache: "default", signal: AbortSignal.timeout(10000) });
           const data = await response.json() as { liffId?: string; error?: string };
           if (!response.ok || !data.liffId) throw new Error(data.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
           publicLineConfig = { liffId: data.liffId, expiresAt: Date.now() + 60000 };
@@ -65,8 +67,10 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
         if (signedOut && !connectRequested) { setState("login"); return; }
-        if (!connectRequested && !liffCallback && !pendingTransfer) { setState("entry"); return; }
         const { default: liff } = await sdk;
+        if (!shouldInitializeLine({signedOut,connectRequested,liffCallback,pendingTransfer:Boolean(pendingTransfer),inClient:liff.isInClient()})) { setState("entry"); return; }
+        setState("loading");
+        performance.mark("tammy-line:init-start");
         await initializeLine(config.liffId, async () => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           try {
@@ -77,7 +81,9 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
           } finally { clearTimeout(timer); }
         });
         if (!active) return;
-        if (!liff.isInClient()) {
+        performance.mark("tammy-line:init-end");
+        performance.measure("tammy-line:init","tammy-line:init-start","tammy-line:init-end");
+        if (!liff.isInClient() && !liff.isLoggedIn() && !liffCallback && !connectRequested) {
           setState("entry");
           return;
         }
@@ -98,7 +104,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!token && !access) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token || "");
         setAccessToken(access || "");
-        prefetchMemberData(token || undefined, access || undefined);
+        void loadCustomerPortal().catch(() => undefined);
+        performance.mark("tammy-line:lookup-start");
         const data = await lookupMember(token || access!, async () => {
           const response = await fetch("/api/line/member", {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -108,10 +115,12 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
           if (!response.ok) throw new Error(result.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
           return result;
         });
+        performance.mark("tammy-line:lookup-end");
+        performance.measure("tammy-line:lookup","tammy-line:lookup-start","tammy-line:lookup-end");
         if (!active) return;
         if (data.registered && data.member) {
           if (finalTransfer) { setError("LINE นี้เชื่อมกับสมาชิกอยู่แล้ว กรุณาให้ร้านตรวจสอบก่อนย้ายบัญชี"); setState("unavailable"); }
-          else { setMember(data.member); setState("member"); }
+          else { setMember(data.member); setState("member"); prefetchMemberData(token || undefined, access || undefined); }
         }
         else setState(finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer) ? "transfer" : "form");
       } catch (cause) {

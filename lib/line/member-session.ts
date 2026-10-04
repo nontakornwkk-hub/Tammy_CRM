@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { singleFlight } from "@/lib/single-flight";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { prepareLineIdToken } from "./id-token";
 import { memberShopContext } from "./shop-context";
 import { verifyMemberIdentity } from "./verify-member-identity";
 import { testAdminContext, testMemberMarker } from "./test-member-session";
@@ -30,6 +31,7 @@ async function resolveMemberSession(input: { idToken?: string; accessToken?: str
   if (!url || !secret) return { error: "ระบบสมาชิกยังตั้งค่าเซิร์ฟเวอร์ไม่ครบ", status: 503 };
   const db = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
   if (!input.idToken && !input.accessToken) return { error: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง", status: 401 };
+  prepareLineIdToken(input.idToken);
   let ownerId:string,channelId:string;
   try { ({ownerId,channelId}=await memberShopContext(db)); }
   catch(cause) { return {error:(cause as Error).message,status:503}; }

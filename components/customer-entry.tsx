@@ -5,13 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { singleFlight } from "@/lib/single-flight";
 import { prefetchMemberData, clearMemberDisplayData, warmGameArtwork } from "@/lib/member-bootstrap";
-import { CustomerPortal } from "./customer-portal";
+import dynamic from "next/dynamic";
+import { loadCustomerPortal } from "@/lib/customer-portal-loader";
 import { LineMemberRegistration } from "./line-member-registration";
 
 type EntryState = "checking" | "admin" | "denied" | "line" | "test-error" | "test-login";
 type TestMember = { memberCode: string; name: string; level: string; points: number; linePictureUrl: string | null };
 const testSignedOutKey = "tammy-admin-test-signed-out";
 const loadTestMember = singleFlight<{ member: TestMember; token: string }>();
+const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.CustomerPortal), { ssr: false });
 
 export function CustomerEntry() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export function CustomerEntry() {
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!isActive()) return;
       if (!token) { router.replace("/login?next=%2Fcustomer"); return; }
+      void loadCustomerPortal().catch(() => undefined);
       const result = await loadTestMember(token, async () => {
         const response = await fetch("/api/dev/test-member", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
         const data = await response.json() as { member?: TestMember; error?: string };
