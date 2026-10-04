@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { singleFlight } from "@/lib/single-flight";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { memberShopContext } from "./shop-context";
 import { verifyMemberIdentity } from "./verify-member-identity";
 import { testAdminContext, testMemberMarker } from "./test-member-session";
 
@@ -28,14 +29,10 @@ async function resolveMemberSession(input: { idToken?: string; accessToken?: str
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !secret) return { error: "ระบบสมาชิกยังตั้งค่าเซิร์ฟเวอร์ไม่ครบ", status: 503 };
   const db = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
-  const shop = await db.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").single();
-  if (shop.error || !shop.data) return { error: "ไม่พบข้อมูลร้าน", status: 503 };
-  const ownerId = shop.data.owner_id as string;
-
   if (!input.idToken && !input.accessToken) return { error: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง", status: 401 };
-  const connection = await db.from("line_connections").select("login_channel_id").eq("owner_id", ownerId).maybeSingle();
-  const channelId = connection.data?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID;
-  if (!channelId) return { error: "ยังไม่เปิดใช้งาน LINE Login", status: 503 };
+  let ownerId:string,channelId:string;
+  try { ({ownerId,channelId}=await memberShopContext(db)); }
+  catch(cause) { return {error:(cause as Error).message,status:503}; }
   try {
     const identity = await verifyMemberIdentity(input, channelId);
     if (!identity) return { error: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง", status: 401 };

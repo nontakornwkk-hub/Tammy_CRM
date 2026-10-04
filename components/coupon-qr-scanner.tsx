@@ -2,6 +2,7 @@
 
 import { Camera, Check, Keyboard, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { notifyCatalogChanged } from "@/lib/catalog-live";
 import { supabase } from "@/lib/supabase/client";
 import { memberScannerKey, normalizeGameScan, normalizeMemberScan } from "@/lib/member-code";
 import { ProfilePhoto } from "./profile-photo";
@@ -76,7 +77,7 @@ export function CouponQrScanner({ onClose, initialQr = "" }: { onClose: () => vo
   async function redeem() {
     if (!claim || busy) return;
     setBusy(true); setError("");
-    try { await call("redeem", qr); setDone(true); setClaim({ ...claim, status: "used" }); }
+    try { await call("redeem", qr); setDone(true); notifyCatalogChanged(); setClaim({ ...claim, status: "used" }); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "ใช้สิทธิ์ไม่สำเร็จ"); }
     finally { setBusy(false); }
   }

@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     catalogDb.from("coupons").select("id,title,description,discount_type,discount_value,min_spend,usage_limit,used_count,active,starts_at,ends_at,theme_color,audience_mode,qr_valid_minutes").eq("owner_id", catalogOwnerId).eq("active", true).order("created_at", { ascending: false }),
     db.from("redemptions").select("coupon_id").eq("owner_id", ownerId).eq("member_id", memberId).eq("status", "completed").not("coupon_id", "is", null),
     db.from("member_coupon_claims").select("coupon_id,campaign_id,status").eq("owner_id", ownerId).eq("member_id", memberId),
-    db.from("members").select("spending,level").eq("owner_id",ownerId).eq("id",memberId).maybeSingle(),
+    db.from("members").select("spending,level,points").eq("owner_id",ownerId).eq("id",memberId).maybeSingle(),
     catalogDb.from("store_settings").select("extra").eq("owner_id",catalogOwnerId).maybeSingle(),
   ]);
   if (rewardResult.error || couponResult.error || usedResult.error) return json({ error: "โหลดสิทธิพิเศษไม่สำเร็จ" }, 500);
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
   const next=member.data?.level==="Platinum"?null:member.data?.level==="Gold"?"Platinum":"Gold";
   const threshold=next==="Platinum"?platinum:gold,spending=Number(member.data?.spending)||0;
   return json({
+    points:member.data?.points,
     rankProgress:member.error||settings.error||!member.data?null:{percent:next?Math.min(100,spending/threshold*100):100,remaining:Math.max(0,threshold-spending),next},
     rewards: (rewardResult.data || []).filter(item => withinDates(item) && (item.stock === null || item.stock > 0)),
     coupons: (couponResult.data || []).filter(item => withinDates(item) && !usedCoupons.has(item.id) && (session.catalogDb || item.audience_mode === "public" || grantedCoupons.has(item.id)) && (item.usage_limit === null || item.used_count < item.usage_limit)),

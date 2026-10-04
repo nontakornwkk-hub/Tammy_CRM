@@ -12,10 +12,12 @@ export function cachedMemberCatalog(idToken?: string, accessToken?: string) {
 
 export function clearMemberCatalog() { generation++; snapshot = undefined; }
 
-export function loadMemberCatalog(idToken?: string, accessToken?: string) {
+export function loadMemberCatalog(idToken?: string, accessToken?: string, { fresh=false }={}) {
+  const cached=cachedMemberCatalog(idToken,accessToken);
+  if(!fresh&&cached)return Promise.resolve(cached);
   const key = keyFor(idToken, accessToken);
   const requestedGeneration = generation;
-  return pending(key, async () => {
+  return pending(`${requestedGeneration}:${key}`, async () => {
     const response = await fetch("/api/line/member/catalog", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken, accessToken }), cache: "no-store", signal: AbortSignal.timeout(12000),

@@ -1,3 +1,4 @@
+import { syncTestGameCatalog } from "@/lib/games/test-catalog";
 import { getTestTickets } from "@/lib/games/test-tickets";
 import { randomInt } from "node:crypto";
 import { verifiedMemberSession } from "@/lib/line/member-session";
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
   if (!input || typeof input !== "object" || !["status", "play", "recover"].includes(input.action) || (input.idToken != null && typeof input.idToken !== "string") || (input.accessToken != null && typeof input.accessToken !== "string")) return noStore({ error: "คำขอไม่ถูกต้อง" }, 400);
   const session = await verifiedMemberSession(input); if ("error" in session) return noStore({ error: session.error }, session.status);
   try {
+    if(input.action!=="recover")await syncTestGameCatalog(session);
     if (input.action === "status") return noStore(await readMemberGames(session.db, session.ownerId, session.memberId));
     if (typeof input.requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(input.requestId) || typeof input.gameKey !== "string" || !/^[a-z][a-z0-9-]{2,49}$/.test(input.gameKey)) return noStore({ error: "รหัสรอบไม่ถูกต้อง" }, 400);
     if (input.action === "recover") {

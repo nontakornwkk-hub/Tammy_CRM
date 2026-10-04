@@ -95,3 +95,19 @@
 .paw-game--cinematic .paw-purchase>div,.paw-game--cinematic .paw-purchase>div>b{font-size:11px;line-height:1.4}
 .paw-game--cinematic .paw-purchase progress{height:4px;margin:4px 0 0;box-shadow:none}
 .paw-game--cinematic .paw-purchase small{display:none}
+
+.paw-wheel-value text{fill:#fff8df;stroke:#123b62;stroke-width:.65;stroke-linejoin:round;paint-order:stroke;letter-spacing:.1px}
+.paw-wheel-value .paw-wheel-unit{stroke-width:.3}
+
+.paw-game.paw-game--coming-soon{background:linear-gradient(155deg,#fff9ed,#f6edff 65%,#edf8ff);min-height:420px;border:1px solid #eee3fa;color:#58447d;padding-bottom:22px}
+.paw-game--coming-soon .paw-hud{position:relative;z-index:1}
+.paw-coming-soon{display:flex;flex-direction:column;align-items:center;text-align:center;padding:42px 16px 32px;gap:12px}
+.paw-coming-soon-icon{position:relative;display:grid;place-items:center;width:90px;height:90px;border-radius:28px;background:#fff;box-shadow:0 8px 28px #ad8bcd18;color:#9272bd}
+.paw-coming-soon-icon>svg+svg{position:absolute;right:-6px;bottom:3px;color:#d4a34b;background:#fff8df;border-radius:50%;padding:5px;box-sizing:content-box}
+.paw-coming-soon small{font-size:10px;letter-spacing:2px;color:#9d84b0}
+.paw-coming-soon h2{font-size:clamp(19px,5.5vw,25px);margin:3px 0;color:#594078}
+.paw-coming-soon p{font-size:12px;line-height:1.8;margin:0;color:#947faa}
+.paw-coming-soon-tag{font-size:12px;padding:8px 16px;border-radius:999px;background:#fff8e7;color:#a17c34}
+.paw-game--coming-soon .paw-actions{margin-top:12px}
+
+.paw-game--coming-soon::before,.paw-game--coming-soon::after{display:none}

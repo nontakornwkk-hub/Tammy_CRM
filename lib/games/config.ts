@@ -6,9 +6,9 @@ export function defaultGameSetup(): GameSetup {
 export function newPrize(): AdminPrize {
   return { id: "", title: "รางวัลใหม่", kind: "points", image: "", color: GAME_COLORS[0], points: 2, weight: 0, stock: null, active: true, discountType: "percent", discountValue: 5, minSpend: 0, maxDiscount: null, expiryMode: "hours", expiryHours: 168, expiresAt: null };
 }
-export function publicPrize(prize: AdminPrize): PublicPrize {
+export function publicPrize(prize: PublicPrize): PublicPrize {
   // Explicit allowlist: never spread an administrative row into member output.
-  return { id: prize.id, title: prize.title, kind: prize.kind, image: prize.image, color: prize.color, points: prize.points, discountType: prize.discountType, discountValue: prize.discountValue, minSpend: prize.minSpend, maxDiscount: prize.maxDiscount, expiryMode: prize.expiryMode, expiryHours: prize.expiryHours, expiresAt: prize.expiresAt };
+  return { id: prize.id, title: prize.kind === "points" && /^(?:[\d,]+\s*แต้ม|รางวัลใหม่)$/.test(prize.title.trim()) ? `${prize.points} แต้ม` : prize.title, kind: prize.kind, image: prize.image, color: prize.color, points: prize.points, discountType: prize.discountType, discountValue: prize.discountValue, minSpend: prize.minSpend, maxDiscount: prize.maxDiscount, expiryMode: prize.expiryMode, expiryHours: prize.expiryHours, expiresAt: prize.expiresAt };
 }
 export function validateSetup(value: unknown): asserts value is GameSetup {
   if (!value || typeof value !== "object") throw new Error("การตั้งค่าไม่ถูกต้อง");

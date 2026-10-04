@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { memberShopContext } from "@/lib/line/shop-context";
 import { createClient } from "@supabase/supabase-js";
 import { verifyMemberIdentity } from "@/lib/line/verify-member-identity";
 
@@ -44,63 +46,64 @@ function publicMember(member: Record<string, unknown>, linePictureUrl: string | 
 }
 
 export async function POST(request: Request) {
+  const started=performance.now();
+  const reply=(body:Record<string,unknown>,status=200)=>{const response=json(body,status);response.headers.set("Server-Timing",`total;dur=${(performance.now()-started).toFixed(1)}`);return response;};
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !secretKey) return json({ error: "ระบบสมัครผ่าน LINE ยังตั้งค่าไม่ครบ" }, 503);
+  if (!supabaseUrl || !secretKey) return reply({ error: "ระบบสมัครผ่าน LINE ยังตั้งค่าไม่ครบ" }, 503);
   const db = createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const shop = await db.from("public_shop_profiles").select("owner_id").eq("slug", "tammy").single();
-  if (shop.error || !shop.data) return json({ error: "ยังไม่พบข้อมูลร้าน" }, 503);
-  const configured = await db.from("line_connections").select("login_channel_id")
-    .eq("owner_id", shop.data.owner_id).maybeSingle();
-  if (configured.error) return json({ error: "ตรวจการเชื่อมต่อ LINE ไม่สำเร็จ" }, 503);
-  const channelId = configured.data?.login_channel_id || process.env.LINE_LOGIN_CHANNEL_ID;
-  if (!channelId) return json({ error: "ยังไม่ได้ตั้งค่า LINE Login Channel ID" }, 503);
+  let ownerId:string,channelId:string;
+  try { ({ownerId,channelId}=await memberShopContext(db)); }
+  catch(cause) { return reply({error:(cause as Error).message},503); }
 
   let input: Record<string, unknown>;
   try {
     const raw = await request.text();
-    if (raw.length > 8192) return json({ error: "ข้อมูลที่ส่งมีขนาดใหญ่เกินไป" }, 413);
+    if (raw.length > 8192) return reply({ error: "ข้อมูลที่ส่งมีขนาดใหญ่เกินไป" }, 413);
     input = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    return json({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, 400);
+    return reply({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, 400);
   }
   if ((!input.idToken || typeof input.idToken !== "string") && (!input.accessToken || typeof input.accessToken !== "string"))
-    return json({ error: "กรุณาเข้าสู่ระบบผ่าน LINE อีกครั้ง" }, 401);
-  if (input.action !== "lookup" && input.action !== "register") return json({ error: "คำขอไม่ถูกต้อง" }, 400);
+    return reply({ error: "กรุณาเข้าสู่ระบบผ่าน LINE อีกครั้ง" }, 401);
+  if (input.action !== "lookup" && input.action !== "register") return reply({ error: "คำขอไม่ถูกต้อง" }, 400);
   if (input.action === "register" && !validRegistration(input.registration))
-    return json({ error: "กรุณากรอกข้อมูลให้ครบและตรวจสอบเบอร์โทรกับวันเกิด" }, 400);
+    return reply({ error: "กรุณากรอกข้อมูลให้ครบและตรวจสอบเบอร์โทรกับวันเกิด" }, 400);
 
   let lineSubject: string;
   let lineDisplayName: string | null = null;
   let linePictureUrl: string | null = null;
   try {
     const identity = await verifyMemberIdentity({ idToken: typeof input.idToken === "string" ? input.idToken : undefined, accessToken: typeof input.accessToken === "string" ? input.accessToken : undefined }, channelId);
-    if (!identity) return json({ error: "เซสชัน LINE หมดอายุหรือไม่ตรงกับช่องทางที่เชื่อมไว้ กรุณาเข้าสู่ LINE อีกครั้ง", errorCode: "LINE_ID_TOKEN_REJECTED" }, 401);
+    if (!identity) return reply({ error: "เซสชัน LINE หมดอายุหรือไม่ตรงกับช่องทางที่เชื่อมไว้ กรุณาเข้าสู่ LINE อีกครั้ง", errorCode: "LINE_ID_TOKEN_REJECTED" }, 401);
     lineSubject = identity.sub;
     lineDisplayName = identity.name?.slice(0, 120) || null;
     linePictureUrl = identity.picture?.startsWith("https://") ? identity.picture : null;
   } catch {
-    return json({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
+    return reply({ error: "ติดต่อ LINE ไม่สำเร็จ กรุณาลองใหม่" }, 502);
   }
 
   const linked = await db.from("members").select("id,line_picture_url,line_display_name,member_code,name,level,points,birth_date,status")
-    .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject).maybeSingle();
-  if (linked.error) return json({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
+    .eq("owner_id", ownerId).eq("line_user_id", lineSubject).maybeSingle();
+  if (linked.error) return reply({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
     const existing = linked.data;
-    if (!existing || existing.status !== "active") return json({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
+    if (!existing || existing.status !== "active") return reply({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
     // Avoid writing the same LINE profile on every login.
     if ((lineDisplayName && lineDisplayName !== linked.data.line_display_name) || (linePictureUrl && linePictureUrl !== linked.data.line_picture_url)) {
-      await db.from("members").update({
-        ...(lineDisplayName ? { line_display_name: lineDisplayName } : {}),
-        ...(linePictureUrl ? { line_picture_url: linePictureUrl } : {}),
-        line_profile_synced_at: new Date().toISOString(),
-      }).eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
+      after(async () => {
+        const synced=await db.from("members").update({
+          ...(lineDisplayName ? {line_display_name:lineDisplayName}:{}),
+          ...(linePictureUrl ? {line_picture_url:linePictureUrl}:{}),
+          line_profile_synced_at:new Date().toISOString(),
+        }).eq("owner_id",ownerId).eq("line_user_id",lineSubject);
+        if(synced.error)console.warn("LINE profile sync failed",{code:synced.error.code});
+      });
     }
-    return json({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
+    return reply({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
   }
 
-  if (input.action === "lookup") return json({ registered: false });
+  if (input.action === "lookup") return reply({ registered: false });
   const form = input.registration as Registration;
   const result = await db.rpc("register_line_member", {
     line_subject: lineSubject,
@@ -112,13 +115,13 @@ export async function POST(request: Request) {
   });
   if (result.error) {
     if (result.error.message.includes("PHONE_ALREADY_REGISTERED") || result.error.code === "23505" && result.error.message.includes("phone"))
-      return json({ error: "เบอร์นี้เป็นสมาชิกอยู่แล้ว กรุณาติดต่อร้านเพื่อยืนยันและผูกบัญชีเดิม" }, 409);
-    if (result.error.code === "23505") return json({ error: "บัญชีนี้สมัครแล้ว กรุณาเปิดหน้าใหม่" }, 409);
-    if (result.error.message.includes("INVALID_REGISTRATION")) return json({ error: "ข้อมูลสมัครไม่ถูกต้อง" }, 400);
-    return json({ error: "สมัครสมาชิกไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
+      return reply({ error: "เบอร์นี้เป็นสมาชิกอยู่แล้ว กรุณาติดต่อร้านเพื่อยืนยันและผูกบัญชีเดิม" }, 409);
+    if (result.error.code === "23505") return reply({ error: "บัญชีนี้สมัครแล้ว กรุณาเปิดหน้าใหม่" }, 409);
+    if (result.error.message.includes("INVALID_REGISTRATION")) return reply({ error: "ข้อมูลสมัครไม่ถูกต้อง" }, 400);
+    return reply({ error: "สมัครสมาชิกไม่สำเร็จ กรุณาลองอีกครั้ง" }, 500);
   }
   if (lineDisplayName) await db.from("members").update({ line_display_name: lineDisplayName,
     line_picture_url: linePictureUrl, line_profile_synced_at: new Date().toISOString() })
-    .eq("owner_id", shop.data.owner_id).eq("line_user_id", lineSubject);
-  return json({ registered: true, member: publicMember(result.data as Record<string, unknown>, linePictureUrl) }, 201);
+    .eq("owner_id", ownerId).eq("line_user_id", lineSubject);
+  return reply({ registered: true, member: publicMember(result.data as Record<string, unknown>, linePictureUrl) }, 201);
 }

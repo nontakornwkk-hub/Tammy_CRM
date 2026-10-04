@@ -1,6 +1,7 @@
 "use client";
 
 
+import { notifyCatalogChanged } from "@/lib/catalog-live";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -195,6 +196,7 @@ export function PointsManager() {
       if (awardError) throw awardError;
       if (!data?.id) throw new Error("ฐานข้อมูลไม่ยืนยันรายการให้แต้ม");
       const total = Number(data.points);
+      notifyCatalogChanged();
       setHistoryRevision(value => value + 1);
       setCustomers((current) => current.map((customer) => customer.id === selected.id ? { ...customer, points: total, level: data.level as MemberLevel, spending: Number(data.spending) } : customer));
       clearCachedData("points", "members", "reports");

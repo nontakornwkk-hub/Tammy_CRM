@@ -5,7 +5,7 @@ import { ArrowRight, PawPrint } from "lucide-react";
 import { CustomerPortal } from "./customer-portal";
 import Image from "next/image";
 import { CustomerStoreLogo } from "./customer-store-logo";
-import { loadMemberCatalog, clearMemberCatalog } from "@/lib/customer-catalog";
+import { prefetchMemberData, clearMemberDisplayData, warmGameArtwork } from "@/lib/member-bootstrap";
 import { singleFlight } from "@/lib/single-flight";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
@@ -39,6 +39,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
 
   useEffect(() => {
     if (preview) return;
+    warmGameArtwork();
     const query = new URLSearchParams(window.location.search);
     const requestedTransfer = query.get("lineTransfer");
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
@@ -97,7 +98,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!token && !access) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
         setIdToken(token || "");
         setAccessToken(access || "");
-        void loadMemberCatalog(token || undefined, access || undefined).catch(() => undefined);
+        prefetchMemberData(token || undefined, access || undefined);
         const data = await lookupMember(token || access!, async () => {
           const response = await fetch("/api/line/member", {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -131,7 +132,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   }
 
   async function logout() {
-    clearMemberCatalog(); localStorage.setItem(signedOutKey, "1");
+    clearMemberDisplayData(); localStorage.setItem(signedOutKey, "1");
     setConnectRequested(false);
     setMember(null); setIdToken(""); setAccessToken(""); setError("");
     setState("login");

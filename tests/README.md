@@ -21,3 +21,11 @@ History scrolling and detail prefetch checks:
     node --experimental-strip-types tests/history-scroll-and-cache.mjs
 
 This verifies Bangkok month boundaries, cursor pagination across more than 1,000 mixed transactions (including equal timestamps), account isolation and request deduplication. The UI opens a row immediately from list data while authoritative details are revalidated. Management commands stay disabled until this check finishes.
+
+Member latency and wheel catalog checks:
+
+    node tests/member-speed.mjs
+    node tests/game-catalog-sync.mjs
+    node tests/game-platform.mjs
+
+The latency check uses delayed mock responses to verify bootstrap deduplication, warm navigation, QR expiry and logout races. Its millisecond results measure local cache/encoding, not LINE login or real Supabase network latency. The catalog check uses two isolated PostgreSQL databases and rejects every production-side write.

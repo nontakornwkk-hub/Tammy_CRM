@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { singleFlight } from "@/lib/single-flight";
+import { prefetchMemberData, clearMemberDisplayData, warmGameArtwork } from "@/lib/member-bootstrap";
 import { CustomerPortal } from "./customer-portal";
 import { LineMemberRegistration } from "./line-member-registration";
 
@@ -21,6 +22,7 @@ export function CustomerEntry() {
   const [testBusy, setTestBusy] = useState(false);
 
   const openTestMember = useCallback(async (isActive: () => boolean = () => true) => {
+    warmGameArtwork();
     setState("checking"); setTestError("");
     try {
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
@@ -33,6 +35,7 @@ export function CustomerEntry() {
         return { member: data.member, token };
       });
       if (!isActive()) return;
+      prefetchMemberData(undefined, `test:${token}`);
       localStorage.removeItem(testSignedOutKey);
       setTestMember(result.member); setTestToken(token); setState("admin");
     } catch (cause) {
@@ -70,7 +73,7 @@ export function CustomerEntry() {
   }, [openTestMember]);
 
   if (state === "line") return <LineMemberRegistration preview={false} />;
-  if (state === "admin" && testMember) return <><div className="customer-local-test-banner customer-database-test-banner"><span>รายการร้านจริง · ทดสอบไม่ตัดสต็อก</span><div><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("addPoints")}>+500 แต้ม</button><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("reset")}>รีเซ็ตแต้ม</button></div>{testError ? <small role="alert">{testError}</small> : null}</div><CustomerPortal mode="customer" member={testMember} accessToken={`test:${testToken}`} onLogout={() => { localStorage.setItem(testSignedOutKey, "1"); setTestMember(null); setTestToken(""); setState("test-login"); }} onMemberUpdated={name => setTestMember(value => value ? { ...value, name } : value)} /></>;
+  if (state === "admin" && testMember) return <><div className="customer-local-test-banner customer-database-test-banner"><span>รายการร้านจริง · ทดสอบไม่ตัดสต็อก</span><div><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("addPoints")}>+500 แต้ม</button><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("reset")}>รีเซ็ตแต้ม</button></div>{testError ? <small role="alert">{testError}</small> : null}</div><CustomerPortal mode="customer" member={testMember} accessToken={`test:${testToken}`} onLogout={() => { clearMemberDisplayData(); localStorage.setItem(testSignedOutKey, "1"); setTestMember(null); setTestToken(""); setState("test-login"); }} onMemberUpdated={name => setTestMember(value => value ? { ...value, name } : value)} /></>;
   if (state === "test-login") return <><div className="customer-local-test-banner">โหมดทดสอบ · ฐานข้อมูลแยกจากร้านจริง</div><LineMemberRegistration preview previewScreen="login" testLogin={() => void openTestMember()} /></>;
   if (state === "test-error") return <main className="admin-auth-check" role="alert">{testError}</main>;
   if (state === "denied") return <main className="admin-auth-check" role="alert">บัญชีนี้ไม่มีสิทธิ์ดูหน้าทดสอบลูกค้า</main>;

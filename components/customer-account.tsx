@@ -2,17 +2,12 @@
 
 import Image from "next/image";
 import { Cat, Dog, Check, ChevronRight, Clock3, LogOut, Minus, Pencil, Plus, ShieldCheck, Star, Trash2, UserRound, X } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { watchCatalogChanges } from "@/lib/catalog-live";
+import { cachedMemberAccount, loadMemberAccount, type Profile, type PointEntry } from "@/lib/customer-account-data";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
 
-type Profile = {
-  dogCount: number; catCount: number;
-  memberCode: string; name: string; firstName: string; lastName: string; gender: string;
-  birthDate: string; birthdayChangedAt: string; phone: string; email: string; level: string; points: number;
-  lineDisplayName: string; linePictureUrl: string; privacyConsent: boolean; consentUpdatedAt: string;
-};
-type PointEntry = { id: string; points_delta: number; transaction_type: string; note: string; created_at: string };
 
 const previewProfile: Profile = {
   dogCount: 0, catCount: 0,
@@ -36,22 +31,25 @@ export function CustomerAccount({ preview, member, idToken, accessToken, onLogou
   onLogout?: () => void;
   onMemberUpdated?: (name: string) => void;
 }) {
-  const [profile, setProfile] = useState<Profile | null>(preview ? previewProfile : null);
-  const [form, setForm] = useState<Profile | null>(preview ? previewProfile : null);
-  const [pointsHistory, setPointsHistory] = useState<PointEntry[]>([]);
-  const [hasMore, setHasMore] = useState(false);
+  const initialAccount = preview ? undefined : cachedMemberAccount(idToken, accessToken);
+  const [profile, setProfile] = useState<Profile | null>(preview ? previewProfile : initialAccount?.profile || null);
+  const [form, setForm] = useState<Profile | null>(preview ? previewProfile : initialAccount?.profile || null);
+  const [pointsHistory, setPointsHistory] = useState<PointEntry[]>(initialAccount?.pointsHistory || []);
+  const [hasMore, setHasMore] = useState(Boolean(initialAccount?.hasMore));
   const [historyBusy, setHistoryBusy] = useState(false);
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(Boolean(initialAccount?.profile.privacyConsent));
+  const editingRef=useRef(false),consentDirty=useRef(false);
   const [consentBusy, setConsentBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteCode, setDeleteCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(!preview);
+  const [loading, setLoading] = useState(!preview && !initialAccount);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  editingRef.current=editing;
   useEffect(() => {
     if (!editing) return;
     const frame = requestAnimationFrame(() => document.querySelector(".customer-account-form")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -61,16 +59,16 @@ export function CustomerAccount({ preview, member, idToken, accessToken, onLogou
 useEffect(() => {
     if (preview || (!idToken && !accessToken)) return;
     let active = true;
-    void (async () => {
+    const refresh = async (fresh=false) => {
       try {
-        const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "load", idToken, accessToken }) });
-        const data = await response.json() as { profile?: Profile; pointsHistory?: PointEntry[]; hasMore?: boolean; error?: string };
-        if (!response.ok || !data.profile) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
-        if (active) { setProfile(data.profile); setForm(data.profile); setConsent(data.profile.privacyConsent); setPointsHistory(data.pointsHistory || []); setHasMore(Boolean(data.hasMore)); }
+        const data = await loadMemberAccount(idToken, accessToken, { fresh: fresh || refreshKey > 0 });
+        if (active) { setProfile(data.profile); if(!editingRef.current)setForm(data.profile); if(!consentDirty.current)setConsent(data.profile.privacyConsent); setPointsHistory(items=>items.length>5?[...(data.pointsHistory||[]),...items.filter(item=>!data.pointsHistory.some(next=>next.id===item.id))]:(data.pointsHistory||[])); setHasMore(Boolean(data.hasMore)); }
       } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "โหลดข้อมูลไม่สำเร็จ"); }
       finally { if (active) setLoading(false); }
-    })();
-    return () => { active = false; };
+    };
+    void refresh();
+    const stopWatching=watchCatalogChanges(()=>void refresh(true));
+    return () => { active = false; stopWatching(); };
   }, [preview, idToken, accessToken, refreshKey]);
 
   async function loadHistory() {
@@ -93,6 +91,7 @@ useEffect(() => {
       const response = await fetch("/api/line/member/account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "consent", idToken, accessToken, consent }) });
       const data = await response.json() as { consent: boolean; consentUpdatedAt: string; error?: string };
       if (!response.ok) throw new Error(data.error || "บันทึกความยินยอมไม่สำเร็จ");
+      consentDirty.current=false;
       setProfile(value => value ? { ...value, privacyConsent: data.consent, consentUpdatedAt: data.consentUpdatedAt } : value);
       setForm(value => value ? { ...value, privacyConsent: data.consent, consentUpdatedAt: data.consentUpdatedAt } : value);
       setMessage(data.consent ? "บันทึกความยินยอมแล้ว" : "บันทึกการไม่ยินยอมแล้ว");
@@ -178,7 +177,7 @@ useEffect(() => {
       <section className="customer-account-card customer-account-privacy">
         <h2>ข้อมูลส่วนบุคคล (PDPA)</h2>
         <details className="customer-privacy-details"><summary>อ่านรายละเอียดการใช้ข้อมูล</summary><h3>ข้อมูลสำหรับการเป็นสมาชิก</h3><p>ร้าน Tammy Pet Shop ใช้ข้อมูลบัญชี LINE ชื่อ เบอร์โทร และข้อมูลที่คุณกรอก เพื่อระบุตัวสมาชิก จัดการแต้มและสิทธิพิเศษ และแสดงประวัติการใช้งานของคุณ</p><h3>ความยินยอมรับข่าวสาร</h3><p>เมื่อเลือกยินยอม ร้านจะใช้ข้อมูลติดต่อและข้อมูลสมาชิกเพื่อส่งข่าวสาร โปรโมชั่น และสิทธิพิเศษผ่าน LINE คุณเปลี่ยนตัวเลือกนี้ได้ทุกเมื่อ โดยยังใช้บัญชีสมาชิกและแต้มได้ตามปกติ</p><p>คุณแก้ไขข้อมูลหรือลบบัญชีได้ในเมนูจัดการบัญชี หากต้องการสอบถามการใช้ข้อมูล ติดต่อร้านผ่าน LINE Official Account</p></details>
-        <label className="customer-consent-label"><input type="checkbox" checked={consent} disabled={consentBusy || loading || preview} onChange={event => setConsent(event.target.checked)} /><span>ฉันยินยอมให้ร้านใช้ข้อมูลส่วนบุคคลเพื่อส่งข่าวสาร โปรโมชั่น และสิทธิพิเศษผ่าน LINE</span></label>
+        <label className="customer-consent-label"><input type="checkbox" checked={consent} disabled={consentBusy || loading || preview} onChange={event => {consentDirty.current=true;setConsent(event.target.checked);}} /><span>ฉันยินยอมให้ร้านใช้ข้อมูลส่วนบุคคลเพื่อส่งข่าวสาร โปรโมชั่น และสิทธิพิเศษผ่าน LINE</span></label>
         <p>ไม่บังคับ · ถอนความยินยอมได้ทุกเมื่อ</p>
         <button type="button" className="customer-consent-save" disabled={consentBusy || loading || !profile || preview || (consent === profile.privacyConsent && Boolean(profile.consentUpdatedAt))} onClick={() => void saveConsent()}>{consentBusy ? "กำลังบันทึก…" : "บันทึกความยินยอม"}</button>
         {shown.consentUpdatedAt && <p role="status">บันทึกล่าสุด {dateLabel(shown.consentUpdatedAt)} · {shown.privacyConsent ? "ยินยอม" : "ไม่ยินยอม"}</p>}

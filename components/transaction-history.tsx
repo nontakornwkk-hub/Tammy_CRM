@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyCatalogChanged } from "@/lib/catalog-live";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, CalendarDays, Clock3, Sparkles, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -68,6 +69,7 @@ export function TransactionHistory({ revision, onChanged }: { revision: number; 
       const response = await fetch("/api/admin/transactions", { method: "POST", headers: { ...await authorization(), "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id, kind: detail.kind, action, reason }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "ทำรายการไม่สำเร็จ");
+      notifyCatalogChanged();
       setNotice(`${actionLabels[action]}สำเร็จ · แต้มคงเหลือ ${Number(result.result.points_after).toLocaleString("th-TH")}`);
       clearTransactionDetails(); setRefresh(value => value + 1); onChanged();
     } catch (cause) { setNotice(`ทำรายการไม่สำเร็จ: ${cause instanceof Error ? cause.message : "กรุณาลองอีกครั้ง"}`); }

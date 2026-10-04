@@ -4,7 +4,8 @@ import Image from "next/image";
 import { Noto_Sans_Thai } from "next/font/google";
 import { ArrowLeft, Check, Gift, PawPrint, Star, Tag, TicketPercent, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import QRCode from "qrcode";
+import { cachedCouponQr, clearCouponQr, loadCouponQr, localQr } from "@/lib/customer-qr";
+import { prefetchMemberData } from "@/lib/member-bootstrap";
 import { normalizeCardDesign, type CardDesign } from "@/lib/card-design";
 import { normalizePopupDisplay, type PopupDisplay } from "@/lib/popup-content";
 import { supabase } from "@/lib/supabase/client";
@@ -62,11 +63,14 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   const [confirmRewardOpen, setConfirmRewardOpen] = useState(false);
   const rewardRequestId = useRef<string | null>(null);
   const redeemLock = useRef(false);
+  const memberRevision = useRef(0);
   const [couponQr, setCouponQr] = useState("");
   const [couponQrExpiresAt, setCouponQrExpiresAt] = useState("");
   const [couponNow, setCouponNow] = useState(Date.now());
   const [couponQrBusy, setCouponQrBusy] = useState(false);
   const couponQrLock = useRef(false);
+  const selectedCouponId = useRef<string | null>(null);
+  selectedCouponId.current = selectedCoupon?.id || null;
   const [usedCouponTitle, setUsedCouponTitle] = useState("");
   const [couponStatusError, setCouponStatusError] = useState("");
   const [couponToWatch, setCouponToWatch] = useState<{ id: string; title: string; expiresAt: string } | null>(null);
@@ -143,6 +147,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       const data = await response.json() as { success?: boolean; points?: number; testMode?: boolean; error?: string };
       if (!response.ok || !data.success) throw new Error(data.error || "ทำรายการไม่สำเร็จ");
       if (typeof data.points === "number") setMemberPoints(data.points);
+      memberRevision.current++;
       clearMemberCatalog();
       setAccountRevision(value => value + 1);
       setConfirmRewardOpen(false); setRewardRedeemed(true); setRewards(items => items.map(item => !data.testMode && item.id === itemId && item.stock !== null ? { ...item, stock: Math.max(0, item.stock - 1) } : item)); setSelectedReward(item => !data.testMode && item?.id === itemId && item.stock !== null ? { ...item, stock: Math.max(0, item.stock - 1) } : item);
@@ -151,7 +156,9 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   }
 
   function openCoupon(item: Coupon) {
-    setSelectedCoupon(item); setCouponQr(""); setCouponQrExpiresAt(""); setRedeemError(""); setCouponStatusError("");
+    const cached = isMember ? cachedCouponQr(item.id, idToken, accessToken) : undefined;
+    setSelectedCoupon(item); setCouponQr(cached?.url || ""); setCouponQrExpiresAt(cached?.expiresAt || ""); setCouponNow(Date.now()); setRedeemError(""); setCouponStatusError("");
+    if (cached) setCouponToWatch({ id:item.id, title:item.title, expiresAt:cached.expiresAt });
   }
 
   useEffect(() => {
@@ -166,7 +173,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       clearTimeout(timer);
       if (document.visibilityState === "hidden") return;
       pending = true;
-      let delay = 1500;
+      let delay = 1000;
       try {
         const response = await fetch("/api/line/member/coupon-qr", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -179,6 +186,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
         setCouponStatusError("");
         if (result.used) {
           finished = true;
+          clearCouponQr(coupon.id, idToken, accessToken);
           clearMemberCatalog();
           setCoupons(items => items.filter(item => item.id !== coupon.id));
           setSelectedCoupon(null); setCouponQr(""); setCouponQrExpiresAt("");
@@ -198,26 +206,24 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
       }
     }
     const resume = () => { if (document.visibilityState === "visible") void checkStatus(); };
+    const stopWatching = watchCatalogChanges(resume);
     void checkStatus();
     document.addEventListener("visibilitychange", resume);
     window.addEventListener("focus", resume);
-    return () => { controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
+    return () => { stopWatching(); controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
   }, [isMember, couponToWatch, idToken, accessToken]);
 
   async function activateCoupon() {
     if (!selectedCoupon || couponQrLock.current) return;
-    couponQrLock.current = true;
-    setCouponQrBusy(true);
+    const coupon=selectedCoupon;
+    couponQrLock.current=true; setCouponQrBusy(true); setRedeemError("");
     try {
-      if (!isMember) { setCouponQr(await QRCode.toDataURL("TAMMY-PREVIEW-NOT-REDEEMABLE", { width: 240, margin: 2 })); setCouponQrExpiresAt(new Date(Date.now() + (selectedCoupon.qr_valid_minutes || 15) * 60_000).toISOString()); setCouponNow(Date.now()); return; }
-      const response = await fetch("/api/line/member/coupon-qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, accessToken, couponId: selectedCoupon.id }), cache: "no-store" });
-      const data = await response.json() as { qrPayload?: string; expiresAt?: string; error?: string };
-      if (!response.ok || !data.qrPayload) throw new Error(data.error || "เปิด QR ไม่สำเร็จ");
-      setCouponQr(await QRCode.toDataURL(data.qrPayload, { width: 240, margin: 2, errorCorrectionLevel: "M" }));
-      setCouponQrExpiresAt(data.expiresAt || ""); setCouponNow(Date.now());
-      if (data.expiresAt) setCouponToWatch({ id: selectedCoupon.id, title: selectedCoupon.title, expiresAt: data.expiresAt });
-    } catch (cause) { setRedeemError(cause instanceof Error ? cause.message : "เปิด QR ไม่สำเร็จ"); }
-    finally { couponQrLock.current = false; setCouponQrBusy(false); }
+      const result=isMember ? await loadCouponQr(coupon.id,idToken,accessToken) : {url:localQr("TAMMY-PREVIEW-NOT-REDEEMABLE"),expiresAt:new Date(Date.now()+(coupon.qr_valid_minutes||15)*60000).toISOString()};
+      if(selectedCouponId.current!==coupon.id)return;
+      setCouponQr(result.url);setCouponQrExpiresAt(result.expiresAt);setCouponNow(Date.now());
+      if(isMember)setCouponToWatch({id:coupon.id,title:coupon.title,expiresAt:result.expiresAt});
+    }catch(cause){if(selectedCouponId.current===coupon.id)setRedeemError(cause instanceof Error?cause.message:"เปิด QR ไม่สำเร็จ");}
+    finally{couponQrLock.current=false;setCouponQrBusy(false);}
   }
 
   useEffect(() => {
@@ -227,10 +233,10 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   }, [couponQrExpiresAt]);
 
   useEffect(() => {
-    let active = true;
-    void QRCode.toDataURL(isMember ? `${accessToken?.startsWith("test:") ? "TAMMY-TEST-MEMBER" : "TAMMY-MEMBER"}:${member!.memberCode}` : "TAMMY-PREVIEW-NOT-REDEEMABLE", { width: 200, margin: 0 }).then((url) => { if (active) setPreviewQr(url); });
-    return () => { active = false; };
-  }, [isMember, member, accessToken]);
+    setPreviewQr(localQr(isMember ? `${accessToken?.startsWith("test:") ? "TAMMY-TEST-MEMBER" : "TAMMY-MEMBER"}:${member!.memberCode}` : "TAMMY-PREVIEW-NOT-REDEEMABLE", 200, 0));
+  }, [isMember, member?.memberCode, accessToken]);
+
+  useEffect(() => { if(isMember)prefetchMemberData(idToken,accessToken); },[isMember,idToken,accessToken]);
 
   useEffect(() => {
     const client = supabase;
@@ -262,12 +268,12 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
   useEffect(() => {
     if (isMember) {
       let active = true;
-      const refresh = () => { void loadMemberCatalog(idToken, accessToken)
-        .then(data => { if (active) { setRewards((data.rewards as Reward[] | undefined) || []); setCoupons((data.coupons as Coupon[] | undefined) || []); setRankProgress((data.rankProgress as RankProgress | undefined) || null); setCatalogError(""); } })
+      const refresh = (fresh=false) => { const revision=memberRevision.current; void loadMemberCatalog(idToken, accessToken, {fresh})
+        .then(data => { if (active && revision===memberRevision.current) { setRewards((data.rewards as Reward[] | undefined) || []); setCoupons((data.coupons as Coupon[] | undefined) || []); setRankProgress((data.rankProgress as RankProgress | undefined) || null); if(typeof data.points==="number")setMemberPoints(data.points); setCatalogError(""); } })
         .catch(error => { if (active && !cachedMemberCatalog(idToken, accessToken)) setCatalogError(error instanceof Error ? error.message : "โหลดสิทธิพิเศษไม่สำเร็จ"); })
         .finally(() => { if (active) setCatalogLoading(false); }); };
       refresh();
-      const stopWatching = watchCatalogChanges(refresh);
+      const stopWatching = watchCatalogChanges(()=>refresh(true));
       return () => { active = false; stopWatching(); };
     }
     if (!supabase) { setCatalogError("ยังไม่ได้ตั้งค่า Supabase"); setCatalogLoading(false); return; }
@@ -348,8 +354,9 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
         </> : tab !== "account" ? <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
           {tab === "rewards" && <><div className="customer-catalog-intro"><div><h1>ของรางวัล</h1><p className="customer-catalog-description">ของขวัญเล็ก ๆ สำหรับเพื่อนตัวโปรด</p></div><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => chooseReward(item)} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><div><h1>คูปองของฉัน</h1><p className="customer-catalog-description">สิทธิพิเศษดี ๆ สำหรับสมาชิก</p></div><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace variant="member" title={item.title} discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} remaining={item.usage_limit === null ? null : Math.max(0, item.usage_limit - item.used_count)} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { void openCoupon(item); }} /></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
-          {tab === "lucky" && <MemberGameHub preview={!isMember} member={{memberCode:member?.memberCode||"preview",name:memberName,points:memberPoints,linePictureUrl:member?.linePictureUrl}} idToken={idToken} accessToken={accessToken} onPointsUpdated={points=>{setMemberPoints(points);setAccountRevision(v=>v+1);}}/>}
+
         </section> : null}
+        <section className="customer-home-catalog customer-game-mounted" aria-label="ลุ้นรางวัล" style={{display:tab==="lucky"&&!selectedReward?undefined:"none"}}><MemberGameHub active={tab==="lucky"&&!selectedReward} preview={!isMember} member={{memberCode:member?.memberCode||"preview",name:memberName,points:memberPoints,linePictureUrl:member?.linePictureUrl}} idToken={idToken} accessToken={accessToken} onPointsUpdated={points=>{memberRevision.current++;clearMemberCatalog();setMemberPoints(points);setAccountRevision(v=>v+1);}}/></section>
         <section className="customer-home-catalog customer-account-mounted" aria-label="ข้อมูลของฉัน" style={{ display: tab === "account" && !selectedReward ? undefined : "none" }}><CustomerAccount preview={!isMember} member={member} idToken={idToken} accessToken={accessToken} onLogout={onLogout} onMemberUpdated={onMemberUpdated} refreshKey={accountRevision} /></section>
       </div>
 
