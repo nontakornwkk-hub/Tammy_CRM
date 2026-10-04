@@ -1,12 +1,3 @@
-import type { PublicPrize } from "./types";
-// A separate, uniform practice game. No production odds enter the member bundle.
-export const practicePrizes: PublicPrize[] = [
-  ["coins", "5 แต้ม", "points", "#0865e9", 5],
-  ["coupon", "ส่วนลด 10%", "coupon", "#009f65", 0],
-  ["food", "อาหารน้องแมว", "item", "#f58a18", 0],
-  ["snack", "ขนมน้องแมว", "item", "#009f65", 0],
-  ["bonus", "10 แต้ม", "points", "#0865e9", 10],
-  ["gift", "ของขวัญน้องหมา", "item", "#009f65", 0],
-  ["voucher", "ส่วนลด 10%", "coupon", "#f58a18", 0],
-  ["treat", "ขนมสัตว์เลี้ยง", "item", "#f58a18", 0],
-].map(([id, title, kind, color, points]) => ({ id: String(id), title: String(title), kind: kind as PublicPrize["kind"], color: String(color), points: Number(points), image: "", discountType: "percent", discountValue: 10, minSpend: 0, maxDiscount: null, expiryMode: "hours", expiryHours: 168, expiresAt: null }));
+import { defaultGameSetup, playablePrizes } from "./config";
+// Only a fallback when no configured game is available. Real games and their practice rounds share their configured slots.
+export const practicePrizes=playablePrizes(defaultGameSetup().game.prizes);

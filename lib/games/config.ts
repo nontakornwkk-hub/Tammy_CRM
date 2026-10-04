@@ -29,3 +29,14 @@ export function validateSetup(value: unknown): asserts value is GameSetup {
   }
   if (sum <= 0) throw new Error("เปิดอย่างน้อยหนึ่งช่องที่มีเรทการออกมากกว่า 0");
 }
+
+// One eligibility rule for the admin preview and member status. Array order is preserved.
+export function playablePrizes(prizes: AdminPrize[], now=Date.now()): PublicPrize[] {
+  return prizes.filter(p=>p.active && p.weight>0 && (p.stock===null || p.stock>0) && (p.kind==="points" || p.expiryMode==="hours" || Date.parse(p.expiresAt||"")>now)).map(publicPrize);
+}
+export function shufflePrizes<T>(values: readonly T[]): T[] {
+  const shuffled=[...values];
+  for(let i=shuffled.length-1;i>0;i--){const draw=new Uint32Array(1);crypto.getRandomValues(draw);const j=draw[0]%(i+1);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+  if(shuffled.length>1 && shuffled.every((value,i)=>value===values[i]))shuffled.push(shuffled.shift()!);
+  return shuffled;
+}

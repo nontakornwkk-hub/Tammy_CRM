@@ -29,6 +29,15 @@ const claim=(actor,amount)=>db.query('select redeem_game_grant($1,$2,$3,$4) resu
 setup.game.prizes=[{...prize('item',100),stock:1},prize('points',0)];await save();await sale(1500);const oldVersion=setup.game.version;const item=await play();assert.equal(item.prize.kind,'item');assert.equal((await db.query('select version from crm_games')).rows[0].version,oldVersion+1);await assert.rejects(play(0,randomUUID(),oldVersion),/CONFIG_CHANGED/);await assert.rejects(save(),/CONFIG_CHANGED/);setup.game.version=oldVersion+1;await assert.rejects(play(),/PRIZES_EXHAUSTED/);
 await db.query("update game_grants set expires_at=now()-interval '1 second' where id=$1",[item.grant_id]);const expired=(await db.query('select qr_token from game_grants where id=$1',[item.grant_id])).rows[0].qr_token;await assert.rejects(db.query('select redeem_game_grant($1,$2,$3)',[owner,owner,expired]),/GRANT_EXPIRED/);
 await db.query("select save_game_program($1,$2,200,true,500,true)",[owner,owner]);setup.program.purchaseThreshold=200;setup.game.prizes=[prize(),prize()];await save();await sale(199);assert.equal(Number((await wallet()).carry),199);await sale(1);assert.equal(Number((await wallet()).carry),0);
+// Reordering is persisted exactly, including each prize's metadata and color.
+setup.game.prizes=[prize('points',10),prize('coupon',20),prize('item',30)];await save();
+setup.game.prizes.reverse();await save();
+const ordered=(await db.query('select prizes from crm_games where game_key=$1',['paw-wheel'])).rows[0].prizes;
+assert.deepEqual(ordered,setup.game.prizes);
+const orderMember=randomUUID();await db.query("insert into members(id,owner_id,points,spending,level,updated_at)values($1,$2,0,0,'Member',now())",[orderMember,owner]);await db.query('insert into game_wallets(owner_id,member_id,balance)values($1,$2,1)',[owner,orderMember]);
+const orderPlay=(await db.query('select play_crm_game($1,$2,$3,$4,$5,$6) result',[owner,orderMember,'paw-wheel',randomUUID(),setup.game.version,0])).rows[0].result;
+assert.deepEqual(orderPlay.slots.map(p=>p.id),setup.game.prizes.map(p=>p.id));
+assert.deepEqual(orderPlay.slots.map(p=>p.color),setup.game.prizes.map(p=>p.color));
 // Relative rates can total any positive amount; verify exact draw boundaries.
 setup.game.prizes=[prize('points',1),prize('points',2)];await save();
 const rateMember=randomUUID();await db.query("insert into members(id,owner_id,points,spending,level,updated_at)values($1,$2,0,0,'Member',now())",[rateMember,owner]);await db.query('insert into game_wallets(owner_id,member_id,balance)values($1,$2,4)',[owner,rateMember]);

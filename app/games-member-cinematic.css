@@ -89,7 +89,7 @@
 .paw-game--cinematic .paw-controls{margin-top:-30px}
 
 /* Quiet purchase reminder and legible prize badges. */
-.paw-art-label{transform:rotate(var(--art-counter-rotation,0deg));transform-box:fill-box;transform-origin:center}
+
 .paw-art-label text{font-family:inherit;paint-order:stroke;stroke:#fff9e6;stroke-width:.12}
 .paw-game--cinematic .paw-purchase{width:82%;padding:6px 10px;border:1px solid #ffffffbb;border-radius:13px;background:#fffaf0e6;box-shadow:none}
 .paw-game--cinematic .paw-purchase>div,.paw-game--cinematic .paw-purchase>div>b{font-size:11px;line-height:1.4}

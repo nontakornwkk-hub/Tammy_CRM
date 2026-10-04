@@ -1,7 +1,7 @@
 import "server-only";
 import { getTestTickets } from "./test-tickets";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { defaultGameSetup, publicPrize } from "./config";
+import { defaultGameSetup, playablePrizes } from "./config";
 import type { AdminPrize, GameDefinition, GameSetup, MemberGames } from "./types";
 export const missingGameSchema = (code?: string) => ["42P01", "PGRST205", "PGRST202"].includes(code || "");
 export async function readGameSetup(db: SupabaseClient, owner: string, key = "paw-wheel") {
@@ -25,6 +25,6 @@ export async function readMemberGames(db: SupabaseClient, owner: string, member:
   const test=getTestTickets(owner,member);let testBalance=0;if(test&&!errors.length){const used=await db.from("game_plays").select("id",{count:"exact",head:true}).eq("owner_id",owner).eq("member_id",member).eq("test_batch_id",test.id);if(used.error)throw new Error("อ่านสิทธิ์ทดสอบไม่สำเร็จ");testBalance=Math.max(0,test.limit-(used.count||0));}
   // Only this allowlisted structure crosses the member boundary. Odds and stock
   // are stored service-only, never included in member HTML/API payloads.
-  return { ready: !errors.length, program: { purchaseThreshold: Number(program.data?.purchase_threshold || 500), earningEnabled: program.data?.earning_enabled || false }, games: (games.data || []).map(game => ({ id: game.id, key: game.game_key, engine: game.engine, name: game.name, difficulty: game.difficulty, enabled: game.enabled, version: game.version, prizes: (game.prizes as AdminPrize[]).filter(p => p.active && p.weight > 0 && (p.stock === null || p.stock > 0) && (p.kind === "points" || p.expiryMode === "hours" || Date.parse(p.expiresAt || "") > Date.now())).map(publicPrize) })) as GameDefinition[], wallet: { testBalance, balance: Number(wallet.data?.balance || 0), carry: Number(wallet.data?.carry || 0) }, plays: plays.data || [], grants: grants.data || [] };
+  return { ready: !errors.length, program: { purchaseThreshold: Number(program.data?.purchase_threshold || 500), earningEnabled: program.data?.earning_enabled || false }, games: (games.data || []).map(game => ({ id: game.id, key: game.game_key, engine: game.engine, name: game.name, difficulty: game.difficulty, enabled: game.enabled, version: game.version, prizes: playablePrizes(game.prizes as AdminPrize[]) })) as GameDefinition[], wallet: { testBalance, balance: Number(wallet.data?.balance || 0), carry: Number(wallet.data?.carry || 0) }, plays: plays.data || [], grants: grants.data || [] };
 }
 export const gameErrorMessages: Record<string, string> = { HISTORY_CLEARED: "ประวัติรอบนี้ถูกล้างแล้ว กรุณาเริ่มรอบใหม่", MIN_SPEND: "ยอดซื้อยังไม่ถึงเงื่อนไขคูปอง", NO_TICKETS: "สิทธิ์ไม่เพียงพอ สะสมยอดซื้อเพื่อรับสิทธิ์เพิ่ม", GAME_UNAVAILABLE: "เกมนี้พักให้บริการอยู่", CONFIG_CHANGED: "การตั้งค่าเกมเปลี่ยนแล้ว กรุณาโหลดข้อมูลล่าสุด", PRIZES_EXHAUSTED: "รางวัลหมดแล้ว ร้านกำลังเติมรางวัล", REQUEST_CONFLICT: "รหัสรอบนี้ถูกใช้กับเกมอื่นแล้ว", ALREADY_USED: "รางวัลนี้ใช้แล้ว", GRANT_EXPIRED: "รางวัลหมดอายุแล้ว", GRANT_NOT_FOUND: "ไม่พบรางวัล", MEMBER_NOT_FOUND: "สมาชิกไม่พร้อมใช้งาน", FORBIDDEN: "ไม่มีสิทธิ์ทำรายการ", INVALID_ODDS: "เปิดอย่างน้อยหนึ่งช่องที่มีเรทการออกมากกว่า 0", INVALID_CONFIG: "การตั้งค่าไม่ถูกต้อง" };
