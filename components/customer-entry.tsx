@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { singleFlight } from "@/lib/single-flight";
 import { prefetchMemberData, clearMemberDisplayData, warmGameArtwork } from "@/lib/member-bootstrap";
 import dynamic from "next/dynamic";
@@ -27,6 +26,7 @@ export function CustomerEntry() {
     warmGameArtwork();
     setState("checking"); setTestError("");
     try {
+      const { supabase } = await import("@/lib/supabase/client");
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!isActive()) return;
       if (!token) { router.replace("/login?next=%2Fcustomer"); return; }
@@ -52,6 +52,7 @@ export function CustomerEntry() {
     if (testBusy) return;
     setTestBusy(true);
     try {
+      const { supabase } = await import("@/lib/supabase/client");
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!token) throw new Error("กรุณาเข้าสู่ระบบใหม่");
       const response = await fetch("/api/dev/test-member", {

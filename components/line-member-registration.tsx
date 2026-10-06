@@ -5,7 +5,6 @@ import { ArrowRight, PawPrint } from "lucide-react";
 import dynamic from "next/dynamic";
 import { loadCustomerPortal } from "@/lib/customer-portal-loader";
 import Image from "next/image";
-import { CustomerStoreLogo } from "./customer-store-logo";
 import { prefetchMemberData, clearMemberDisplayData } from "@/lib/member-bootstrap";
 import { shouldInitializeLine } from "@/lib/line/login-flow";
 import { singleFlight } from "@/lib/single-flight";
@@ -20,8 +19,8 @@ const signedOutKey = "tammy-customer-signed-out";
 const transferKey = "tammy-pending-line-transfer";
 
 const emptyForm: Registration = { firstName: "", lastName: "", gender: "", birthDate: "", phone: "" };
-const loadConfig = singleFlight<{ liffId: string }>();
-let publicLineConfig: { liffId: string; expiresAt: number } | undefined;
+const loadConfig = singleFlight<{ liffId: string; logoUrl?: string | null }>();
+let publicLineConfig: { liffId: string; logoUrl?: string | null; expiresAt: number } | undefined;
 const initializeLine = singleFlight<void>();
 const lookupMember = singleFlight<{ registered?: boolean; member?: Member; error?: string }>();
 const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.CustomerPortal), { ssr: false });
@@ -37,6 +36,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [liffUrl, setLiffUrl] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(publicLineConfig?.logoUrl || null);
   const [connectRequested, setConnectRequested] = useState(false);
   const [transferId, setTransferId] = useState("");
 
@@ -55,14 +55,15 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         const sdk = import("@line/liff");
         void sdk.catch(() => undefined);
         const config = await loadConfig("config", async () => {
-          if (publicLineConfig && publicLineConfig.expiresAt > Date.now()) return { liffId: publicLineConfig.liffId };
+          if (publicLineConfig && publicLineConfig.expiresAt > Date.now()) return { liffId: publicLineConfig.liffId, logoUrl: publicLineConfig.logoUrl };
           const response = await fetch("/api/line/member/config", { cache: "default", signal: AbortSignal.timeout(10000) });
-          const data = await response.json() as { liffId?: string; error?: string };
+          const data = await response.json() as { liffId?: string; logoUrl?: string | null; error?: string };
           if (!response.ok || !data.liffId) throw new Error(data.error || "ร้านยังไม่เปิดใช้งานสมาชิก LINE");
-          publicLineConfig = { liffId: data.liffId, expiresAt: Date.now() + 60000 };
-          return { liffId: data.liffId };
+          publicLineConfig = { liffId: data.liffId, logoUrl: data.logoUrl, expiresAt: Date.now() + 60000 };
+          return { liffId: data.liffId, logoUrl: data.logoUrl };
         });
         if (!active) return;
+        setLogoUrl(config.logoUrl || null);
         const pendingTransfer = sessionStorage.getItem(transferKey);
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
@@ -197,7 +198,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
       <header className="line-entry-brand"><PawPrint size={34} fill="currentColor" /><div><strong>Tammy</strong><span>Pet Shop</span></div></header>
       {preview && <div className="line-signup-preview">ดูหน้าจอก่อนเชื่อม LINE · ยังไม่บันทึกข้อมูล</div>}
       {(state === "entry" || state === "login" || state === "unavailable" || state === "loading") && <section className="line-entry-hero" role={state === "loading" ? "status" : undefined}>
-        <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><CustomerStoreLogo /></div></div>
+        <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><Image src={logoUrl || "/assets/shop-logo-original.png"} width={240} height={240} alt="โลโก้ร้าน Tammy Pet Shop" unoptimized priority /></div></div>
         <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเชื่อมต่อ LINE" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "เข้าสู่ระบบสมาชิก"}</h1><p>{state === "loading" ? "ตรวจสอบบัญชีของคุณสักครู่" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "สมาชิกใหม่จะกรอกข้อมูลสมัครหลังเชื่อม LINE"}</p></div>
         {state === "loading" ? <div className="line-entry-line-button is-waiting" aria-hidden="true">กำลังเชื่อมต่อ LINE…</div> : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { if (!liffUrl) { event.preventDefault(); return; } loginWithLine(); if (/\bLine\/\d/i.test(navigator.userAgent)) { event.preventDefault(); setConnectRequested(true); } }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
         {error && state !== "unavailable" && <p className="line-entry-error" role="alert">{error}</p>}

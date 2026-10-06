@@ -99,15 +99,21 @@
 .paw-wheel-value text{fill:#fff8df;stroke:#123b62;stroke-width:.65;stroke-linejoin:round;paint-order:stroke;letter-spacing:.1px}
 .paw-wheel-value .paw-wheel-unit{stroke-width:.3}
 
-.paw-game.paw-game--coming-soon{background:linear-gradient(155deg,#fff9ed,#f6edff 65%,#edf8ff);min-height:420px;border:1px solid #eee3fa;color:#58447d;padding-bottom:22px}
+.paw-game.paw-game--coming-soon{background:linear-gradient(155deg,#fff 55%,#fdfaff);min-height:0;border:1.5px solid #e9dffc;border-radius:28px;color:#58447d;padding:0;box-shadow:0 10px 28px #7b629511;overflow:visible}
 .paw-game--coming-soon .paw-hud{position:relative;z-index:1}
-.paw-coming-soon{display:flex;flex-direction:column;align-items:center;text-align:center;padding:42px 16px 32px;gap:12px}
+.paw-coming-soon{display:flex;flex-direction:column;align-items:center;text-align:center;padding:30px 18px 28px;gap:12px}
+.paw-coming-soon-art{position:relative;width:244px;max-width:100%;height:180px;display:grid;place-items:center;margin-bottom:5px}
+.paw-coming-soon-art img{display:block;width:180px;height:180px;object-fit:contain}
+.paw-soon-paw{position:absolute;width:24px;height:24px;color:#dfd1ef;fill:#dfd1ef;stroke-width:1.2}
+.paw-soon-paw.left{left:10px;top:83px;transform:rotate(-18deg)}
+.paw-soon-paw.right{right:10px;top:99px;transform:rotate(18deg)}
+.paw-soon-spark{position:absolute;width:6px;height:18px;left:47px;top:55px;border-radius:4px;background:#ffc595;transform:rotate(-30deg)}
 .paw-coming-soon-icon{position:relative;display:grid;place-items:center;width:90px;height:90px;border-radius:28px;background:#fff;box-shadow:0 8px 28px #ad8bcd18;color:#9272bd}
 .paw-coming-soon-icon>svg+svg{position:absolute;right:-6px;bottom:3px;color:#d4a34b;background:#fff8df;border-radius:50%;padding:5px;box-sizing:content-box}
-.paw-coming-soon small{font-size:10px;letter-spacing:2px;color:#9d84b0}
-.paw-coming-soon h2{font-size:clamp(19px,5.5vw,25px);margin:3px 0;color:#594078}
-.paw-coming-soon p{font-size:12px;line-height:1.8;margin:0;color:#947faa}
-.paw-coming-soon-tag{font-size:12px;padding:8px 16px;border-radius:999px;background:#fff8e7;color:#a17c34}
+.paw-coming-soon small{font-size:10px;font-weight:700;letter-spacing:2.4px;color:#9773c3}
+.paw-coming-soon h2{font-size:clamp(21px,6vw,27px);font-weight:800;line-height:1.6;margin:2px 0 0;color:#483176;text-wrap:balance}
+.paw-coming-soon p{font-size:13px;line-height:1.9;margin:0;color:#9584a5}
+.paw-coming-soon-tag{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:600;margin-top:5px;padding:9px 16px;border-radius:999px;background:#f6f0fc;color:#a78ac9}
 .paw-game--coming-soon .paw-actions{margin-top:12px}
 
 .paw-game--coming-soon::before,.paw-game--coming-soon::after{display:none}

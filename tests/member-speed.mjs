@@ -15,7 +15,7 @@ await Promise.all([games.loadMemberGames('A'),games.loadMemberGames('A'),account
 const warmStart=performance.now();await Promise.all([games.loadMemberGames('A'),account.loadMemberAccount('A'),catalog.loadMemberCatalog('A')]);const warm=performance.now()-warmStart;assert.equal(calls.length,3);assert.ok(warm<100);
 assert.equal(games.cachedMemberGames('B'),undefined);assert.equal(account.cachedMemberAccount('B'),undefined);assert.equal(catalog.cachedMemberCatalog('B'),undefined);
 await games.loadMemberGames('A',undefined,{fresh:true});assert.equal(calls.length,4);
-const [one,two]=await Promise.all([qr.loadCouponQr('coupon','A'),qr.loadCouponQr('coupon','A')]);assert.equal(one.url,two.url);assert.equal(calls.length,5);assert.ok(one.url.startsWith('data:image/png'));
+const [one,two]=await Promise.all([qr.loadCouponQr('coupon','A'),qr.loadCouponQr('coupon','A')]);assert.equal(one.url,two.url);assert.equal(calls.length,5);assert.ok(one.url.startsWith('data:image/svg+xml'));
 await qr.loadCouponQr('coupon','A');assert.equal(calls.length,5,'Opening a valid QR again sends no issue request');
 qr.clearCouponQr('coupon','A');assert.equal(qr.cachedCouponQr('coupon','A'),undefined);expire=Date.now()-1;await qr.loadCouponQr('coupon','A');assert.equal(qr.cachedCouponQr('coupon','A'),undefined,'Expired QR is never reused');
 fail=true;await assert.rejects(qr.loadCouponQr('failure','A'),/failed/);assert.equal(qr.cachedCouponQr('failure','A'),undefined);fail=false;

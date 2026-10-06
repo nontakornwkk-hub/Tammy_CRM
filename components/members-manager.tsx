@@ -1,6 +1,8 @@
 "use client";
 
 import { memberColumns } from "@/lib/supabase/member-columns";
+import {memberPetCounts} from "@/lib/member-pet-counts";
+import {watchCatalogChanges} from "@/lib/catalog-live";
 
 import Image from "next/image";
 import { CalendarDays, Check, ChevronRight, Clock3, Crown, Download, Edit3, Heart, LockKeyhole, Mail, Menu, MessageSquareText, PawPrint, Phone, Plus, Search, Sparkles, Star, Tag, Trash2, UserRound, Users, Wallet, X } from "lucide-react";
@@ -112,6 +114,7 @@ export function MembersManager() {
     setLoading(false);
   }, []);
   useEffect(() => { void refresh(); try { const saved = window.localStorage.getItem(ALIAS_KEY); if (saved) setAliases(JSON.parse(saved) as Record<string, string>); } catch { /* Optional local labels. */ } }, [refresh]);
+  useEffect(()=>watchCatalogChanges(()=>void refresh(true)),[refresh]);
 
   const todayParts = Object.fromEntries(bangkokDayFormatter.formatToParts(new Date()).filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
   const todayUtc = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day);
@@ -130,8 +133,7 @@ export function MembersManager() {
   function selectOverview(next: OverviewFilter) { setOverviewFilter(next); setQuery(""); setLevel("ทั้งหมด"); setTagFilter(null); }
   const selected = members.find((member) => member.id === selectedId) ?? null;
   const selectedPets = selected ? pets.filter((pet) => pet.member_id === selected.id) : [];
-  const dogCount = selectedPets.filter((pet) => pet.species === "dog").length;
-  const catCount = selectedPets.filter((pet) => pet.species === "cat").length;
+  const {dogs:dogCount,cats:catCount}=memberPetCounts(selected,selectedPets);
 
   useEffect(() => {
     if (!selectedId || !supabase || selectedId.startsWith("demo-")) { setPurchaseCount(null); return; }

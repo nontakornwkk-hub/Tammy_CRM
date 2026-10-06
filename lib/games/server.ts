@@ -4,6 +4,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { defaultGameSetup, playablePrizes } from "./config";
 import type { AdminPrize, GameDefinition, GameSetup, MemberGames } from "./types";
 export const missingGameSchema = (code?: string) => ["42P01", "PGRST205", "PGRST202"].includes(code || "");
+export async function readMemberGameCatalog(db:SupabaseClient,owner:string):Promise<MemberGames>{
+  const [program,games]=await Promise.all([
+    db.from("game_programs").select("purchase_threshold,earning_enabled").eq("owner_id",owner).maybeSingle(),
+    db.from("crm_games").select("id,game_key,engine,name,difficulty,enabled,version,prizes").eq("owner_id",owner).eq("enabled",true).order("game_key"),
+  ]);
+  if(program.error||games.error)throw new Error("อ่านสถานะเกมของร้านไม่สำเร็จ");
+  return {ready:true,program:{purchaseThreshold:Number(program.data?.purchase_threshold||500),earningEnabled:program.data?.earning_enabled||false},games:(games.data||[]).map(game=>({id:game.id,key:game.game_key,engine:game.engine,name:game.name,difficulty:game.difficulty,enabled:game.enabled,version:game.version,prizes:playablePrizes(game.prizes as AdminPrize[])})) as GameDefinition[],wallet:{balance:0,carry:0},plays:[],grants:[]};
+}
 export async function readGameSetup(db: SupabaseClient, owner: string, key = "paw-wheel") {
   const [program, game] = await Promise.all([db.from("game_programs").select("*").eq("owner_id", owner).maybeSingle(), db.from("crm_games").select("*").eq("owner_id", owner).eq("game_key", key).maybeSingle()]);
   if ([program.error, game.error].some(error => error && !missingGameSchema(error.code))) throw new Error("อ่านการตั้งค่าเกมไม่สำเร็จ");

@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { Cat, Dog, Check, ChevronRight, Clock3, LogOut, Minus, Pencil, Plus, ShieldCheck, Star, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { watchCatalogChanges } from "@/lib/catalog-live";
-import { cachedMemberAccount, loadMemberAccount, type Profile, type PointEntry } from "@/lib/customer-account-data";
+import { watchCatalogChanges, notifyCatalogChanged } from "@/lib/catalog-live";
+import { cachedMemberAccount, clearMemberAccount, loadMemberAccount, type Profile, type PointEntry } from "@/lib/customer-account-data";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { CustomerGenderPicker } from "./customer-gender-picker";
 
@@ -115,6 +115,8 @@ useEffect(() => {
         savedName = data.name;
         updatedForm.birthdayChangedAt = data.birthdayChangedAt || "";
         onMemberUpdated?.(data.name);
+        clearMemberAccount();
+        notifyCatalogChanged();
       }
       const updatedProfile = { ...updatedForm, name: savedName };
       setProfile(updatedProfile); setForm(updatedProfile); setEditing(false); setMessage("บันทึกข้อมูลเรียบร้อยแล้ว");

@@ -110,9 +110,18 @@ async function fetchAllRows(ownerId: string, table: "members" | "points_transact
 }
 
 export async function fetchReportsData(ownerId: string) {
+  const summaries = async () => {
+    const rows: Record<string, unknown>[] = [];
+    for (let offset = 0;; offset += 1000) {
+      const {data,error} = await client().rpc("crm_report_summary_rows", {p_owner_id:ownerId,p_offset:offset,p_limit:1000});
+      if (error) throw error;
+      rows.push(...(data ?? []));
+      if (!data || data.length < 1000) return rows;
+    }
+  };
   const [members, transactions] = await Promise.all([
     fetchAllRows(ownerId, "members", "id,name,member_code,level,created_at,last_visit"),
-    fetchAllRows(ownerId, "points_transactions", "id,member_id,sale_amount,points_delta,created_at,transaction_type"),
+    summaries(),
   ]);
   return { members, transactions };
 }

@@ -3,7 +3,7 @@ import { getTestTickets } from "@/lib/games/test-tickets";
 import { randomInt } from "node:crypto";
 import { verifiedMemberSession } from "@/lib/line/member-session";
 import { noStore } from "@/lib/line/server";
-import { gameErrorMessages, missingGameSchema, readMemberGames } from "@/lib/games/server";
+import { gameErrorMessages, missingGameSchema, readMemberGames, readMemberGameCatalog } from "@/lib/games/server";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   let input;
@@ -11,6 +11,15 @@ export async function POST(request: Request) {
   if (!input || typeof input !== "object" || !["status", "play", "recover"].includes(input.action) || (input.idToken != null && typeof input.idToken !== "string") || (input.accessToken != null && typeof input.accessToken !== "string")) return noStore({ error: "คำขอไม่ถูกต้อง" }, 400);
   const session = await verifiedMemberSession(input); if ("error" in session) return noStore({ error: session.error }, session.status);
   try {
+    // A paused shop does not require an initialized sandbox game database.
+    // Read the authoritative catalog before touching test-only tables.
+    if (session.catalogDb && session.catalogOwnerId && input.action !== "recover") {
+      const catalog = await readMemberGameCatalog(session.catalogDb, session.catalogOwnerId);
+      if (!catalog.games.length) {
+        if (input.action === "status") return noStore({...catalog,wallet:{balance:0,carry:0},plays:[],grants:[]});
+        return noStore({error:gameErrorMessages.GAME_UNAVAILABLE,code:"GAME_UNAVAILABLE"},409);
+      }
+    }
     if(input.action!=="recover")await syncTestGameCatalog(session);
     if (input.action === "status") return noStore(await readMemberGames(session.db, session.ownerId, session.memberId));
     if (typeof input.requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(input.requestId) || typeof input.gameKey !== "string" || !/^[a-z][a-z0-9-]{2,49}$/.test(input.gameKey)) return noStore({ error: "รหัสรอบไม่ถูกต้อง" }, 400);

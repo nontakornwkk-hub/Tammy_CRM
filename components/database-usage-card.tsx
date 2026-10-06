@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { crmOwnerId, verifiedCrmUser } from "@/lib/supabase/crm-data";
 import { cachedAdminExtras } from "@/lib/supabase/admin-preload";
+import {clearCachedData} from "@/lib/supabase/crm-data";
+import {notifyCatalogChanged,watchCatalogChanges} from "@/lib/catalog-live";
 import { PointsHistoryCleanup } from "./points-history-cleanup";
 
 type Usage = {
@@ -52,6 +54,13 @@ export function DatabaseUsageCard() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => watchCatalogChanges(() => {void refresh();}), [refresh]);
+  useEffect(() => {
+    const owner=crmOwnerId();if(!supabase||!owner)return;
+    let timer:ReturnType<typeof setTimeout>;
+    const channel=supabase.channel(`database-usage:${owner}`).on("postgres_changes",{event:"*",schema:"public",table:"crm_live_updates",filter:`owner_id=eq.${owner}`},()=>{clearTimeout(timer);timer=setTimeout(()=>{void refresh();},350);}).subscribe();
+    return()=>{clearTimeout(timer);void supabase?.removeChannel(channel);};
+  },[refresh]);
 
   return <section className="settings-card database-usage-card">
     <div className="card-heading">
@@ -67,9 +76,10 @@ export function DatabaseUsageCard() {
     </div>
     {usage ? <div className="database-usage-details"><span>ประวัติแต้ม <strong>{formatBytes(usage.points_transactions_bytes)}</strong> ({usage.points_transactions_count.toLocaleString()} รายการ)</span><span>สมาชิก <strong>{usage.members_count.toLocaleString()}</strong> คน</span></div> : null}
     {usage && percent(usage.database_bytes, DATABASE_LIMIT) >= 75 ? <p className="database-usage-warning"><strong>พื้นที่ฐานข้อมูลใกล้เต็ม</strong> ควรดาวน์โหลดและจัดการประวัติเก่าก่อนถึง 500 MB</p> : null}
-    <PointsHistoryCleanup onDeleted={() => void refresh()} />
+    <PointsHistoryCleanup onDeleted={() => {clearCachedData("points","reports","members");notifyCatalogChanged();void refresh();}} />
     {storage && storage.unknown_size_objects > 0 ? <p className="database-usage-note">มี {storage.unknown_size_objects.toLocaleString()} ไฟล์ที่ไม่มีข้อมูลขนาด ยอดไฟล์อาจต่ำกว่าความจริง</p> : null}
     <div className="database-usage-footer"><p>ยอดไฟล์คือขนาดปัจจุบันของโปรเจกต์นี้ แต่ Storage คิดโควตาจากค่าเฉลี่ยทั้งองค์กร และฐานข้อมูลมีโควตาแยกต่างหาก <a href="https://supabase.com/dashboard/org/gsjpmpzxpkxbwqfalger/usage" target="_blank" rel="noreferrer">ดูยอดจริงใน Supabase Usage</a></p>{usage && storage ? <p>ประวัติแต้มใช้ {formatBytes(usage.points_transactions_bytes)}; หากต้องลดพื้นที่ ควรตรวจไฟล์ที่ไม่ใช้ก่อนลบประวัติ</p> : null}</div>
-    <details className="database-usage-warning"><summary>ข้อควรทราบก่อนลบประวัติแต้ม</summary><p>ไฟล์ CSV อาจมีข้อมูลส่วนบุคคลและยอดซื้อ ควรเก็บไว้ในที่ปลอดภัยและตรวจข้อกำหนดการเก็บเอกสารของร้านก่อนลบ หลังลบแล้วประวัติและรายงานย้อนหลังบางส่วนจะไม่ครบ</p></details>
+    <p className="database-usage-note">ฐานข้อมูลแสดงขนาดพื้นที่ที่จัดสรร รวมตารางและดัชนีทั้งหมด เมื่อล้างประวัติ ระบบเก็บพื้นที่ว่างไว้ใช้ซ้ำ ตัวเลข MB จึงอาจยังเท่าเดิม จำนวนรายการด้านบนจะอัปเดตหลังล้าง และรูปภาพกับไฟล์จะไม่ถูกลบ</p>
+    <details className="database-usage-warning"><summary>ข้อมูลที่เก็บหลังล้างประวัติ</summary><p>ยอดซื้อ แต้มที่ให้ กราฟรายวัน และอันดับลูกค้าเก็บเป็นยอดสรุปแยกจากประวัติ รายละเอียดรายการที่ล้างจะเรียกคืนไม่ได้ ควรดาวน์โหลด CSV หากต้องการเก็บรายละเอียดด้วย</p></details>
   </section>;
 }

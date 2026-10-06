@@ -42,8 +42,11 @@
 .customer-catalog-refresh .customer-account-form input:focus,
 .customer-catalog-refresh .customer-account-form select:focus { border-color:#dba68d; box-shadow:0 0 0 3px #e4b69b22; }
 .customer-catalog-refresh .customer-account-save,
-.customer-catalog-refresh .customer-coupon-copy-button,
-.customer-catalog-refresh .customer-reward-redeem-dock .customer-reward-detail-submit:not(:disabled) { background:linear-gradient(130deg,#f0b098,#dc927c); box-shadow:0 5px 12px #c98f7621; }
+.customer-catalog-refresh .customer-coupon-copy-button { background:linear-gradient(130deg,#f0b098,#dc927c); box-shadow:0 5px 12px #c98f7621; }
+.customer-catalog-refresh .customer-reward-redeem-dock .customer-reward-detail-submit:not(:disabled) { background:linear-gradient(130deg,#b94d32,#963b29); color:#fff; font-weight:800; box-shadow:0 5px 12px #963b292b; }
+.customer-catalog-refresh .customer-reward-redeem-dock .customer-reward-detail-submit:hover:not(:disabled) { background:linear-gradient(130deg,#a5412a,#803020); }
+.customer-catalog-refresh .customer-reward-redeem-dock .customer-reward-detail-submit:focus-visible { outline:3px solid #ce785b; outline-offset:3px; }
+.customer-catalog-refresh .is-ready .customer-reward-card-cta { background:linear-gradient(130deg,#b94d32,#963b29);color:#fff;font-weight:800;box-shadow:0 3px 8px #963b2924; }
 .customer-catalog-refresh .customer-reward-redeem-dock-inner { border-color:#f0ded2; box-shadow:0 9px 30px #946d4f1a; }
 .customer-catalog-refresh .customer-reward-redeem-dock-caption { color:#a38a92; }
 .customer-catalog-refresh .customer-reward-detail-page h1 { color:#5b4958; }

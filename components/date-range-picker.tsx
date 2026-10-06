@@ -15,6 +15,8 @@ type Props = {
   onClose?: () => void;
   single?: boolean;
   allowSingleDay?: boolean;
+  min?: string;
+  max?: string;
 };
 const dateOnly = (value: string) => value.slice(0, 10);
 const thisMonth = (value: string) => {
@@ -25,7 +27,7 @@ const display = (value: string) => value
   ? new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`))
   : "";
 
-export function DateRangePicker({ start, end, onChange, label = "ช่วงวันที่", nameStart, nameEnd, embedded = false, onClose, single = false, allowSingleDay = false }: Props) {
+export function DateRangePicker({ start, end, onChange, label = "ช่วงวันที่", nameStart, nameEnd, embedded = false, onClose, single = false, allowSingleDay = false, min, max }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -93,6 +95,7 @@ export function DateRangePicker({ start, end, onChange, label = "ช่วงว
   const days = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   const rangeEnd = end || (hover >= start ? hover : "");
   function pick(day: string) {
+    if ((min && day < min) || (max && day > max)) return;
     if (single) {
       onChange(day, "");
       setOpen(false);
@@ -114,7 +117,7 @@ export function DateRangePicker({ start, end, onChange, label = "ช่วงว
         const day = new Date(Date.UTC(year, monthIndex, index + 1)).toISOString().slice(0, 10);
         const edge = day === start || day === end;
         const between = Boolean(start && rangeEnd && day > start && day < rangeEnd);
-        return <button type="button" key={day} className={`${edge ? "edge" : ""} ${between ? "between" : ""}`} aria-label={day} aria-pressed={edge} onMouseEnter={() => setHover(day)} onFocus={() => setHover(day)} onClick={() => pick(day)}>{index + 1}</button>;
+        return <button type="button" key={day} disabled={Boolean((min && day < min) || (max && day > max))} className={`${edge ? "edge" : ""} ${between ? "between" : ""}`} aria-label={day} aria-pressed={edge} onMouseEnter={() => setHover(day)} onFocus={() => setHover(day)} onClick={() => pick(day)}>{index + 1}</button>;
       })}</div>
       <p>{single ? (start ? display(start) : "เลือกวันที่กลับมาเปิด") : !start ? allowSingleDay ? "คลิกวันเดียวเพื่อดูรายการของวันนั้น" : "กดวันเริ่มต้น" : !end ? allowSingleDay ? `แสดง ${display(start)} แล้ว · คลิกอีกวันเพื่อเลือกช่วงเวลา` : "กดวันสิ้นสุดเพื่อแรเงาช่วงเวลา" : `${display(start)} – ${display(end)}`}</p>
       <div className="date-range-actions"><button type="button" onClick={() => { onChange("", ""); setHover(""); }}>ล้าง{single ? "วันที่" : "ช่วงวัน"}</button></div>

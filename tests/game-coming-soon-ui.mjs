@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import * as icons from 'lucide-react';
+import ts from 'typescript';
+const source=(await readFile(new URL('../components/games/member-game-hub.tsx',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
+const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+const exports={};let snapshot={ready:true,program:{purchaseThreshold:500,earningEnabled:false},games:[],wallet:{balance:0,carry:0},plays:[],grants:[]};
+const deps={React,...Object.fromEntries(['useCallback','useEffect','useRef','useState'].map(key=>[key,React[key]])),...Object.fromEntries(['BookOpen','Gift','History','PawPrint','Play','Ticket','X'].map(key=>[key,icons[key]])),createPortal:()=>null,localQr:()=>'',cachedMemberGames:()=>snapshot,loadMemberGames:async()=>snapshot,watchCatalogChanges:()=>()=>{},GameStage:()=>React.createElement('div',{'data-wheel':true}),practicePrizes:[]};
+new Function('exports',...Object.keys(deps),code)(exports,...Object.values(deps));
+const render=()=>renderToStaticMarkup(React.createElement(exports.MemberGameHub,{member:{memberCode:'TEST',name:'สมาชิก',points:1000}}));
+const closed=render();assert.ok(closed.includes('เตรียมพบกิจกรรม'));assert.ok(closed.includes('coming-soon-gift.png'));assert.ok(!closed.includes('class="paw-hud"'));assert.ok(!closed.includes('class="paw-actions"'));assert.ok(!closed.includes('data-wheel'));
+snapshot={...snapshot,games:[{key:'paw-wheel',engine:'wheel',name:'วงล้ออุ้งเท้า',version:1,prizes:[{id:'one',kind:'points',title:'1 แต้ม',points:1}]}]};
+const open=render();assert.ok(open.includes('class="paw-hud"'));assert.ok(open.includes('class="paw-actions"'));assert.ok(open.includes('data-wheel'));assert.ok(!open.includes('coming-soon-gift.png'));
+console.log('PASS: paused UI hides HUD/actions/wheel and renders approved gift design; enabled UI keeps game controls.');
