@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultSettings, loadSettings } from "@/lib/settings";
 import { calculateAward } from "@/lib/promotions";
 import { supabase } from "@/lib/supabase/client";
@@ -182,6 +182,12 @@ export function PointsManager() {
   }
 
   useEffect(()=>{if(loading)return;const url=new URL(window.location.href);const scan=url.searchParams.get("scan");if(!scan)return;selectByCode(scan);url.searchParams.delete("scan");window.history.replaceState(null,"",url.pathname+url.search+url.hash);},[loading,customers]);
+  const pendingHardwareScan=useRef("");
+  useEffect(()=>{
+    if(!loading&&pendingHardwareScan.current){selectByCode(pendingHardwareScan.current);pendingHardwareScan.current="";}
+    const receive=(event:Event)=>{const code=(event as CustomEvent<string>).detail;if(typeof code!=="string")return;if(loading)pendingHardwareScan.current=code;else selectByCode(code);};
+    window.addEventListener("tammy-member-scan",receive);return()=>window.removeEventListener("tammy-member-scan",receive);
+  },[loading,customers]);
   function routeScan(rawCode: string) {
     const couponQr = normalizeCouponScan(rawCode);
     if (couponQr) { setScannerOpen(false); setCouponScanQr(couponQr); setScannerError(""); return true; }
@@ -228,6 +234,7 @@ export function PointsManager() {
           <section className="panel customer-panel">
             <div className="step-heading"><span>1</span><h2>เลือกลูกค้า</h2></div>
             <div className="points-customer-lookup"><label className="customer-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} disabled={!!scannedId} placeholder="ค้นหาชื่อ เบอร์โทร หรือรหัสสมาชิก" /></label><button type="button" className="points-scan-button" onClick={() => { setScannerError(""); setCouponScanQr(""); setScannerOpen(true); }}><ScanLine size={18} /> สแกนสมาชิก / คูปอง</button></div>
+            {scannerError&&!scannerOpen&&<p className="rewards-gallery-error" role="alert">{scannerError}</p>}
             {scannedId ? <div className="points-scan-lock"><span>เลือกสมาชิกจาก QR แล้ว · {selected.name}</span><button type="button" onClick={() => { setScannedId(""); setQuery(""); }}>เปลี่ยนสมาชิก</button></div> : null}
             <div className="customer-filters">
               {([

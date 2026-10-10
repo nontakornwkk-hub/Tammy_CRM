@@ -21,10 +21,12 @@ import { CustomerNavigation } from "./customer-navigation";
 import { cachedMemberCatalog, clearMemberCatalog, loadMemberCatalog } from "@/lib/customer-catalog";
 import { watchCatalogChanges } from "@/lib/catalog-live";
 import { singleFlight } from "@/lib/single-flight";
+import { CustomerStore } from "./customer-store";
+import { customerStoreInfo, type StoreInfo } from "@/lib/customer-store";
 
-type Tab = "rewards" | "coupons" | "home" | "account";
+type Tab = "rewards" | "coupons" | "home" | "store" | "account";
 const memberFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], display: "swap" });
-type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
+type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign; storeInfo: StoreInfo };
 type Reward = { id: string; title: string; description: string; category: string; points_cost: number; stock: number | null; image_url: string | null; active: boolean; starts_at: string | null; ends_at: string | null };
 type Coupon = { id: string; title: string; description: string; discount_type: string; discount_value: number; min_spend: number; usage_limit: number | null; used_count: number; active: boolean; starts_at: string | null; ends_at: string | null; theme_color: string | null; qr_valid_minutes: number };
 type Member = { memberCode: string; name: string; level: string; points: number; linePictureUrl?: string | null };
@@ -36,6 +38,7 @@ const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }
   rewards: { title: "ของรางวัล", empty: "ยังไม่มีของรางวัลที่เปิดให้แลกในขณะนี้" },
   coupons: { title: "คูปอง", empty: "ยังไม่มีคูปองที่เปิดให้ใช้งานในขณะนี้" },
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
+  store: {title:"ร้านของเรา",empty:"ยังไม่มีข้อมูลร้าน"},
 };
 let publicShopSnapshot: { shop: PublicShop; news: PopupDisplay[] } | null = null;
 const pendingShop = singleFlight<void>();
@@ -44,10 +47,10 @@ export function prepareCustomerShop(fresh=false) {
   return pendingShop("shop", async () => {
     if (!supabase) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
     const {data,error} = await supabase.from("public_shop_profiles")
-      .select("shop_name,shop_name_en,logo_url,card_design").eq("slug","tammy").maybeSingle();
+      .select("shop_name,shop_name_en,logo_url,card_design,description,store_hours_enabled,weekly_hours,temporary_closure,contacts").eq("slug","tammy").maybeSingle();
     if (error || !data) throw new Error("โหลดข้อมูลร้านไม่สำเร็จ");
     const config=data.card_design as Record<string,unknown>|null;
-    publicShopSnapshot={shop:{...data,card_design:normalizeCardDesign(data.card_design)},
+    publicShopSnapshot={shop:{...data,card_design:normalizeCardDesign(data.card_design),storeInfo:customerStoreInfo(data)},
       news:normalizePopupDisplay(config?.popup_content).filter(item=>item.active&&item.source==="news")};
   });
 }
@@ -350,7 +353,7 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
             <div className="customer-home-section-heading"><h1>ข่าวสารล่าสุด</h1>{news.length > 1 && <span className="customer-news-hint">ปัดเพื่อดูข่าวอื่น</span>}</div>
             {news.length ? <CustomerNewsCarousel news={news} onSelect={setSelectedNews} /> : <div className="customer-home-empty-news"><PawPrint size={32} /><strong>ยังไม่มีข่าวสารจากร้าน</strong></div>}
           </section>
-        </> : tab !== "account" ? <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
+        </> : tab === "store" ? <CustomerStore name={shop?.shop_name||"Tammy Pet Shop"} info={shop?.storeInfo||null}/> : tab !== "account" ? <section className="customer-home-catalog" aria-label={sectionText[tab].title}>
           {tab === "rewards" && <><div className="customer-catalog-intro"><div><h1>ของรางวัล</h1><p className="customer-catalog-description">ของขวัญเล็ก ๆ สำหรับเพื่อนตัวโปรด</p></div><div className="customer-catalog-summary"><span>แต้มของคุณ <strong>{isMember ? memberPoints.toLocaleString("th-TH") : "90"}</strong></span><Star size={30} strokeWidth={1.5} aria-hidden="true" /></div></div>{rewardCategories.length > 2 && <div className="customer-rewards-filters" aria-label="หมวดหมู่ของรางวัล">{rewardCategories.map(category => <button type="button" key={category} className={rewardCategory === category ? "active" : ""} onClick={() => setRewardCategory(category)}>{category}</button>)}</div>}{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดของรางวัล…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : visibleRewards.length ? <div className="customer-rewards-horizontal-list">{visibleRewards.map(item => <CustomerRewardCard key={item.id} reward={item} points={isMember ? memberPoints : 90} memberMode onSelect={() => chooseReward(item)} />)}</div> : <p className="customer-home-catalog-state">{sectionText.rewards.empty}</p>}</>}
           {tab === "coupons" && <><div className="customer-catalog-intro"><div><h1>คูปองของฉัน</h1><p className="customer-catalog-description">สิทธิพิเศษดี ๆ สำหรับสมาชิก</p></div><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace variant="member" title={item.title} discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} remaining={item.usage_limit === null ? null : Math.max(0, item.usage_limit - item.used_count)} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { void openCoupon(item); }} /></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
 

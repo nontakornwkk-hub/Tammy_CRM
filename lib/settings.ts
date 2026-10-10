@@ -1,4 +1,5 @@
 import type { PointPromotion } from "./promotions";
+import { emptyStoreLocation, normalizeStoreLocation, type StoreLocation } from "./store-location";
 import { defaultPopupContent, normalizePopupContent, type PopupContent } from "./popup-content";
 import { defaultCardDesign, normalizeCardDesign, type CardMascot, type CardTheme } from "./card-design";
 
@@ -18,6 +19,7 @@ export const WEEKDAYS = ["จันทร์", "อังคาร", "พุธ"
 export const defaultWeeklyHours: ShopDay[] = WEEKDAYS.map(day => ({ day, open: true, opensAt: "08:00", closesAt: "20:30" }));
 
 export type AppSettings = {
+  storeLocation: StoreLocation;
   shopName: string;
   shopNameEn: string;
   description: string;
@@ -73,6 +75,7 @@ export type AppSettings = {
 export const SETTINGS_KEY = "tammy-crm-settings-v1";
 
 export const defaultSettings: AppSettings = {
+  storeLocation: emptyStoreLocation,
   shopName: "แทมมี่อาหารสัตว์",
   shopNameEn: "Tammy Pet Shop",
   description: "ร้านอาหารสัตว์ ของเล่น และอุปกรณ์สำหรับสัตว์เลี้ยง คัดสรรคุณภาพดี เพื่อสัตว์เลี้ยงที่คุณรัก",
@@ -149,7 +152,7 @@ export function loadSettings(): AppSettings {
       };
     });
     const card = normalizeCardDesign({ themes: parsed.cardThemes, mascots: parsed.cardMascots, selectedTheme: parsed.selectedTheme, selectedMascot: parsed.selectedMascot, displayCustomization: parsed.displayCustomization });
-    return { ...defaultSettings, ...parsed, cardThemes: card.themes, cardMascots: card.mascots, selectedTheme: card.selectedTheme, selectedMascot: card.selectedMascot, contacts, weeklyHours: Array.isArray(parsed.weeklyHours) ? parsed.weeklyHours : defaultWeeklyHours, temporaryClosure: { ...defaultSettings.temporaryClosure, ...parsed.temporaryClosure }, promotions: Array.isArray(parsed.promotions) ? parsed.promotions : [], popupContent: normalizePopupContent(parsed.popupContent) };
+    return { ...defaultSettings, ...parsed, storeLocation: normalizeStoreLocation(parsed.storeLocation), cardThemes: card.themes, cardMascots: card.mascots, selectedTheme: card.selectedTheme, selectedMascot: card.selectedMascot, contacts, weeklyHours: Array.isArray(parsed.weeklyHours) ? parsed.weeklyHours : defaultWeeklyHours, temporaryClosure: { ...defaultSettings.temporaryClosure, ...parsed.temporaryClosure }, promotions: Array.isArray(parsed.promotions) ? parsed.promotions : [], popupContent: normalizePopupContent(parsed.popupContent) };
   } catch {
     return defaultSettings;
   }

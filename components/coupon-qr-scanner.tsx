@@ -17,7 +17,7 @@ export function CouponQrScanner({ onClose, initialQr = "" }: { onClose: () => vo
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const [cameraStatus, setCameraStatus] = useState("กำลังเปิดกล้อง…");
+  const [cameraStatus, setCameraStatus] = useState(initialQr ? "รับ QR จากเครื่องสแกนแล้ว" : "กำลังเปิดกล้อง…");
   const [retry, setRetry] = useState(0);  const qrRef = useRef(initialQr);
   const scanRef = useRef<(value: string) => void>(() => {});
   scanRef.current = value => { qrRef.current = value; setQr(value); void inspect(value); };

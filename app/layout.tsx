@@ -41,6 +41,7 @@ import "./transaction-history.css";
 import "./connections-settings.css";
 import "./history-cleanup.css";
 import "./line-entry-redesign.css";
+import "./customer-store.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

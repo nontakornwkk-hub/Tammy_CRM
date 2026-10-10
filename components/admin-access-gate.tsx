@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { crmRole, prefetchCrmPages, setVerifiedCrmUser, verifiedCrmUser } from "@/lib/supabase/crm-data";
 import { clearAdminExtras, prefetchAdminExtras } from "@/lib/supabase/admin-preload";
+import { AdminHardwareScanner } from "./admin-hardware-scanner";
 
 const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer"]);
 function canOpen(role: ReturnType<typeof crmRole>, pathname: string) {
@@ -82,5 +83,5 @@ export function AdminAccessGate({ children }: { children: ReactNode }) {
   if (status === "unconfirmed") return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>กรุณายืนยันอีเมลก่อน</h1><p>เปิดลิงก์ยืนยันที่ส่งไปยังอีเมลของคุณ แล้วกลับมากดตรวจสอบอีกครั้ง</p><button type="button" onClick={() => window.location.reload()}>ตรวจสอบอีกครั้ง</button><button type="button" onClick={async () => { await supabase?.auth.signOut(); router.replace("/login"); }}>ออกจากระบบ</button></section></main>;
   if (status === "pending") return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>บัญชีนี้ยังไม่มีสิทธิ์เข้าร้าน</h1><p>ให้เจ้าของร้านเพิ่มอีเมลบัญชีนี้ในหน้า ตั้งค่าระบบ → ทีมงานและความปลอดภัย แล้วกลับมาตรวจสอบอีกครั้ง</p><button type="button" onClick={() => window.location.reload()}>ตรวจสอบอีกครั้ง</button><button type="button" onClick={async () => { await supabase?.auth.signOut(); router.replace("/login"); }}>ออกจากระบบ</button></section></main>;
   if (!canOpen(crmRole(), pathname)) return <main className="admin-auth-check"><section className="admin-auth-pending"><h1>ไม่มีสิทธิ์เปิดหน้านี้</h1><p>บัญชีทีมงานนี้ได้รับสิทธิ์เฉพาะเมนูที่เจ้าของร้านกำหนด</p><button type="button" onClick={() => router.replace("/points")}>ไปหน้าให้แต้ม</button></section></main>;
-  return children;
+  return <>{children}<AdminHardwareScanner/></>;
 }

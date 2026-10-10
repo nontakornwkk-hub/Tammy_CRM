@@ -2,6 +2,8 @@
 import { notifyCatalogChanged } from "@/lib/catalog-live";
 
 import Image from "next/image";
+import { StorePinMap } from "./store-pin-map";
+import { normalizeStoreLocation, storeCoordinates } from "@/lib/store-location";
 import { DateRangePicker } from "./date-range-picker";
 import {
   Bell,
@@ -128,6 +130,7 @@ export function SettingsManager() {
         shopName: data.shop_name || current.shopName,
         shopNameEn: data.shop_name_en || current.shopNameEn,
         description: data.description ?? current.description,
+        storeLocation: normalizeStoreLocation((data.card_design as Record<string,unknown>)?.store_location),
         welcomeMessage: data.welcome_message ?? current.welcomeMessage,
         logoDataUrl: data.logo_url || current.logoDataUrl,
         storeHoursEnabled: data.store_hours_enabled ?? current.storeHoursEnabled,
@@ -185,6 +188,9 @@ export function SettingsManager() {
       return;
     }
     const closure = settings.temporaryClosure;
+    if ((settings.storeLocation.latitude || settings.storeLocation.longitude) && !storeCoordinates(settings.storeLocation)) {
+      setSaveError("กรุณาปักหมุดหรือกรอกละติจูดและลองจิจูดให้ถูกต้อง");return;
+    }
     if (closure.enabled && (!closure.startsOn || !closure.endsOn || closure.endsOn < closure.startsOn)) {
       setSaveError("กรุณาเลือกวันเริ่มและวันสิ้นสุดของประกาศปิดร้านให้ถูกต้อง");
       return;
@@ -266,7 +272,7 @@ export function SettingsManager() {
         description: next.description, welcome_message: next.welcomeMessage,
         logo_url: logoUrl || null, contacts: next.contacts, store_hours_enabled: next.storeHoursEnabled,
         weekly_hours: next.weeklyHours, temporary_closure: next.temporaryClosure,
-        card_design: { themes: next.cardThemes, mascots: next.cardMascots, selectedTheme: next.selectedTheme, selectedMascot: next.selectedMascot, displayCustomization: next.displayCustomization, popup_enabled: next.popupEnabled, popup_content: publicPopupContent },
+        card_design: { themes: next.cardThemes, mascots: next.cardMascots, selectedTheme: next.selectedTheme, selectedMascot: next.selectedMascot, displayCustomization: next.displayCustomization, popup_enabled: next.popupEnabled, popup_content: publicPopupContent, store_location: normalizeStoreLocation(next.storeLocation) },
         updated_at: new Date().toISOString(),
       };
       const result = ownerMode
@@ -413,6 +419,7 @@ function ShopTab({ settings, update }: { settings: AppSettings; update: Update }
         {imageStatus ? <p className="image-status" aria-live="polite">{imageStatus}</p> : null}
       </section>
       <section className="settings-card shop-hours-card">
+        <div className="store-location-settings"><h2>ที่ตั้งร้านและหมุดแผนที่</h2><p>เลือกตำแหน่งใน Google Maps แล้ววางพิกัดหรือลิงก์เพื่อกำหนดหมุดร้าน</p><label>ที่อยู่ร้าน<textarea maxLength={500} value={settings.storeLocation.address} onChange={event=>update("storeLocation",{...settings.storeLocation,address:event.target.value})} placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด"/></label><div className="store-location-coordinates"><label>ละติจูด<input type="number" step="any" min={-85} max={85} value={settings.storeLocation.latitude} onChange={event=>update("storeLocation",{...settings.storeLocation,latitude:event.target.value})}/></label><label>ลองจิจูด<input type="number" step="any" min={-180} max={180} value={settings.storeLocation.longitude} onChange={event=>update("storeLocation",{...settings.storeLocation,longitude:event.target.value})}/></label></div><StorePinMap location={settings.storeLocation} onPick={(latitude,longitude)=>update("storeLocation",{...settings.storeLocation,latitude:latitude.toFixed(6),longitude:longitude.toFixed(6)})}/><small>{storeCoordinates(settings.storeLocation)?"หมุดร้านพร้อมแล้ว กดบันทึกการตั้งค่าเพื่อแสดงบนหน้าลูกค้า":"ยังไม่ได้ปักหมุดร้าน"}</small></div>
         <div className="card-heading"><div><h2>เวลาเปิด – ปิดร้าน</h2><p>กำหนดเวลาให้บริการของร้านในแต่ละวัน</p></div><div className="shop-hours-visibility"><span>แสดงบนหน้าลูกค้า</span><Switch checked={settings.storeHoursEnabled} onChange={() => update("storeHoursEnabled", !settings.storeHoursEnabled)} label="แสดงเวลาทำการบนหน้าลูกค้า" /></div></div>
         <div className="shop-day-grid">{settings.weeklyHours.map((day, index) => <button key={day.day} type="button" className={`shop-day ${selectedDay === index ? "selected" : ""} ${day.open ? "" : "closed"}`} onClick={() => setSelectedDay(index)}><strong>{day.day}</strong><small>{day.open ? `${day.opensAt} – ${day.closesAt}` : "ปิด"}</small></button>)}</div>
         <div className="shop-day-editor"><div className="shop-day-editor-title"><strong>{settings.weeklyHours[selectedDay]?.day}</strong><Switch checked={settings.weeklyHours[selectedDay]?.open ?? false} onChange={() => patchDay("open", !settings.weeklyHours[selectedDay]?.open)} label="เปิดร้านวันนี้" /></div><TimeSelect label="เวลาเปิด" value={settings.weeklyHours[selectedDay]?.opensAt || "08:00"} disabled={!settings.weeklyHours[selectedDay]?.open} onChange={(value) => patchDay("opensAt", value)} /><TimeSelect label="เวลาปิด" value={settings.weeklyHours[selectedDay]?.closesAt || "20:30"} disabled={!settings.weeklyHours[selectedDay]?.open} onChange={(value) => patchDay("closesAt", value)} /></div>
