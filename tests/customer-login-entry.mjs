@@ -67,10 +67,15 @@ const submitPhone=async(h,Component,value)=>{
   assert.equal(screen(h.render(Component)),'loading','Phone submit shows the central loader synchronously');h.flush();
 };
 const realFetch=globalThis.fetch;
+const openPhone=(h,Component)=>{
+  find(h.render(Component),n=>n.props?.className==='line-entry-line-button').props.onClick({preventDefault(){}});
+  assert.equal(screen(h.render(Component)),'phone','Pressing LINE after logout opens phone confirmation synchronously');h.flush();
+};
 try {
   setup();localStorage.setItem('tammy-customer-signed-out','1');
   let Component=await component(),h=new Hooks();
-  assert.equal(screen(h.render(Component)),'phone','A signed-out customer sees the phone form on the first component render');h.flush();await tick();assert.equal(calls.length,0,'Signed-out entry performs no config, LINE or member work');
+  assert.equal(screen(h.render(Component)),'entry','A signed-out customer sees welcome and signup on the first render');h.flush();await tick();assert.equal(calls.length,0,'Signed-out entry performs no config, LINE or member work');
+  assert.ok(find(h.render(Component),n=>n.props?.className==='line-entry-signup-link'));openPhone(h,Component);assert.equal(calls.length,0,'Opening phone confirmation does not wait for network or LINE');
   let release;memberRelease=new Promise(r=>release=r);
   assert.equal(find(h.render(Component),n=>n.type==='input').props.maxLength,undefined,'Autofill formatting must not consume a ten-character limit');
   await submitPhone(h,Component,'099-000-0000');await until(()=>calls.some(c=>c.body?.action==='confirmPhone'));
@@ -80,15 +85,16 @@ try {
   release();await until(()=>__loginCounts.seeds.length===1);
   let tree=h.render(Component);assert.equal(screen(tree),'CustomerPortal');assert.equal(__loginCounts.extraReads,0,'Bundled data prevents catalog/account API calls');
   const beforeLogout=calls.length;tree.props.onLogout();
-  assert.equal(screen(h.render(Component)),'phone','Logout shows the phone form synchronously');h.flush();await tick();
+  assert.equal(screen(h.render(Component)),'entry','Logout returns to welcome synchronously');h.flush();await tick();
   assert.equal(calls.length,beforeLogout,'Logout does not wait for or start another login request');assert.equal(__loginCounts.logout,0);assert.equal(__loginCounts.clears,1);
-  wrongPhone=true;await submitPhone(h,Component,'0880000000');await until(()=>screen(h.render(Component))==='phone');
+  openPhone(h,Component);wrongPhone=true;await submitPhone(h,Component,'0880000000');await until(()=>screen(h.render(Component))==='phone');
   assert.ok(find(h.render(Component),n=>n.props?.role==='alert'));assert.equal(localStorage.getItem('tammy-customer-signed-out'),'1');
   wrongPhone=false;await submitPhone(h,Component,'0990000000');await until(()=>screen(h.render(Component))==='CustomerPortal');
   assert.equal(__loginCounts.init,1,'Login after portal logout reuses the initialized LINE transport');
   assert.equal(sessionStorage.getItem(phone.pendingPhoneKey),null);assert.equal(localStorage.getItem('tammy-customer-signed-out'),null);h.cleanup();
 
   setup();localStorage.setItem('tammy-customer-signed-out','1');logged=false;Component=await component();h=new Hooks();h.render(Component);h.flush();
+  openPhone(h,Component);
   await submitPhone(h,Component,'0990000000');await until(()=>__loginCounts.oauth===1);assert.equal(calls.filter(c=>c.body).length,0);
   h.cleanup();logged=true;window.location.search='?code=callback&state=callback';
   Component=await component();h=new Hooks();assert.equal(screen(h.render(Component)),'loading','OAuth callback continues the already submitted phone without another form');h.flush();
@@ -116,6 +122,13 @@ try {
   const signupPhone=find(signup,n=>n.type==='input'&&n.props.type==='tel');assert.equal(signupPhone.props.maxLength,undefined);
   signupPhone.props.onChange({target:{value:'+66 99-000-0000'}});signup=h.render(Component,{preview:true,previewScreen:'register'});
   assert.equal(find(signup,n=>n.type==='input'&&n.props.type==='tel').props.value,'0990000000');h.cleanup();
+  setup();localStorage.setItem('tammy-customer-signed-out','1');logged=false;Component=await component();h=new Hooks();h.render(Component);h.flush();
+  find(h.render(Component),n=>n.props?.className==='line-entry-signup-link').props.onClick();h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
+  setup();window.location.search='?view=rewards';logged=false;Component=await component();h=new Hooks();h.render(Component);h.flush();await tick();await tick();
+  assert.equal(sessionStorage.getItem('tammy-line-menu-view'),'rewards');assert.equal(__loginCounts.oauth,0);
+  find(h.render(Component),n=>n.props?.className==='line-entry-line-button').props.onClick({preventDefault(){}});h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
+  logged=true;window.location.search='?code=callback&state=callback';Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>screen(h.render(Component))==='CustomerPortal');
+  assert.equal(h.render(Component).props.initialView,'rewards','Direct Rich Menu destination survives OAuth');h.cleanup();
   const config=await load('next.config.ts');assert.equal(config.default.redirects,undefined);assert.deepEqual(config.default.rewrites(),[{source:'/customer-preview/:path*',destination:'/customer'}],'The registered endpoint is served without an OAuth-breaking redirect');
   console.log('PASS: immediate logout/phone entry, synchronous loading after submit, wrong-phone retry, one OAuth continuation, one bundled auto-login request, cancelled login isolation and preserved LIFF endpoint.');
 } finally {globalThis.fetch=realFetch;}

@@ -21,6 +21,7 @@ type PreviewScreen = "register" | "login" | "loading" | "phone";
 const signedOutKey = "tammy-customer-signed-out";
 const loginIntentKey = "tammy-line-login-intent";
 const transferKey = "tammy-pending-line-transfer";
+const richMenuViewKey = "tammy-line-menu-view";
 
 const emptyForm: Registration = { fullName: "", firstName: "", lastName: "", gender: "prefer_not_to_say", birthDate: "", phone: "", email: "", dogCount: 0, catCount: 0 };
 const loadConfig = singleFlight<{ liffId: string; logoUrl?: string | null }>();
@@ -35,7 +36,7 @@ function previewState(screen: PreviewScreen): State { return screen === "registe
 function initialState(preview: boolean, screen: PreviewScreen): State {
   if (preview) return previewState(screen);
   if (typeof window !== "undefined" && localStorage.getItem(signedOutKey) === "1"
-    && !pendingPhone(sessionStorage.getItem(pendingPhoneKey))) return "phone";
+    && !pendingPhone(sessionStorage.getItem(pendingPhoneKey))) return "entry";
   if (typeof window !== "undefined") {
     const query = new URLSearchParams(window.location.search);
     if (localStorage.getItem("tammy-line-returning") === "1" || pendingPhone(sessionStorage.getItem(pendingPhoneKey))
@@ -65,14 +66,16 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   useEffect(() => {
     if (preview) { setState(previewState(previewScreen)); return; }
     const submittedPhone = pendingPhone(sessionStorage.getItem(pendingPhoneKey));
-    // Logout is a local choice: render the form before any config, SDK or network work.
-    if (localStorage.getItem(signedOutKey) === "1" && !submittedPhone) {
+    // Logout returns to the welcome screen. A button opens phone confirmation locally.
+    if (localStorage.getItem(signedOutKey) === "1" && !submittedPhone && !connectRequested) {
       sessionStorage.removeItem(pendingPhoneKey);
-      setState("phone");
+      setState("entry");
       return;
     }
     const query = new URLSearchParams(window.location.search);
     const requestedTransfer = query.get("lineTransfer");
+    const requestedView = query.get("view") || query.get("screen");
+    if (requestedView === "points" || requestedView === "rewards" || requestedView === "news") sessionStorage.setItem(richMenuViewKey, requestedView);
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
     const liffCallback = query.has("code") && query.has("state") || query.has("liff.state") || window.location.hash.includes("access_token=");
     const oauthCallback = query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
@@ -130,7 +133,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer)) setTransferId(finalTransfer);
         const finalScreen = finalQuery.get("screen");
         const finalView = finalQuery.get("view");
-        const portalView = finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView;
+        const portalView = (finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView) || sessionStorage.getItem(richMenuViewKey);
         if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
         if (!liff.isLoggedIn()) {
           liff.login();
@@ -167,6 +170,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
             else await prepareMemberData(token || undefined, access || undefined);
             if (!active) return;
             localStorage.removeItem(signedOutKey);
+            sessionStorage.removeItem(richMenuViewKey);
             sessionStorage.removeItem(pendingPhoneKey);
             localStorage.setItem("tammy-line-returning", "1"); sessionStorage.removeItem(loginIntentKey); setMember(data.member); setState("member");
           }
@@ -196,6 +200,11 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   function loginWithLine() {
     if (testLogin) { if (testConfirmPhone) setState("phone"); else testLogin(); return; }
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
+    if (localStorage.getItem(signedOutKey) === "1") { setError(""); setState("phone"); return; }
+    startLineConnection();
+  }
+
+  function startLineConnection() {
     sessionStorage.setItem(loginIntentKey, "1");
     setError(""); setConnectRequested(value => value + 1); setState("loading");
   }
@@ -204,9 +213,10 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     clearMemberDisplayData(); localStorage.setItem(signedOutKey, "1");
     sessionStorage.removeItem(loginIntentKey); localStorage.removeItem("tammy-line-returning");
     sessionStorage.removeItem(pendingPhoneKey);
+    sessionStorage.removeItem(richMenuViewKey); setRichMenuView(null);
     setConnectRequested(0);
     setMember(null); setIdToken(""); setAccessToken(""); setError("");
-    setPhone(""); setBusy(false); setState("phone");
+    setPhone(""); setBusy(false); setState("entry");
     // Keep LINE's transport session; the next phone submit still gets verified by the server.
   }
 
@@ -280,7 +290,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><Image src={logoUrl || "/assets/shop-logo-original.png"} width={240} height={240} alt="โลโก้ร้าน Tammy Pet Shop" unoptimized priority /></div></div>
         <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเข้าสู่ระบบ" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "ยินดีต้อนรับกลับ"}</h1><p>{state === "loading" ? "กำลังตรวจสอบบัญชี LINE" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "เข้าสู่ระบบด้วยบัญชี LINE ของคุณ"}</p></div>
         {state === "loading" ? null : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className="line-entry-line-button" href={liffUrl || undefined} onClick={event => { event.preventDefault(); loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
-        {state !== "loading" && <button className="line-entry-signup-link" type="button" onClick={() => { if(preview) setState("form"); else loginWithLine(); }}><UserPlus size={19}/>สมัครสมาชิก</button>}
+        {state !== "loading" && <button className="line-entry-signup-link" type="button" onClick={() => { if(preview) setState("form"); else startLineConnection(); }}><UserPlus size={19}/>สมัครสมาชิก</button>}
         {error && state !== "unavailable" && <p className="line-entry-error" role="alert">{error}</p>}
       </section>}
       {state === "phone" && <section className="line-phone-confirm"><h1>ยืนยันเบอร์โทรศัพท์</h1><p>กรอกเบอร์สมาชิกที่เชื่อมกับบัญชี LINE นี้หนึ่งครั้ง</p><form onSubmit={confirmPhone}><label>เบอร์โทรศัพท์<input type="tel" inputMode="numeric" autoComplete="tel" required pattern="0[0-9]{9}" value={phone} onChange={e=>setPhone(normalizeThaiPhone(e.target.value))} placeholder="0XXXXXXXXX"/></label>{error&&<p role="alert" className="line-entry-error">{error}</p>}<button type="submit" disabled={busy}>{busy?"กำลังยืนยัน…":"ยืนยันและเข้าสู่ระบบ"}</button></form></section>}

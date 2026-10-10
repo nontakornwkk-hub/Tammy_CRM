@@ -116,10 +116,10 @@ async function checkSupabase(saveLocal = false) {
 
   const publicBaseUrl = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1") ? "https://tammy-crm.vercel.app" : baseUrl;
   const webhookUrl = `${publicBaseUrl}/api/line/messaging/webhook`;
-  const membershipUrl = `${publicBaseUrl}/customer`;
+  const membershipUrl = `${publicBaseUrl}/customer-preview`;
   const adminLoginUrl = `${publicBaseUrl}/login`;
-  const richMenuUrl = connection?.liffId ? `https://liff.line.me/${connection.liffId}` : "";
-  const memberLoginUrl = richMenuUrl || `${publicBaseUrl}/customer`;
+  const richMenuUrl = membershipUrl;
+  const memberLoginUrl = membershipUrl;
   const publicUrl = publicBaseUrl.startsWith("https://") && !publicBaseUrl.includes("localhost");
   const hasSavedMessaging = Boolean(connection?.channelSecret && connection?.accessToken);
   return <div className="linev2-setup"><div className="linev2-setup-intro"><div><h2>การเชื่อมต่อ</h2></div><a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers <ExternalLink size={15} /></a></div>
@@ -153,8 +153,8 @@ async function checkSupabase(saveLocal = false) {
       {connection?.liff && <div className="linev2-setup-buttons"><button className="linev2-setup-action secondary" type="button" disabled={busy !== null} onClick={() => void testLogin()}>ทดสอบ LIFF URL</button><a className="linev2-setup-action secondary" href="/customer" target="_blank" rel="noreferrer">เปิดหน้าสมาชิกทดสอบจริง</a></div>}
       {notices.login && !connection?.liff && <p className="linev2-result success">{notices.login}</p>}{errors.login && <p className="linev2-result error" role="alert">{errors.login}</p>}
       <details className="linev2-optional"><summary>ลิงก์เข้าใช้งานสำหรับแอดมินและสมาชิก</summary><div className="linev2-urlbox"><strong>ลิงก์เข้าใช้งานหลัก</strong><small>แอดมิน</small><code>{adminLoginUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(adminLoginUrl)}>คัดลอกลิงก์แอดมิน</button><small>สมาชิก</small><code>{memberLoginUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(memberLoginUrl)}>คัดลอกลิงก์สมาชิก</button></div></details>
-      <details className="linev2-optional"><summary>ลิงก์สำหรับตั้งค่า LINE Rich Menu และ LIFF</summary><div className="linev2-urlbox"><strong>Rich Menu ช่อง MEMBERSHIP</strong><code>{richMenuUrl || "เชื่อม LINE Login / LIFF ก่อนเพื่อสร้างลิงก์"}</code><button type="button" disabled={!richMenuUrl} onClick={() => void navigator.clipboard.writeText(richMenuUrl)}>คัดลอกลิงก์ Rich Menu</button><small>ตั้งเป็น URL Action ของปุ่ม MEMBERSHIP ใน LINE Official Account</small></div><div className="linev2-urlbox"><strong>LIFF Endpoint URL</strong><code>{membershipUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(membershipUrl)}>คัดลอก Endpoint</button><small>ใช้ตั้งค่าใน LINE Developers เมื่อย้าย Endpoint เท่านั้น ระบบส่งกลับ URL ที่ตั้งไว้ใน LINE โดยอัตโนมัติ</small></div></details>
-      <p className="linev2-customer-flow">ลูกค้าเพิ่มเพื่อน OA → กด MEMBERSHIP ใน Rich Menu → LINE Login → สมัครครั้งแรกเพียงครั้งเดียว → เข้าหน้าสมาชิก /customer · เมื่อออกจากระบบให้เข้าด้วย LINE อีกครั้ง</p>
+      <details className="linev2-optional"><summary>ลิงก์สำหรับตั้งค่า LINE Rich Menu และ LIFF</summary><div className="linev2-urlbox"><strong>Rich Menu ช่อง MEMBERSHIP</strong><code>{richMenuUrl || "เชื่อม LINE Login / LIFF ก่อนเพื่อสร้างลิงก์"}</code><button type="button" disabled={!richMenuUrl} onClick={() => void navigator.clipboard.writeText(richMenuUrl)}>คัดลอกลิงก์ Rich Menu</button><small>ตั้งเป็น URL Action ของปุ่ม MEMBERSHIP เพื่อให้ลูกค้าเห็นหน้าเข้าสู่ระบบและสมัครสมาชิกก่อนเชื่อม LINE</small></div><div className="linev2-urlbox"><strong>LIFF Endpoint URL</strong><code>{membershipUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(membershipUrl)}>คัดลอก Endpoint</button><small>ใช้ตั้งค่าใน LINE Developers เมื่อย้าย Endpoint เท่านั้น ระบบส่งกลับ URL ที่ตั้งไว้ใน LINE โดยอัตโนมัติ</small></div></details>
+      <p className="linev2-customer-flow">ลูกค้าเพิ่มเพื่อน OA → กด MEMBERSHIP → หน้าเข้าสู่ระบบ / สมัครสมาชิก → เชื่อม LINE · เมื่อออกจากระบบให้กดเข้าสู่ระบบแล้วกรอกเบอร์ก่อน</p>
     </Step>
   </div>;
 }
