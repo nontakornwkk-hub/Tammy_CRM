@@ -100,6 +100,9 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
         const { default: liff } = await sdk;
+        // LIFF initialization can itself request consent inside LINE. Keep it behind
+        // the welcome buttons for a new visitor, even when liff.state is present.
+        if (!requested) { setState("entry"); return; }
         if (!shouldInitializeLine({signedOut,connectRequested:requested || !signedOut && localStorage.getItem("tammy-line-returning") === "1",liffCallback,pendingTransfer:Boolean(pendingTransfer),inClient:liff.isInClient()})) { setState("entry"); return; }
         if (requested) setState("loading");
         performance.mark("tammy-line:init-start");

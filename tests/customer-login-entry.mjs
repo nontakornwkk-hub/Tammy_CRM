@@ -109,7 +109,7 @@ try {
     setup();logged=false;window.location.search=search;Component=await component();h=new Hooks();
     assert.equal(screen(h.render(Component)),'entry','First-time entry shows LINE login and signup immediately');h.flush();
     await until(()=>calls.some(c=>c.url.endsWith('/config')));await tick();await tick();
-    assert.equal(screen(h.render(Component)),'entry');assert.equal(__loginCounts.oauth,0,'Opening LINE does not force OAuth before pressing a button');assert.equal(calls.filter(c=>c.body).length,0);
+    assert.equal(screen(h.render(Component)),'entry');assert.equal(__loginCounts.init,0,'New visitors cannot be sent to LINE consent by SDK initialization before pressing a button');assert.equal(__loginCounts.oauth,0,'Opening LINE does not force OAuth before pressing a button');assert.equal(calls.filter(c=>c.body).length,0);
     find(h.render(Component),n=>n.props?.className==='line-entry-signup-link').props.onClick();h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
   }
   setup();Component=await component();h=new Hooks();let signup=h.render(Component,{preview:true,previewScreen:'register'});
