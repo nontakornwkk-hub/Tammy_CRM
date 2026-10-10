@@ -7,6 +7,7 @@ import { loadCustomerPortal, prepareCustomerPortal } from "@/lib/customer-portal
 import Image from "next/image";
 import { prepareMemberData, clearMemberDisplayData, seedMemberData, type MemberBootstrap } from "@/lib/member-bootstrap";
 import { shouldInitializeLine } from "@/lib/line/login-flow";
+import { normalizeThaiPhone } from "@/lib/line/phone-input";
 import { pendingPhone, pendingPhoneKey, phoneContinuation } from "@/lib/line/phone-confirmation";
 import { singleFlight } from "@/lib/single-flight";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
@@ -35,7 +36,13 @@ function initialState(preview: boolean, screen: PreviewScreen): State {
   if (preview) return previewState(screen);
   if (typeof window !== "undefined" && localStorage.getItem(signedOutKey) === "1"
     && !pendingPhone(sessionStorage.getItem(pendingPhoneKey))) return "phone";
-  return "loading";
+  if (typeof window !== "undefined") {
+    const query = new URLSearchParams(window.location.search);
+    if (localStorage.getItem("tammy-line-returning") === "1" || pendingPhone(sessionStorage.getItem(pendingPhoneKey))
+      || sessionStorage.getItem(loginIntentKey) === "1" || query.has("code") && query.has("state")
+      || window.location.hash.includes("access_token=") || query.has("lineTransfer")) return "loading";
+  }
+  return "entry";
 }
 
 export function LineMemberRegistration({ preview, previewScreen = "register", testLogin, testConfirmPhone }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void; testConfirmPhone?: (phone: string) => Promise<void> }) {
@@ -68,12 +75,14 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     const requestedTransfer = query.get("lineTransfer");
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
     const liffCallback = query.has("code") && query.has("state") || query.has("liff.state") || window.location.hash.includes("access_token=");
-    if (connectRequested || liffCallback) setState("loading");
+    const oauthCallback = query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
+    if (connectRequested || oauthCallback) setState("loading");
     let active = true;
     void (async () => {
       try {
         const signedOut = localStorage.getItem(signedOutKey) === "1";
-        const requested = Boolean(connectRequested || submittedPhone || liffCallback || sessionStorage.getItem(loginIntentKey) === "1");
+        const requested = Boolean(connectRequested || submittedPhone || oauthCallback || sessionStorage.getItem(loginIntentKey) === "1"
+          || !signedOut && localStorage.getItem("tammy-line-returning") === "1" || sessionStorage.getItem(transferKey));
         void prepareCustomerPortal().catch(() => undefined);
         const sdk = import("@line/liff");
         void sdk.catch(() => undefined);
@@ -92,7 +101,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         setLiffUrl(canonicalUrl);
         const { default: liff } = await sdk;
         if (!shouldInitializeLine({signedOut,connectRequested:requested || !signedOut && localStorage.getItem("tammy-line-returning") === "1",liffCallback,pendingTransfer:Boolean(pendingTransfer),inClient:liff.isInClient()})) { setState("entry"); return; }
-        setState("loading");
+        if (requested) setState("loading");
         performance.mark("tammy-line:init-start");
         await initializeLine(config.liffId, async () => {
           if(initializedLiffId === config.liffId) return;
@@ -108,7 +117,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!active) return;
         performance.mark("tammy-line:init-end");
         performance.measure("tammy-line:init","tammy-line:init-start","tammy-line:init-end");
-        if (!liff.isInClient() && !liff.isLoggedIn() && !liffCallback && !requested) {
+        if (!requested) {
           setState("entry");
           return;
         }
@@ -185,7 +194,6 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     if (testLogin) { if (testConfirmPhone) setState("phone"); else testLogin(); return; }
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     sessionStorage.setItem(loginIntentKey, "1");
-    if (!liffUrl) { setError("กำลังเตรียมลิงก์ LINE กรุณาลองอีกครั้งสักครู่"); return; }
     setError(""); setConnectRequested(value => value + 1); setState("loading");
   }
 
@@ -268,17 +276,17 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
       {(state === "entry" || state === "login" || state === "unavailable" || state === "loading") && <section className="line-entry-hero" role={state === "loading" ? "status" : undefined}>
         <div className={`line-entry-orbit${state === "loading" ? " is-loading" : ""}`} aria-hidden="true"><div className="line-entry-orbit-motion"><span className="line-entry-orbit-ring" /><PawPrint className="line-entry-orbit-paw paw-one" size={27} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-two" size={23} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-three" size={25} fill="currentColor" /><PawPrint className="line-entry-orbit-paw paw-four" size={21} fill="currentColor" /></div><div className="line-entry-logo"><Image src={logoUrl || "/assets/shop-logo-original.png"} width={240} height={240} alt="โลโก้ร้าน Tammy Pet Shop" unoptimized priority /></div></div>
         <div className="line-entry-copy"><h1>{state === "loading" ? "กำลังเข้าสู่ระบบ" : state === "login" ? "ยินดีต้อนรับกลับ" : state === "unavailable" ? "เชื่อมต่อไม่สำเร็จ" : "ยินดีต้อนรับกลับ"}</h1><p>{state === "loading" ? "กำลังตรวจสอบบัญชี LINE" : state === "login" ? "เข้าสู่ระบบสมาชิกด้วยบัญชี LINE เดิม" : state === "unavailable" ? error : "เข้าสู่ระบบด้วยบัญชี LINE ของคุณ"}</p></div>
-        {state === "loading" ? null : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className={`line-entry-line-button${liffUrl ? "" : " is-preparing"}`} href={liffUrl || undefined} aria-disabled={!liffUrl} onClick={event => { event.preventDefault(); if(liffUrl) loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{!liffUrl ? "กำลังเตรียม LINE…" : state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
+        {state === "loading" ? null : preview ? <button className="line-entry-line-button" type="button" onClick={loginWithLine}><span className="line-entry-line-mark">LINE</span>เข้าสู่ระบบด้วย LINE</button> : <a className="line-entry-line-button" href={liffUrl || undefined} onClick={event => { event.preventDefault(); loginWithLine(); }}><span className="line-entry-line-mark">LINE</span>{state === "unavailable" ? "เปิดในแอป LINE อีกครั้ง" : "เข้าสู่ระบบด้วย LINE"}</a>}
         {state !== "loading" && <button className="line-entry-signup-link" type="button" onClick={() => { if(preview) setState("form"); else loginWithLine(); }}><UserPlus size={19}/>สมัครสมาชิก</button>}
         {error && state !== "unavailable" && <p className="line-entry-error" role="alert">{error}</p>}
       </section>}
-      {state === "phone" && <section className="line-phone-confirm"><h1>ยืนยันเบอร์โทรศัพท์</h1><p>กรอกเบอร์สมาชิกที่เชื่อมกับบัญชี LINE นี้หนึ่งครั้ง</p><form onSubmit={confirmPhone}><label>เบอร์โทรศัพท์<input type="tel" inputMode="numeric" autoComplete="tel" required pattern="0[0-9]{9}" maxLength={10} value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))} placeholder="0XXXXXXXXX"/></label>{error&&<p role="alert" className="line-entry-error">{error}</p>}<button type="submit" disabled={busy}>{busy?"กำลังยืนยัน…":"ยืนยันและเข้าสู่ระบบ"}</button></form></section>}
+      {state === "phone" && <section className="line-phone-confirm"><h1>ยืนยันเบอร์โทรศัพท์</h1><p>กรอกเบอร์สมาชิกที่เชื่อมกับบัญชี LINE นี้หนึ่งครั้ง</p><form onSubmit={confirmPhone}><label>เบอร์โทรศัพท์<input type="tel" inputMode="numeric" autoComplete="tel" required pattern="0[0-9]{9}" value={phone} onChange={e=>setPhone(normalizeThaiPhone(e.target.value))} placeholder="0XXXXXXXXX"/></label>{error&&<p role="alert" className="line-entry-error">{error}</p>}<button type="submit" disabled={busy}>{busy?"กำลังยืนยัน…":"ยืนยันและเข้าสู่ระบบ"}</button></form></section>}
       {state === "form" && <>
         <button type="button" className="line-entry-back" aria-label="กลับหน้าเข้าสู่ระบบ" onClick={()=>setState("login")}><ChevronLeft/></button><div className="line-entry-form-heading"><h1>สมัครสมาชิก</h1><p>เริ่มสะสมแต้มกับ Tammy</p></div><div className="line-signup-identity"><div className="line-signup-profile"><ProfilePhoto src={lineProfile?.pictureUrl} size={42} alt="รูปโปรไฟล์ LINE"/><span>{lineProfile?.displayName || (preview ? "ชื่อ LINE ตัวอย่าง" : "สมาชิก LINE")}</span></div><small>{preview ? "ตัวอย่างโปรไฟล์" : "✓ เชื่อมต่อ LINE แล้ว"}</small></div>
         <section className="line-signup-panel line-entry-form-panel">
           <form onSubmit={register} className="line-signup-form">
             <label><span className="line-signup-field-label">ชื่อ–นามสกุล <b aria-hidden="true">*</b></span><input autoComplete="name" required maxLength={161} value={form.fullName} onChange={e=>{const fullName=e.target.value,parts=fullName.trim().split(/\s+/);setForm({...form,fullName,firstName:parts[0]||"",lastName:parts.slice(1).join(" ")});}} placeholder="กรอกชื่อ–นามสกุล"/></label>
-            <label><span className="line-signup-field-label">เบอร์โทรศัพท์ <b aria-hidden="true">*</b></span><input type="tel" autoComplete="tel" inputMode="numeric" required pattern="0[0-9]{9}" maxLength={10} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })} placeholder="0XXXXXXXXX" /></label>
+            <label><span className="line-signup-field-label">เบอร์โทรศัพท์ <b aria-hidden="true">*</b></span><input type="tel" autoComplete="tel" inputMode="numeric" required pattern="0[0-9]{9}" value={form.phone} onChange={e => setForm({ ...form, phone: normalizeThaiPhone(e.target.value) })} placeholder="0XXXXXXXXX" /></label>
             <div className="customer-gender-picker"><span id="signup-gender-label">เพศ</span><div role="radiogroup" aria-labelledby="signup-gender-label">{[{value:"male",label:"ชาย"},{value:"female",label:"หญิง"},{value:"prefer_not_to_say",label:"ไม่ระบุ"}].map(choice=><button type="button" key={choice.value} role="radio" aria-checked={form.gender===choice.value} onClick={()=>setForm({...form,gender:choice.value})}>{choice.label}</button>)}</div></div>
             <label>อีเมล (ไม่บังคับ)<input type="email" autoComplete="email" maxLength={254} value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="example@email.com"/></label>
             <CustomerBirthdayPicker value={form.birthDate} onChange={birthDate=>setForm({...form,birthDate})}/>

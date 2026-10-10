@@ -11,6 +11,9 @@ async function load(path,imports={},suffix='') {
   const url=stub(code+'\n//'+suffix);return {url,...await import(url)};
 }
 const flight=await load('lib/single-flight.ts'),flow=await load('lib/line/login-flow.ts'),phone=await load('lib/line/phone-confirmation.ts');
+const phoneInput=await load('lib/line/phone-input.ts');
+for (const value of ['099-000-0000','099 000 0000','(099) 000-0000','+66 99-000-0000','0066 99 000 0000']) assert.equal(phoneInput.normalizeThaiPhone(value),'0990000000');
+assert.equal(phoneInput.normalizeThaiPhone('099000000011'),'099000000011','Invalid long input is not silently truncated to another number');
 assert.equal(phone.pendingPhone(phone.phoneContinuation('0990000000',1000),1001),'0990000000');
 for(const value of [null,'{}','bad',phone.phoneContinuation('088',1000),phone.phoneContinuation('0990000000',1000)])
   assert.equal(phone.pendingPhone(value,301000),undefined,'Malformed and expired form continuation cannot resume login');
@@ -32,7 +35,7 @@ const imports={react,'react/jsx-runtime':jsx,'lucide-react':stub('export const A
   'next/dynamic':stub('export default ()=>"CustomerPortal";'),'next/image':stub('export default "img";'),
   '@/lib/customer-portal-loader':stub('export const prepareCustomerPortal=()=>globalThis.__loginPortal();export const loadCustomerPortal=()=>Promise.resolve({CustomerPortal:"CustomerPortal"});'),
   '@/lib/member-bootstrap':stub('export const prepareMemberData=async()=>{globalThis.__loginCounts.extraReads++;};export const seedMemberData=data=>globalThis.__loginCounts.seeds.push(data);export const clearMemberDisplayData=()=>globalThis.__loginCounts.clears++;'),
-  '@/lib/line/login-flow':flow.url,'@/lib/line/phone-confirmation':phone.url,'@/lib/single-flight':flight.url,
+  '@/lib/line/login-flow':flow.url,'@/lib/line/phone-confirmation':phone.url,'@/lib/line/phone-input':phoneInput.url,'@/lib/single-flight':flight.url,
   './customer-birthday-picker':stub('export const CustomerBirthdayPicker="birthday";'),'./profile-photo':stub('export const ProfilePhoto="photo";'),
   '@line/liff':stub('export default globalThis.__loginLiff;')};
 const storage=()=>{const map=new Map();return {getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,String(v)),removeItem:k=>map.delete(k)};};
@@ -69,7 +72,9 @@ try {
   let Component=await component(),h=new Hooks();
   assert.equal(screen(h.render(Component)),'phone','A signed-out customer sees the phone form on the first component render');h.flush();await tick();assert.equal(calls.length,0,'Signed-out entry performs no config, LINE or member work');
   let release;memberRelease=new Promise(r=>release=r);
-  await submitPhone(h,Component,'0990000000');await until(()=>calls.some(c=>c.body?.action==='confirmPhone'));
+  assert.equal(find(h.render(Component),n=>n.type==='input').props.maxLength,undefined,'Autofill formatting must not consume a ten-character limit');
+  await submitPhone(h,Component,'099-000-0000');await until(()=>calls.some(c=>c.body?.action==='confirmPhone'));
+  assert.equal(calls.find(c=>c.body?.action==='confirmPhone').body.phone,'0990000000');
   assert.equal(calls.filter(c=>c.body?.action==='lookup').length,0,'Phone continuation skips preliminary member lookup');
   assert.equal(screen(h.render(Component)),'loading');assert.equal(__loginCounts.seeds.length,0);
   release();await until(()=>__loginCounts.seeds.length===1);
@@ -90,16 +95,27 @@ try {
   await until(()=>screen(h.render(Component))==='CustomerPortal');
   assert.equal(__loginCounts.oauth,1,'Returning from LINE never starts a second OAuth login');assert.equal(calls.filter(c=>c.body).length,1);assert.equal(calls.find(c=>c.body).body.phone,'0990000000');h.cleanup();
 
-  setup();Component=await component();h=new Hooks();assert.equal(screen(h.render(Component)),'loading','Automatic entry starts with one stable loading screen');h.flush();await until(()=>screen(h.render(Component))==='CustomerPortal');
+  setup();localStorage.setItem('tammy-line-returning','1');Component=await component();h=new Hooks();assert.equal(screen(h.render(Component)),'loading','Automatic entry starts with one stable loading screen');h.flush();await until(()=>screen(h.render(Component))==='CustomerPortal');
   assert.equal(calls.filter(c=>c.body).length,1);assert.equal(calls.find(c=>c.body).body.action,'lookup');assert.equal(__loginCounts.extraReads,0);h.cleanup();
 
-  setup();Component=await component();h=new Hooks();h.render(Component);h.flush();
+  setup();localStorage.setItem('tammy-line-returning','1');Component=await component();h=new Hooks();h.render(Component);h.flush();
   h.effects[0].cleanup?.();h.effects[0].cleanup=h.effects[0].fn();
   await until(()=>screen(h.render(Component))==='CustomerPortal');
   assert.equal(__loginCounts.init,1,'React effect replay shares one pending LIFF initialization');
   assert.equal(calls.filter(c=>c.url.endsWith('/config')).length,1);assert.equal(calls.filter(c=>c.body).length,1,'Effect replay never repeats the member lookup');h.cleanup();
 
-  setup();let lateRelease;memberRelease=new Promise(r=>lateRelease=r);Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>calls.some(c=>c.body));h.cleanup();lateRelease();await tick();await tick();assert.equal(__loginCounts.seeds.length,0,'An abandoned login cannot seed member data or reopen the portal');
+  setup();localStorage.setItem('tammy-line-returning','1');let lateRelease;memberRelease=new Promise(r=>lateRelease=r);Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>calls.some(c=>c.body));h.cleanup();lateRelease();await tick();await tick();assert.equal(__loginCounts.seeds.length,0,'An abandoned login cannot seed member data or reopen the portal');
+  for (const search of ['', '?liff.state=%2Fcustomer']) {
+    setup();logged=false;window.location.search=search;Component=await component();h=new Hooks();
+    assert.equal(screen(h.render(Component)),'entry','First-time entry shows LINE login and signup immediately');h.flush();
+    await until(()=>calls.some(c=>c.url.endsWith('/config')));await tick();await tick();
+    assert.equal(screen(h.render(Component)),'entry');assert.equal(__loginCounts.oauth,0,'Opening LINE does not force OAuth before pressing a button');assert.equal(calls.filter(c=>c.body).length,0);
+    find(h.render(Component),n=>n.props?.className==='line-entry-signup-link').props.onClick();h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
+  }
+  setup();Component=await component();h=new Hooks();let signup=h.render(Component,{preview:true,previewScreen:'register'});
+  const signupPhone=find(signup,n=>n.type==='input'&&n.props.type==='tel');assert.equal(signupPhone.props.maxLength,undefined);
+  signupPhone.props.onChange({target:{value:'+66 99-000-0000'}});signup=h.render(Component,{preview:true,previewScreen:'register'});
+  assert.equal(find(signup,n=>n.type==='input'&&n.props.type==='tel').props.value,'0990000000');h.cleanup();
   const config=await load('next.config.ts');assert.equal(config.default.redirects,undefined);assert.deepEqual(config.default.rewrites(),[{source:'/customer-preview/:path*',destination:'/customer'}],'The registered endpoint is served without an OAuth-breaking redirect');
   console.log('PASS: immediate logout/phone entry, synchronous loading after submit, wrong-phone retry, one OAuth continuation, one bundled auto-login request, cancelled login isolation and preserved LIFF endpoint.');
 } finally {globalThis.fetch=realFetch;}
