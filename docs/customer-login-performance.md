@@ -6,6 +6,8 @@ Explicit portal logout clears member display data and immediately shows phone co
 
 The registered `/customer-preview` LIFF endpoint is served through a rewrite, preserving its URL and OAuth parameters rather than redirecting before SDK initialization.
 
+Both `/customer` and `/customer-preview` bypass the administrator access gate and use real LINE login, including on desktop. The protected `/customer-test` route provides the localhost administrator test account; explicit localhost `authPreview` views remain available for design review. No administrator session is required to open the customer LINE entry.
+
 ## Measured results
 
 - Production Supabase catalog/account reads after identity verification, five real read-only runs: **302, 286, 278, 278, 415 ms**. These exclude LINE OAuth, browser startup, JavaScript loading and the user's mobile network.

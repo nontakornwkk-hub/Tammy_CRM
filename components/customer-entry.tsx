@@ -14,10 +14,10 @@ const testSignedOutKey = "tammy-admin-test-signed-out";
 const loadTestMember = singleFlight<{ member: TestMember; token: string }>();
 const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.CustomerPortal), { ssr: false });
 
-export function CustomerEntry() {
+export function CustomerEntry({ testMode = false }: { testMode?: boolean }) {
   const router = useRouter();
   const [designScreen,setDesignScreen]=useState<"login"|"register"|"loading">("login");
-  const [state, setState] = useState<EntryState>("checking");
+  const [state, setState] = useState<EntryState>(testMode ? "checking" : "line");
   const [testMember, setTestMember] = useState<TestMember | null>(null);
   const [testToken, setTestToken] = useState("");
   const [testError, setTestError] = useState("");
@@ -30,7 +30,7 @@ export function CustomerEntry() {
       const { supabase } = await import("@/lib/supabase/client");
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!isActive()) return;
-      if (!token) { router.replace("/login?next=%2Fcustomer"); return; }
+      if (!token) { router.replace("/login?next=%2Fcustomer-test"); return; }
       void prepareCustomerPortal().catch(() => undefined);
       const result = await loadTestMember(`${token}:${phone || "auto"}`, async () => {
         const response = await fetch(`/api/dev/test-member${phone?`?confirmPhone=1&phone=${encodeURIComponent(phone)}`:""}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
@@ -76,11 +76,13 @@ export function CustomerEntry() {
     }
     const screen=new URLSearchParams(window.location.search).get("authPreview");
     if(screen==="login"||screen==="register"||screen==="loading"){setDesignScreen(screen);setState("design");return;}
+    // The customer URL always uses LINE; administrator testing has its own route.
+    if (!testMode) { setState("line"); return; }
     let active = true;
     if (localStorage.getItem(testSignedOutKey) === "1") setState("test-login");
     else void openTestMember(() => active);
     return () => { active = false; };
-  }, [openTestMember]);
+  }, [openTestMember, testMode]);
 
   if(state === "design") return <LineMemberRegistration preview previewScreen={designScreen}/>;
   if (state === "line") return <LineMemberRegistration preview={false} />;

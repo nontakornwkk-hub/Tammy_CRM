@@ -14,5 +14,6 @@ const AdminAccessGate = dynamic(() => import("./admin-access-gate").then(module 
 // Protected pages retain the original checks and database authorization.
 export function AdminAuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  return publicPaths.has(pathname) ? children : <AdminAccessGate>{children}</AdminAccessGate>;
+  const customerLineEndpoint = pathname === "/customer-preview" || pathname.startsWith("/customer-preview/");
+  return publicPaths.has(pathname) || customerLineEndpoint ? children : <AdminAccessGate>{children}</AdminAccessGate>;
 }

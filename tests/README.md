@@ -31,6 +31,7 @@ The latency check uses delayed mock responses to verify bootstrap deduplication,
 Customer login transitions and current-member ordinal/history checks:
 
     node tests/customer-login-entry.mjs
+    node tests/customer-route-separation.mjs
     node tests/member-order-and-redemptions.mjs
 
 The history check uses the same test-only PGlite runtime described above. It verifies saved item titles after deleting rewards/coupons, scoped history pagination, and contiguous display order after member deletion/new signup. See `docs/customer-login-performance.md` for the scope of the real read-only latency measurements.
