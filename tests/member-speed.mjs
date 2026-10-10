@@ -28,6 +28,13 @@ fail=true;await assert.rejects(qr.loadCouponQr('failure','A'),/failed/);assert.e
 let resolve;release={promise:new Promise(r=>resolve=r)};const inflight=account.loadMemberAccount('A',undefined,{fresh:true});await new Promise(r=>setTimeout(r,40));account.clearMemberAccount();resolve();await inflight;release=null;assert.equal(account.cachedMemberAccount('A'),undefined,'Logout prevents a late response repopulating display cache');
 account.clearMemberAccount();catalog.clearMemberCatalog();qr.clearCouponQr();assert.equal(account.cachedMemberAccount('A'),undefined);assert.equal(catalog.cachedMemberCatalog('A'),undefined);
 fail=true;await assert.rejects(bootstrap.prepareMemberData('failed-entry'),/failed/);await new Promise(resolve=>setTimeout(resolve,40));assert.equal(catalog.cachedMemberCatalog('failed-entry'),undefined,'Failed preload never opens an empty ready catalog');fail=false;
+const beforeSeed=calls.length;
+bootstrap.seedMemberData({catalog:{rewards:[{id:'bundled'}]},account:{profile:{points:350},pointsHistory:[],hasMore:false}},'bundled-token');
+await bootstrap.prepareMemberData('bundled-token');
+assert.equal(calls.length,beforeSeed,'Server bootstrap opens catalog and account without two additional API requests');
+assert.equal(account.cachedMemberAccount('bundled-token').profile.points,350);
+assert.equal(catalog.cachedMemberCatalog('bundled-token').rewards[0].id,'bundled');
+bootstrap.clearMemberDisplayData();assert.equal(account.cachedMemberAccount('bundled-token'),undefined);assert.equal(catalog.cachedMemberCatalog('bundled-token'),undefined);
 const started=performance.now(),svg=qr.localQr('TAMMY-COUPON:server-issued-token',280),encodedMs=performance.now()-started;assert.equal(qr.localQr('TAMMY-COUPON:server-issued-token',280),svg);assert.ok(svg.startsWith('data:image/svg+xml'));assert.ok(encodedMs<100);
 const QRCode=(await import('qrcode')).default,code=QRCode.create('TAMMY-COUPON:server-issued-token',{errorCorrectionLevel:'M'}),svgXml=decodeURIComponent(svg.split(',').slice(1).join(','));const cells=[...svgXml.matchAll(/M(\d+) (\d+)h1v1h-1z/g)].map(m=>[Number(m[1])-2,Number(m[2])-2]);assert.equal(cells.length,[...code.modules.data].filter(Boolean).length);for(const [x,y]of cells)assert.ok(code.modules.get(y,x),'SVG preserves the encoded QR matrix');
 const context=await load('lib/line/shop-context.ts');let configReads=0,channel='channel-1';

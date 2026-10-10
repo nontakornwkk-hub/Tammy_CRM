@@ -3,6 +3,8 @@ import { after } from "next/server";
 import { memberShopContext } from "@/lib/line/shop-context";
 import { createClient } from "@supabase/supabase-js";
 import { verifyMemberIdentity } from "@/lib/line/verify-member-identity";
+import { readMemberCatalog } from "@/lib/line/member-catalog";
+import { readMemberAccount } from "@/lib/line/member-account";
 
 export const runtime = "nodejs";
 
@@ -118,7 +120,21 @@ export async function POST(request: Request) {
         if(synced.error)console.warn("LINE profile sync failed",{code:synced.error.code});
       });
     }
-    return reply({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
+    let bootstrap: Record<string, unknown> | undefined;
+    if (input.includeBootstrap === true) {
+      stage = performance.now();
+      // Reuse this request's verified identity and member; read both datasets in parallel.
+      const context = { db, ownerId, memberId: existing.id };
+      const [catalog, account] = await Promise.all([readMemberCatalog(context), readMemberAccount(context)]);
+      const [catalogData, accountData] = await Promise.all([catalog.json(), account.json()]);
+      if (!catalog.ok || !account.ok) return reply({ error: catalogData.error || accountData.error || "โหลดข้อมูลสมาชิกไม่สำเร็จ" }, 500);
+      // Include the freshly verified LINE profile even if the deferred sync is still pending.
+      accountData.profile.lineDisplayName = lineDisplayName || accountData.profile.lineDisplayName;
+      accountData.profile.linePictureUrl = linePictureUrl || accountData.profile.linePictureUrl;
+      bootstrap = { catalog: catalogData, account: accountData };
+      timings.push(`bootstrap;dur=${(performance.now()-stage).toFixed(1)}`);
+    }
+    return reply({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url), ...(bootstrap ? { bootstrap } : {}) });
   }
 
   if (input.action === "lookup" || input.action === "confirmPhone") return reply({ registered: false, lineProfile: { displayName: lineDisplayName, pictureUrl: linePictureUrl } });

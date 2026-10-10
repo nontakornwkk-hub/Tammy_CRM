@@ -32,10 +32,10 @@ begin
     end if;
     if new.reward_id is not null then
       new.item_kind := 'reward';
-      select title into new.item_title from public.rewards where id = new.reward_id;
+      select title into new.item_title from public.rewards where id = new.reward_id and owner_id = new.owner_id;
     else
       new.item_kind := 'coupon';
-      select title into new.item_title from public.coupons where id = new.coupon_id;
+      select title into new.item_title from public.coupons where id = new.coupon_id and owner_id = new.owner_id;
     end if;
     new.item_title := coalesce(new.item_title, 'รายการที่เก็บในประวัติ');
   end if;
@@ -68,10 +68,10 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if tg_table_name = 'rewards' then
     update public.redemptions set item_kind = 'reward', item_title = old.title
-    where reward_id = old.id;
+    where reward_id = old.id and owner_id = old.owner_id;
   else
     update public.redemptions set item_kind = 'coupon', item_title = old.title
-    where coupon_id = old.id;
+    where coupon_id = old.id and owner_id = old.owner_id;
   end if;
   return old;
 end $$;
@@ -80,3 +80,6 @@ create trigger preserve_reward_title_before_delete
 before delete on public.rewards for each row execute function public.preserve_deleted_item_title();
 create trigger preserve_coupon_title_before_delete
 before delete on public.coupons for each row execute function public.preserve_deleted_item_title();
+
+revoke all on function public.snapshot_redemption_item() from public, anon, authenticated;
+revoke all on function public.preserve_deleted_item_title() from public, anon, authenticated;

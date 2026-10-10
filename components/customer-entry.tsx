@@ -24,7 +24,8 @@ export function CustomerEntry() {
   const [testBusy, setTestBusy] = useState(false);
 
   const openTestMember = useCallback(async (isActive: () => boolean = () => true, phone?: string) => {
-    if(!phone) setState("checking"); setTestError("");
+    setTestError("");
+    if(!phone) setState("checking");
     try {
       const { supabase } = await import("@/lib/supabase/client");
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
@@ -84,7 +85,7 @@ export function CustomerEntry() {
   if(state === "design") return <LineMemberRegistration preview previewScreen={designScreen}/>;
   if (state === "line") return <LineMemberRegistration preview={false} />;
   if (state === "admin" && testMember) return <><div className="customer-local-test-banner customer-database-test-banner"><span>รายการร้านจริง · ทดสอบไม่ตัดสต็อก</span><div><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("addPoints")}>+500 แต้ม</button><button type="button" disabled={testBusy} onClick={() => void changeTestPoints("reset")}>รีเซ็ตแต้ม</button></div>{testError ? <small role="alert">{testError}</small> : null}</div><CustomerPortal mode="customer" member={testMember} accessToken={`test:${testToken}`} onLogout={() => { clearMemberDisplayData(); localStorage.setItem(testSignedOutKey, "1"); setTestMember(null); setTestToken(""); setState("test-login"); }} onMemberUpdated={name => setTestMember(value => value ? { ...value, name } : value)} /></>;
-  if (state === "test-login") return <><div className="customer-local-test-banner">โหมดทดสอบ · ฐานข้อมูลแยกจากร้านจริง</div><LineMemberRegistration preview previewScreen="login" testLogin={() => void openTestMember()} testConfirmPhone={phone => openTestMember(() => true, phone)} /></>;
+  if (state === "test-login") return <><div className="customer-local-test-banner">โหมดทดสอบ · ฐานข้อมูลแยกจากร้านจริง</div><LineMemberRegistration preview previewScreen="phone" testLogin={() => void openTestMember()} testConfirmPhone={phone => openTestMember(() => true, phone)} /></>;
   if (state === "test-error") return <main className="admin-auth-check" role="alert">{testError}</main>;
   if (state === "denied") return <main className="admin-auth-check" role="alert">บัญชีนี้ไม่มีสิทธิ์ดูหน้าทดสอบลูกค้า</main>;
   return <LineMemberRegistration preview previewScreen="loading" />;

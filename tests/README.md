@@ -27,3 +27,10 @@ Member latency checks:
     node tests/member-speed.mjs
 
 The latency check uses delayed mock responses to verify bootstrap deduplication, warm navigation, QR expiry and logout races. Its millisecond results measure local cache/encoding, not LINE login or real Supabase network latency. The catalog check uses two isolated PostgreSQL databases and rejects every production-side write.
+
+Customer login transitions and current-member ordinal/history checks:
+
+    node tests/customer-login-entry.mjs
+    node tests/member-order-and-redemptions.mjs
+
+The history check uses the same test-only PGlite runtime described above. It verifies saved item titles after deleting rewards/coupons, scoped history pagination, and contiguous display order after member deletion/new signup. See `docs/customer-login-performance.md` for the scope of the real read-only latency measurements.

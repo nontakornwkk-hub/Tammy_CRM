@@ -1,4 +1,5 @@
 import { memberColumns } from "./member-columns";
+import { existingMemberOrder } from "../member-order";
 import type { MemberRow, MemberTagDefinition } from "@/lib/database.types";
 import { supabase } from "./client";
 
@@ -69,7 +70,7 @@ export async function fetchMembersData(ownerId: string) {
     db.from("member_tag_definitions").select("*").eq("owner_id", ownerId).order("created_at"),
   ]);
   if (members.error || pets.error || tags.error) throw members.error ?? pets.error ?? tags.error;
-  return { members: members.data as MemberRow[], pets: pets.data ?? [], tags: (tags.data ?? []) as MemberTagDefinition[] };
+  return { members: existingMemberOrder(members.data as MemberRow[]), pets: pets.data ?? [], tags: (tags.data ?? []) as MemberTagDefinition[] };
 }
 
 export async function fetchPointsData(ownerId: string) {
@@ -82,7 +83,7 @@ export async function fetchPointsData(ownerId: string) {
     db.from("points_transactions").select("member_id,birthday_bonus_year").eq("owner_id", ownerId).eq("birthday_bonus_year", year),
   ]);
   if (members.error || transactions.error || settings.error || birthdays.error) throw members.error ?? transactions.error ?? settings.error ?? birthdays.error;
-  return { members: members.data ?? [], transactions: transactions.data ?? [], settings: settings.data, birthdays: birthdays.data ?? [] };
+  return { members: existingMemberOrder((members.data ?? []) as MemberRow[]), transactions: transactions.data ?? [], settings: settings.data, birthdays: birthdays.data ?? [] };
 }
 
 export async function fetchRewardsData(ownerId: string) {

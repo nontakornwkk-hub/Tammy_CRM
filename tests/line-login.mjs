@@ -103,25 +103,33 @@ try {
   const stub = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
   const context = await load('lib/line/shop-context.ts', { '../single-flight': (await load('lib/single-flight.ts')).url });
   const afterTasks = [];
-  let reads = [], memberPoints = 120, memberStatus = 'active', memberExists = true;
+  let reads = [], memberPoints = 120, memberStatus = 'active', memberExists = true, failedTable = '';
   globalThis.__lineLoginDb = { from(table) {
     const filters = {}, builder = {
       select() { return builder; }, eq(key, value) { filters[key] = value; return builder; },
       single() { return builder; }, maybeSingle() { return builder; },
+      order() {return builder;}, not() {return builder;}, limit() {return builder;}, in() {return builder;},
       async then(resolve) {
         reads.push(table);
         if (table === 'members') {
-          assert.deepEqual(filters, { owner_id: 'shop', line_user_id: subject });
+          assert.deepEqual(filters, filters.line_user_id ? { owner_id: 'shop', line_user_id: subject } : {owner_id:'shop',id:'member'});
           resolve({ error: null, data: memberExists ? { id: 'member', phone:'0990000000', status: memberStatus, points: memberPoints, name: 'Member', level: 'Gold', member_code: 'TM-TEST', line_display_name: 'Old name', line_picture_url: null } : null });
-        } else resolve({ error: null, data: table === 'public_shop_profiles' ? { owner_id: 'shop' } : { login_channel_id: channel, liff_id: 'test-liff' } });
+        } else {
+          const rows={public_shop_profiles:{owner_id:'shop'},line_connections:{login_channel_id:channel,liff_id:'test-liff'},store_settings:{extra:{}},rewards:[{id:'reward',stock:3,starts_at:null,ends_at:null}],coupons:[{id:'public',audience_mode:'public',usage_limit:null,starts_at:null,ends_at:null},{id:'hidden',audience_mode:'targeted',usage_limit:null,starts_at:null,ends_at:null}],redemptions:[],member_coupon_claims:[],points_transactions:[]};
+          resolve({error:table===failedTable?{message:'failed'}:null,data:rows[table]});
+        }
       },
     }; return builder;
   }};
   globalThis.__lineLoginAfter = task => afterTasks.push(task);
+  const catalogReader=await load('lib/line/member-catalog.ts');
+  const accountReader=await load('lib/line/member-account.ts');
   const route = await load('app/api/line/member/route.ts', {
     '@/lib/line/id-token': id.url,
     '@/lib/line/verify-member-identity': identity.url,
     '@/lib/line/shop-context': context.url,
+    '@/lib/line/member-catalog': catalogReader.url,
+    '@/lib/line/member-account': accountReader.url,
     '@supabase/supabase-js': stub('export const createClient=()=>globalThis.__lineLoginDb;'),
     'next/server': stub('export const after=task=>globalThis.__lineLoginAfter(task);'),
   });
@@ -140,6 +148,22 @@ try {
     assert.match(response.headers.get('Server-Timing'), /shop;dur=.*identity;dur=.*member;dur=.*total;dur=/);
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
     assert.equal(afterTasks.length, 2, 'Successful lookup and phone confirmation schedule profile updates; rejected confirmation does not');
+    reads=[];
+    const bundled=await route.POST(request({action:'confirmPhone',idToken:token,phone:'0990000000',includeBootstrap:true}));
+    const bundledData=await bundled.json();assert.equal(bundled.status,200);
+    assert.equal(bundledData.bootstrap.account.profile.points,120);
+    assert.equal(bundledData.bootstrap.account.profile.lineDisplayName,claims.name,'Bootstrap uses the freshly verified LINE profile before deferred sync');
+    assert.equal(bundledData.bootstrap.catalog.rewards[0].id,'reward');
+    assert.deepEqual(bundledData.bootstrap.catalog.coupons.map(item=>item.id),['public'],'Bundled bootstrap keeps targeted coupon filtering');
+    assert.equal(reads.filter(table=>table==='line_connections').length,1,'The bundled login verifies shop and identity only once');
+    assert.match(bundled.headers.get('Server-Timing'),/bootstrap;dur=/);
+    reads=[];
+    const gated=await route.POST(request({action:'lookup',idToken:token,requirePhoneConfirmation:true,includeBootstrap:true}));assert.deepEqual(await gated.json(),{registered:true,requiresPhone:true});
+    assert.ok(!reads.includes('rewards')&&!reads.includes('points_transactions'),'No bootstrap before required phone confirmation');
+    reads=[];
+    assert.equal((await route.POST(request({action:'confirmPhone',idToken:token,phone:'0880000000',includeBootstrap:true}))).status,403);
+    assert.ok(!reads.includes('rewards'),'Wrong phone cannot reach bootstrap');
+    failedTable='rewards';assert.equal((await route.POST(request({action:'lookup',idToken:token,includeBootstrap:true}))).status,500,'Failed preload keeps the entry closed');failedTable='';
     memberPoints = 777;
     assert.equal((await (await lookup()).json()).member.points, 777, 'Warm keys do not reuse an old member balance');
     memberStatus = 'inactive'; assert.equal((await lookup()).status, 403, 'Disabled membership is rejected on the next lookup');

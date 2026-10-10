@@ -1,6 +1,7 @@
 "use client";
 
 import { memberColumns } from "@/lib/supabase/member-columns";
+import { existingMemberOrder } from "@/lib/member-order";
 import {memberPetCounts} from "@/lib/member-pet-counts";
 import {watchCatalogChanges} from "@/lib/catalog-live";
 
@@ -156,7 +157,7 @@ export function MembersManager() {
     const nextAliases = { ...aliases, [selected.id]: nickname };
     setAliases(nextAliases);
     window.localStorage.setItem(ALIAS_KEY, JSON.stringify(nextAliases));
-    setMembers((current) => current.map((member) => member.id === selected.id ? data as MemberRow : member));
+    setMembers((current) => existingMemberOrder(current.map((member) => member.id === selected.id ? data as MemberRow : member)));
     clearCachedData("members", "points", "reports");
     setEditingInternal(false); setNotice("บันทึกข้อมูลภายในแล้ว");
   }
@@ -164,7 +165,7 @@ export function MembersManager() {
     if (!supabase) return false;
     const { data, error } = await supabase.from("members").update({ tags: nextTags }).eq("id", member.id).eq("owner_id", crmOwnerId() || "").select(memberColumns).single();
     if (error || !data) { setNotice(`บันทึกแท็กไม่สำเร็จ: ${error?.message ?? "ไม่พบสมาชิก"}`); return false; }
-    setMembers((current) => current.map((item) => item.id === member.id ? data as MemberRow : item));
+    setMembers((current) => existingMemberOrder(current.map((item) => item.id === member.id ? data as MemberRow : item)));
     clearCachedData("members");
     return true;
   }

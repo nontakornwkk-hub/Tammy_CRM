@@ -1,4 +1,5 @@
 import { memberColumns } from "./member-columns";
+import { existingMemberOrder } from "../member-order";
 import type { MemberRow } from "@/lib/database.types";
 import { supabase } from "./client";
 import { crmOwnerId } from "./crm-data";
@@ -8,7 +9,7 @@ export async function loadMembers() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { mode: "demo" as const, members: null, error: null };
   const { data, error } = await supabase.from("members").select(memberColumns).order("member_number", { ascending: true }).order("created_at", { ascending: true });
-  return { mode: "supabase" as const, members: data, error };
+  return { mode: "supabase" as const, members: data ? existingMemberOrder(data as MemberRow[]) : null, error };
 }
 
 export async function createMember(input: Pick<MemberRow, "name" | "phone" | "email"> & { petName?: string; birthDate?: string | null }) {

@@ -12,6 +12,10 @@ export function cachedMemberCatalog(idToken?: string, accessToken?: string) {
 
 export function clearMemberCatalog() { generation++; snapshot = undefined; }
 
+export function seedMemberCatalog(data: Record<string, unknown>, idToken?: string, accessToken?: string) {
+  snapshot = { key: keyFor(idToken, accessToken), data, expires: Date.now() + 60_000 };
+}
+
 export function loadMemberCatalog(idToken?: string, accessToken?: string, { fresh=false }={}) {
   const cached=cachedMemberCatalog(idToken,accessToken);
   if(!fresh&&cached)return Promise.resolve(cached);

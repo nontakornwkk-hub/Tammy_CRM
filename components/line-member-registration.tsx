@@ -5,8 +5,9 @@ import { ArrowRight, PawPrint, UserPlus, Dog, Cat, ChevronLeft } from "lucide-re
 import dynamic from "next/dynamic";
 import { loadCustomerPortal, prepareCustomerPortal } from "@/lib/customer-portal-loader";
 import Image from "next/image";
-import { prepareMemberData, clearMemberDisplayData } from "@/lib/member-bootstrap";
+import { prepareMemberData, clearMemberDisplayData, seedMemberData, type MemberBootstrap } from "@/lib/member-bootstrap";
 import { shouldInitializeLine } from "@/lib/line/login-flow";
+import { pendingPhone, pendingPhoneKey, phoneContinuation } from "@/lib/line/phone-confirmation";
 import { singleFlight } from "@/lib/single-flight";
 import { CustomerBirthdayPicker } from "./customer-birthday-picker";
 import { ProfilePhoto } from "./profile-photo";
@@ -15,7 +16,7 @@ type Member = { memberCode: string; name: string; level: string; points: number;
 type LineProfile = { displayName: string | null; pictureUrl: string | null };
 type Registration = { fullName: string; firstName: string; lastName: string; gender: string; birthDate: string; phone: string; email: string; dogCount: number; catCount: number };
 type State = "entry" | "loading" | "form" | "member" | "login" | "unavailable" | "transfer" | "transferDone" | "phone";
-type PreviewScreen = "register" | "login" | "loading";
+type PreviewScreen = "register" | "login" | "loading" | "phone";
 const signedOutKey = "tammy-customer-signed-out";
 const loginIntentKey = "tammy-line-login-intent";
 const transferKey = "tammy-pending-line-transfer";
@@ -25,12 +26,21 @@ const loadConfig = singleFlight<{ liffId: string; logoUrl?: string | null }>();
 let publicLineConfig: { liffId: string; logoUrl?: string | null; expiresAt: number } | undefined;
 let initializedLiffId = "";
 const initializeLine = singleFlight<void>();
-const lookupMember = singleFlight<{ registered?: boolean; requiresPhone?: boolean; member?: Member; lineProfile?: LineProfile; error?: string }>();
+type LoginResult = { registered?: boolean; requiresPhone?: boolean; member?: Member; lineProfile?: LineProfile; bootstrap?: MemberBootstrap; error?: string };
+const lookupMember = singleFlight<LoginResult>();
 const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.CustomerPortal), { ssr: false });
+
+function previewState(screen: PreviewScreen): State { return screen === "register" ? "form" : screen; }
+function initialState(preview: boolean, screen: PreviewScreen): State {
+  if (preview) return previewState(screen);
+  if (typeof window !== "undefined" && localStorage.getItem(signedOutKey) === "1"
+    && !pendingPhone(sessionStorage.getItem(pendingPhoneKey))) return "phone";
+  return "loading";
+}
 
 export function LineMemberRegistration({ preview, previewScreen = "register", testLogin, testConfirmPhone }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void; testConfirmPhone?: (phone: string) => Promise<void> }) {
   const [richMenuView, setRichMenuView] = useState<"points" | "rewards" | "news" | null>(null);
-  const [state, setState] = useState<State>(preview ? previewScreen === "login" ? "login" : previewScreen === "loading" ? "loading" : "form" : "entry");
+  const [state, setState] = useState<State>(() => initialState(preview, previewScreen));
   const [idToken, setIdToken] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [form, setForm] = useState<Registration>(emptyForm);
@@ -41,12 +51,19 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   const [busy, setBusy] = useState(false);
   const [liffUrl, setLiffUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(publicLineConfig?.logoUrl || null);
-  const [connectRequested, setConnectRequested] = useState(false);
+  const [connectRequested, setConnectRequested] = useState(0);
   const [phone, setPhone] = useState("");
   const [transferId, setTransferId] = useState("");
 
   useEffect(() => {
-    if (preview) { setState(previewScreen === "login" ? "login" : previewScreen === "loading" ? "loading" : "form"); return; }
+    if (preview) { setState(previewState(previewScreen)); return; }
+    const submittedPhone = pendingPhone(sessionStorage.getItem(pendingPhoneKey));
+    // Logout is a local choice: render the form before any config, SDK or network work.
+    if (localStorage.getItem(signedOutKey) === "1" && !submittedPhone) {
+      sessionStorage.removeItem(pendingPhoneKey);
+      setState("phone");
+      return;
+    }
     const query = new URLSearchParams(window.location.search);
     const requestedTransfer = query.get("lineTransfer");
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
@@ -56,8 +73,8 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     void (async () => {
       try {
         const signedOut = localStorage.getItem(signedOutKey) === "1";
-        const requested = connectRequested || liffCallback || sessionStorage.getItem(loginIntentKey) === "1";
-        if (signedOut && !requested) setState("login");
+        const requested = Boolean(connectRequested || submittedPhone || liffCallback || sessionStorage.getItem(loginIntentKey) === "1");
+        void prepareCustomerPortal().catch(() => undefined);
         const sdk = import("@line/liff");
         void sdk.catch(() => undefined);
         const config = await loadConfig("config", async () => {
@@ -73,7 +90,6 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         const pendingTransfer = sessionStorage.getItem(transferKey);
         const canonicalUrl = `https://liff.line.me/${encodeURIComponent(config.liffId)}${pendingTransfer ? `/?lineTransfer=${encodeURIComponent(pendingTransfer)}` : ""}`;
         setLiffUrl(canonicalUrl);
-        if (signedOut && !requested) { setState("login"); return; }
         const { default: liff } = await sdk;
         if (!shouldInitializeLine({signedOut,connectRequested:requested || !signedOut && localStorage.getItem("tammy-line-returning") === "1",liffCallback,pendingTransfer:Boolean(pendingTransfer),inClient:liff.isInClient()})) { setState("entry"); return; }
         setState("loading");
@@ -115,12 +131,13 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         setAccessToken(access || "");
         void prepareCustomerPortal().catch(() => undefined);
         performance.mark("tammy-line:lookup-start");
-        const data = await lookupMember(token || access!, async () => {
+        const action = submittedPhone ? "confirmPhone" : "lookup";
+        const data = await lookupMember(JSON.stringify([token || access!, action, submittedPhone || "", signedOut]), async () => {
           const response = await fetch("/api/line/member", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "lookup", idToken: token, accessToken: access, requirePhoneConfirmation: signedOut }), signal: AbortSignal.timeout(16000),
+            body: JSON.stringify({ action, idToken: token, accessToken: access, phone: submittedPhone, requirePhoneConfirmation: signedOut, includeBootstrap: true }), cache: "no-store", signal: AbortSignal.timeout(20000),
           });
-          const result = await response.json() as { registered?: boolean; requiresPhone?: boolean; member?: Member; lineProfile?: LineProfile; error?: string };
+          const result = await response.json() as LoginResult;
           if (!response.ok) throw new Error(result.error || "ตรวจสอบสมาชิกไม่สำเร็จ");
           return result;
         });
@@ -132,16 +149,33 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (data.registered && data.member) {
           if (finalTransfer) { setError("LINE นี้เชื่อมกับสมาชิกอยู่แล้ว กรุณาให้ร้านตรวจสอบก่อนย้ายบัญชี"); setState("unavailable"); }
           else {
-            await Promise.all([prepareMemberData(token || undefined, access || undefined), prepareCustomerPortal()]);
+            await prepareCustomerPortal();
             if (!active) return;
+            if (data.bootstrap) seedMemberData(data.bootstrap, token || undefined, access || undefined);
+            else await prepareMemberData(token || undefined, access || undefined);
+            if (!active) return;
+            localStorage.removeItem(signedOutKey);
+            sessionStorage.removeItem(pendingPhoneKey);
             localStorage.setItem("tammy-line-returning", "1"); sessionStorage.removeItem(loginIntentKey); setMember(data.member); setState("member");
           }
         }
-        else setState(finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer) ? "transfer" : "form");
+        else {
+          if (submittedPhone) setForm(value => ({ ...value, phone: submittedPhone }));
+          sessionStorage.removeItem(pendingPhoneKey);
+          sessionStorage.removeItem(loginIntentKey);
+          setState(finalTransfer && /^[0-9a-f-]{36}$/i.test(finalTransfer) ? "transfer" : "form");
+        }
       } catch (cause) {
         if (!active) return;
         setError(cause instanceof Error ? cause.message : "ไม่สามารถเชื่อมต่อ LINE ได้");
-        setState("unavailable");
+        if (submittedPhone) {
+          setPhone(submittedPhone);
+          sessionStorage.removeItem(pendingPhoneKey);
+          sessionStorage.removeItem(loginIntentKey);
+          setState("phone");
+        } else setState("unavailable");
+      } finally {
+        if (active) setBusy(false);
       }
     })();
     return () => { active = false; };
@@ -152,16 +186,17 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     if (preview) { setMember({ memberCode: "TM-PREVIEW", name: "แอดมิน", level: "Gold", points: 90 }); setState("member"); return; }
     sessionStorage.setItem(loginIntentKey, "1");
     if (!liffUrl) { setError("กำลังเตรียมลิงก์ LINE กรุณาลองอีกครั้งสักครู่"); return; }
-    setError(""); setConnectRequested(true); setState("loading");
+    setError(""); setConnectRequested(value => value + 1); setState("loading");
   }
 
-  async function logout() {
+  function logout() {
     clearMemberDisplayData(); localStorage.setItem(signedOutKey, "1");
     sessionStorage.removeItem(loginIntentKey); localStorage.removeItem("tammy-line-returning");
-    setConnectRequested(false);
+    sessionStorage.removeItem(pendingPhoneKey);
+    setConnectRequested(0);
     setMember(null); setIdToken(""); setAccessToken(""); setError("");
-    setState("login");
-    try { const { default: liff } = await import("@line/liff"); if (liff.isLoggedIn()) liff.logout(); } catch { /* The local signed-out choice still prevents automatic LINE login. */ }
+    setPhone(""); setBusy(false); setState("phone");
+    // Keep LINE's transport session; the next phone submit still gets verified by the server.
   }
 
   async function register(event: FormEvent<HTMLFormElement>) {
@@ -193,17 +228,16 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
 
   async function confirmPhone(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy || !/^0\d{9}$/.test(phone)) return;
-    setBusy(true); setError("");
-    try {
-      if (testConfirmPhone) { await testConfirmPhone(phone); return; }
-      const response = await fetch("/api/line/member", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"confirmPhone",idToken,accessToken,phone}),cache:"no-store"});
-      const data = await response.json() as {member?:Member;error?:string};
-      if (!response.ok || !data.member) throw new Error(data.error || "ยืนยันเบอร์ไม่สำเร็จ");
-      setState("loading");
-      await Promise.all([prepareMemberData(idToken || undefined, accessToken || undefined), prepareCustomerPortal()]);
-      localStorage.removeItem(signedOutKey); localStorage.setItem("tammy-line-returning","1"); sessionStorage.removeItem(loginIntentKey);
-      setMember(data.member);setState("member");
-    } catch(cause) {setState("phone");setError(cause instanceof Error?cause.message:"ยืนยันเบอร์ไม่สำเร็จ");} finally {setBusy(false);}
+    setBusy(true); setError(""); setState("loading");
+    if (testConfirmPhone) {
+      try { await testConfirmPhone(phone); }
+      catch(cause) {setState("phone");setError(cause instanceof Error?cause.message:"ยืนยันเบอร์ไม่สำเร็จ");}
+      finally {setBusy(false);}
+      return;
+    }
+    sessionStorage.setItem(pendingPhoneKey, phoneContinuation(phone));
+    sessionStorage.setItem(loginIntentKey, "1");
+    setConnectRequested(value => value + 1);
   }
 
   async function claimTransfer() {

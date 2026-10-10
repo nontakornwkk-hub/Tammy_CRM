@@ -1,5 +1,5 @@
 // Share the portal chunk between the LINE and administrator entry points.
-// Start this only once credentials are available, while member lookup runs.
+// Public shop content and portal code can load while LINE initializes.
 let pending: Promise<typeof import("../components/customer-portal")> | undefined;
 
 export function loadCustomerPortal() {
