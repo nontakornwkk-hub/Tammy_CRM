@@ -44,17 +44,17 @@ const find=(tree,predicate)=>nodes(tree).find(predicate);
 const screen=tree=>tree.props?.className?.match(/line-entry--(\w+)/)?.[1]||tree.type;
 const tick=()=>new Promise(r=>setTimeout(r,5));
 async function until(predicate) {for(let n=0;n<400;n++){if(predicate())return;await tick();}throw new Error('Timed out waiting for controlled login');}
-let moduleId=0,calls=[],logged=true,memberRelease,wrongPhone=false;
+let moduleId=0,calls=[],logged=true,memberRelease,wrongPhone=false,configRelease,initRelease;
 function setup() {
   globalThis.localStorage=storage();globalThis.sessionStorage=storage();
   globalThis.window={location:{search:'',hash:'',href:'https://shop.example/customer-preview'}};
   globalThis.__loginCounts={init:0,oauth:0,logout:0,seeds:[],extraReads:0,clears:0};
   globalThis.__loginPortal=async()=>{};
-  globalThis.__loginLiff={isInClient:()=>true,isLoggedIn:()=>logged,init:async()=>{globalThis.__loginCounts.init++;},login:()=>{globalThis.__loginCounts.oauth++;},logout:()=>{globalThis.__loginCounts.logout++;},getIDToken:()=> 'verified-by-server',getAccessToken:()=> 'access'};
-  calls=[];logged=true;memberRelease=null;wrongPhone=false;
+  globalThis.__loginLiff={isInClient:()=>true,isLoggedIn:()=>logged,init:async()=>{globalThis.__loginCounts.init++;if(initRelease)await initRelease;},login:()=>{globalThis.__loginCounts.oauth++;},logout:()=>{globalThis.__loginCounts.logout++;},getIDToken:()=> 'verified-by-server',getAccessToken:()=> 'access'};
+  calls=[];logged=true;memberRelease=null;wrongPhone=false;configRelease=null;initRelease=null;
   globalThis.fetch=async(url,options={})=>{
     calls.push({url,body:options.body?JSON.parse(options.body):null});
-    if(url.endsWith('/config'))return Response.json({liffId:'test-liff'});
+    if(url.endsWith('/config')){if(configRelease)await configRelease;return Response.json({liffId:'test-liff'});}
     if(memberRelease)await memberRelease;
     if(wrongPhone)return Response.json({error:'เบอร์โทรไม่ตรง'},{status:403});
     return Response.json({registered:true,member:{memberCode:'TM-TEST',name:'Member',level:'Gold',points:120},bootstrap:{catalog:{rewards:[{id:'reward'}]},account:{profile:{points:120},pointsHistory:[],hasMore:false}}});
@@ -74,7 +74,7 @@ const openPhone=(h,Component)=>{
 try {
   setup();localStorage.setItem('tammy-customer-signed-out','1');
   let Component=await component(),h=new Hooks();
-  assert.equal(screen(h.render(Component)),'entry','A signed-out customer sees welcome and signup on the first render');h.flush();await tick();assert.equal(calls.length,0,'Signed-out entry performs no config, LINE or member work');
+  assert.equal(screen(h.render(Component)),'loading','Server and hydration share a stable bootstrap screen');h.flush();assert.equal(screen(h.render(Component)),'entry','A signed-out customer resolves welcome without waiting for network');await tick();assert.equal(calls.length,0,'Signed-out entry performs no config, LINE or member work');
   assert.ok(find(h.render(Component),n=>n.props?.className==='line-entry-signup-link'));openPhone(h,Component);assert.equal(calls.length,0,'Opening phone confirmation does not wait for network or LINE');
   let release;memberRelease=new Promise(r=>release=r);
   assert.equal(find(h.render(Component),n=>n.type==='input').props.maxLength,undefined,'Autofill formatting must not consume a ten-character limit');
@@ -113,7 +113,7 @@ try {
   setup();localStorage.setItem('tammy-line-returning','1');let lateRelease;memberRelease=new Promise(r=>lateRelease=r);Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>calls.some(c=>c.body));h.cleanup();lateRelease();await tick();await tick();assert.equal(__loginCounts.seeds.length,0,'An abandoned login cannot seed member data or reopen the portal');
   for (const search of ['', '?liff.state=%2Fcustomer']) {
     setup();logged=false;window.location.search=search;Component=await component();h=new Hooks();
-    assert.equal(screen(h.render(Component)),'entry','First-time entry shows LINE login and signup immediately');h.flush();
+    assert.equal(screen(h.render(Component)),'loading');h.flush();assert.equal(screen(h.render(Component)),'entry','First-time entry resolves LINE login and signup before config finishes');
     await until(()=>calls.some(c=>c.url.endsWith('/config')));await tick();await tick();
     assert.equal(screen(h.render(Component)),'entry');assert.equal(__loginCounts.init,0,'New visitors cannot be sent to LINE consent by SDK initialization before pressing a button');assert.equal(__loginCounts.oauth,0,'Opening LINE does not force OAuth before pressing a button');assert.equal(calls.filter(c=>c.body).length,0);
     find(h.render(Component),n=>n.props?.className==='line-entry-signup-link').props.onClick();h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
@@ -129,6 +129,18 @@ try {
   find(h.render(Component),n=>n.props?.className==='line-entry-line-button').props.onClick({preventDefault(){}});h.render(Component);h.flush();await until(()=>__loginCounts.oauth===1);h.cleanup();
   logged=true;window.location.search='?code=callback&state=callback';Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>screen(h.render(Component))==='CustomerPortal');
   assert.equal(h.render(Component).props.initialView,'rewards','Direct Rich Menu destination survives OAuth');h.cleanup();
+  setup();const savedWindow=globalThis.window;delete globalThis.window;Component=await component();h=new Hooks();
+  const serverScreen=h.render(Component);assert.equal(screen(serverScreen),'loading');assert.equal(find(serverScreen,n=>n.props?.className==='line-entry-line-button'),undefined,'Server HTML never flashes login buttons before returning-member hydration');
+  globalThis.window=savedWindow;localStorage.setItem('tammy-line-returning','1');h=new Hooks();assert.equal(screen(h.render(Component)),'loading','Hydration matches the server loader');h.cleanup();
+  setup();localStorage.setItem('tammy-line-returning','1');let releaseConfig,releaseInit,releaseMember,releasePortal;
+  configRelease=new Promise(r=>releaseConfig=r);initRelease=new Promise(r=>releaseInit=r);memberRelease=new Promise(r=>releaseMember=r);
+  globalThis.__loginPortal=()=>new Promise(r=>releasePortal=r);Component=await component();h=new Hooks();assert.equal(screen(h.render(Component)),'loading');h.flush();
+  await until(()=>calls.length>0);assert.equal(screen(h.render(Component)),'loading','Config wait retains loading');releaseConfig();await until(()=>__loginCounts.init===1);
+  assert.equal(screen(h.render(Component)),'loading','LINE initialization retains loading');releaseInit();await until(()=>calls.some(c=>c.body));assert.equal(screen(h.render(Component)),'loading','Member verification retains loading');
+  releaseMember();await tick();await tick();assert.equal(screen(h.render(Component)),'loading','Portal preparation retains loading');releasePortal();await until(()=>screen(h.render(Component))==='CustomerPortal');h.cleanup();
+  setup();localStorage.setItem('tammy-line-returning','1');logged=false;Component=await component();const first=new Hooks(),second=new Hooks();first.render(Component);first.flush();second.render(Component);second.flush();
+  await until(()=>__loginCounts.oauth===1);await tick();assert.equal(__loginCounts.oauth,1,'Concurrent mounts cannot initiate two OAuth redirects');assert.equal(sessionStorage.getItem('tammy-line-login-intent'),'1');assert.equal(screen(first.render(Component)),'loading');assert.equal(screen(second.render(Component)),'loading');first.cleanup();second.cleanup();
+  window.location.search='?code=callback&state=callback';Component=await component();h=new Hooks();h.render(Component);h.flush();await until(()=>screen(h.render(Component))==='unavailable');assert.equal(__loginCounts.oauth,1,'An incomplete OAuth callback must not restart an automatic redirect loop');h.cleanup();
   const config=await load('next.config.ts');assert.equal(config.default.redirects,undefined);assert.deepEqual(config.default.rewrites(),[{source:'/customer-preview/:path*',destination:'/customer'}],'The registered endpoint is served without an OAuth-breaking redirect');
-  console.log('PASS: immediate logout/phone entry, synchronous loading after submit, wrong-phone retry, one OAuth continuation, one bundled auto-login request, cancelled login isolation and preserved LIFF endpoint.');
+  console.log('PASS: matching server/hydration loader, stable automatic entry through every async stage, one OAuth redirect, no callback loop, welcome/logout/phone transitions, formatted autofill and bundled data.');
 } finally {globalThis.fetch=realFetch;}

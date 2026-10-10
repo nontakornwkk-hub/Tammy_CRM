@@ -27,6 +27,7 @@ const emptyForm: Registration = { fullName: "", firstName: "", lastName: "", gen
 const loadConfig = singleFlight<{ liffId: string; logoUrl?: string | null }>();
 let publicLineConfig: { liffId: string; logoUrl?: string | null; expiresAt: number } | undefined;
 let initializedLiffId = "";
+let lineLoginStarted = false;
 const initializeLine = singleFlight<void>();
 type LoginResult = { registered?: boolean; requiresPhone?: boolean; member?: Member; lineProfile?: LineProfile; bootstrap?: MemberBootstrap; error?: string };
 const lookupMember = singleFlight<LoginResult>();
@@ -35,15 +36,9 @@ const CustomerPortal = dynamic(() => loadCustomerPortal().then(module => module.
 function previewState(screen: PreviewScreen): State { return screen === "register" ? "form" : screen; }
 function initialState(preview: boolean, screen: PreviewScreen): State {
   if (preview) return previewState(screen);
-  if (typeof window !== "undefined" && localStorage.getItem(signedOutKey) === "1"
-    && !pendingPhone(sessionStorage.getItem(pendingPhoneKey))) return "entry";
-  if (typeof window !== "undefined") {
-    const query = new URLSearchParams(window.location.search);
-    if (localStorage.getItem("tammy-line-returning") === "1" || pendingPhone(sessionStorage.getItem(pendingPhoneKey))
-      || sessionStorage.getItem(loginIntentKey) === "1" || query.has("code") && query.has("state")
-      || window.location.hash.includes("access_token=") || query.has("lineTransfer")) return "loading";
-  }
-  return "entry";
+  // The server cannot read browser storage. Start both server and hydration on
+  // the same loader so returning members never see prerendered login buttons.
+  return "loading";
 }
 
 export function LineMemberRegistration({ preview, previewScreen = "register", testLogin, testConfirmPhone }: { preview: boolean; previewScreen?: PreviewScreen; testLogin?: () => void; testConfirmPhone?: (phone: string) => Promise<void> }) {
@@ -79,13 +74,14 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
     if (requestedTransfer && /^[0-9a-f-]{36}$/i.test(requestedTransfer)) sessionStorage.setItem(transferKey, requestedTransfer);
     const liffCallback = query.has("code") && query.has("state") || query.has("liff.state") || window.location.hash.includes("access_token=");
     const oauthCallback = query.has("code") && query.has("state") || window.location.hash.includes("access_token=");
-    if (connectRequested || oauthCallback) setState("loading");
+    const signedOut = localStorage.getItem(signedOutKey) === "1";
+    const requested = Boolean(connectRequested || submittedPhone || oauthCallback || sessionStorage.getItem(loginIntentKey) === "1"
+      || !signedOut && localStorage.getItem("tammy-line-returning") === "1" || sessionStorage.getItem(transferKey));
+    // Resolve a new visitor locally; configuration loading never delays welcome.
+    setState(requested ? "loading" : "entry");
     let active = true;
     void (async () => {
       try {
-        const signedOut = localStorage.getItem(signedOutKey) === "1";
-        const requested = Boolean(connectRequested || submittedPhone || oauthCallback || sessionStorage.getItem(loginIntentKey) === "1"
-          || !signedOut && localStorage.getItem("tammy-line-returning") === "1" || sessionStorage.getItem(transferKey));
         void prepareCustomerPortal().catch(() => undefined);
         const sdk = import("@line/liff");
         void sdk.catch(() => undefined);
@@ -123,10 +119,6 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         if (!active) return;
         performance.mark("tammy-line:init-end");
         performance.measure("tammy-line:init","tammy-line:init-start","tammy-line:init-end");
-        if (!requested) {
-          setState("entry");
-          return;
-        }
         // LIFF restores rich-menu query parameters only after initialization.
         const finalQuery = new URLSearchParams(window.location.search);
         const finalTransfer = finalQuery.get("lineTransfer") || sessionStorage.getItem(transferKey) || "";
@@ -136,9 +128,17 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
         const portalView = (finalScreen === "news" || finalScreen === "rewards" ? finalScreen : finalView) || sessionStorage.getItem(richMenuViewKey);
         if (portalView === "points" || portalView === "rewards" || portalView === "news") setRichMenuView(portalView);
         if (!liff.isLoggedIn()) {
-          liff.login();
+          if (oauthCallback && !connectRequested) throw new Error("LINE ยังยืนยันบัญชีไม่สำเร็จ กรุณากดเข้าสู่ระบบอีกครั้ง");
+          // Preserve the loading intent across LINE's redirect and avoid a second
+          // login request if more than one effect/component reaches this branch.
+          sessionStorage.setItem(loginIntentKey, "1");
+          if (!lineLoginStarted) {
+            lineLoginStarted = true;
+            try { liff.login(); } catch (cause) { lineLoginStarted = false; throw cause; }
+          }
           return;
         }
+        lineLoginStarted = false;
         const token = liff.getIDToken();
         const access = liff.getAccessToken();
         if (!token && !access) throw new Error("กรุณาเข้าสู่ระบบ LINE อีกครั้ง");
@@ -210,6 +210,7 @@ export function LineMemberRegistration({ preview, previewScreen = "register", te
   }
 
   function logout() {
+    lineLoginStarted = false;
     clearMemberDisplayData(); localStorage.setItem(signedOutKey, "1");
     sessionStorage.removeItem(loginIntentKey); localStorage.removeItem("tammy-line-returning");
     sessionStorage.removeItem(pendingPhoneKey);

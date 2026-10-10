@@ -2,6 +2,8 @@
 
 The login request now returns member identity, catalog and account data together, after fresh LINE verification. Catalog/account queries run in parallel and reuse the verified owner/member context. The portal seeds its in-memory display cache before entering, so opening coupons, rewards or account does not start a second initial data load.
 
+The initial server HTML and first client render use the same loading screen. Browser storage is resolved in the entry effect: returning members stay on loading through configuration, LINE initialization, verification and portal preparation; new/signed-out visitors resolve welcome locally before configuration loading. Automatic OAuth preserves login intent, starts at most once per page, and does not automatically retry a callback that failed to establish a LINE session.
+
 Explicit portal logout clears member display data and immediately shows the welcome screen with LINE login and signup. Pressing LINE login opens phone confirmation synchronously without network work. Submitting the phone starts the central loading state synchronously. A five-minute session-only form continuation survives LINE OAuth; it is not an authentication credential. The server still verifies LINE identity, active membership and the linked phone.
 
 The registered `/customer-preview` LIFF endpoint is served through a rewrite, preserving its URL and OAuth parameters rather than redirecting before SDK initialization.
