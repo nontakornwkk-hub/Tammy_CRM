@@ -39,10 +39,8 @@ import "./device-layout.css";
 import "./customer-navigation.css";
 import "./transaction-history.css";
 import "./connections-settings.css";
-import "./games.css";
-import "./games-admin-polish.css";
-import "./games-member-cinematic.css";
 import "./history-cleanup.css";
+import "./line-entry-redesign.css";
 import { AdminAuthGate } from "@/components/admin-auth-gate";
 
 export const metadata: Metadata = {

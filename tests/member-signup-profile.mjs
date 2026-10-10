@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+const {PGlite}=await import('../.tmp/transaction-verification/node_modules/@electric-sql/pglite/dist/index.js');
+const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create role service_role;
+create table public.public_shop_profiles(slug text,owner_id uuid);
+create table public.members(id uuid default gen_random_uuid(),owner_id uuid,member_code text,name text,first_name text,last_name text,gender text,birth_date date,phone text,email text,dog_count int,cat_count int,level text,points int,spending numeric,status text,newsletter_opt_in bool,notes text,tags text[],line_user_id text,line_linked_at timestamptz,unique(owner_id,phone),unique(owner_id,line_user_id));`);
+const owner=randomUUID();await db.query("insert into public_shop_profiles values('tammy',$1)",[owner]);
+await db.exec(await readFile(new URL('../supabase/migrations/20261010212840_member_signup_profile.sql',import.meta.url),'utf8'));
+const subject='U'+randomUUID().replaceAll('-','');
+const signup=(line=subject,phone='0990000000',profile={email:' Test@Example.com ',dogCount:2,catCount:1})=>db.query('select (register_line_member_profile($1,$2,$3,$4,$5,$6,$7)).*',[line,'คุณ','สมาชิก','prefer_not_to_say',null,phone,profile]);
+const member=(await signup()).rows[0];assert.equal(member.birth_date,null);assert.equal(member.email,'test@example.com');assert.equal(member.dog_count,2);assert.equal(member.cat_count,1);
+assert.equal((await signup()).rows[0].id,member.id,'Repeat submission returns same member');
+await assert.rejects(signup('U'+randomUUID().replaceAll('-','')),/PHONE_ALREADY_REGISTERED/);
+await assert.rejects(signup('U'+randomUUID().replaceAll('-',''),'0880000000',{dogCount:-1}),/INVALID_REGISTRATION/);
+await db.exec('set role authenticated');await assert.rejects(signup(),/permission denied/);await db.exec('reset role');
+await db.close();console.log('PASS: optional birthday, atomic email/pet registration, idempotency, duplicate phone and permissions.');

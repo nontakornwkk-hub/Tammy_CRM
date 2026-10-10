@@ -102,4 +102,12 @@ assert.equal((await db.query('select points from members where id=$1',[member]))
 assert.equal((await db.query('select award_points($1,1,1,$2) claimed',[member,'test'])).rows[0].claimed,true,'Birthday receipt prevents re-awarding after cleanup');
 await insert(5,0,'Gold');await insert(7,0,null,year);
 assert.equal((await db.query('select count(*)::int n from points_transactions where owner_id=$1',[owner])).rows[0].n,0,'Archived bonuses cannot be inserted again');
+await db.exec(await readFile(new URL('../supabase/migrations/20261010204726_remove_lucky_games.sql',import.meta.url),'utf8'));
+assert.equal((await db.query("select count(*)::int n from pg_tables where schemaname in ('public','private') and (tablename like 'game_%' or tablename='crm_games')")).rows[0].n,0);
+await insert(4,120);
+const afterRemovalSnapshot=new Date().toISOString(),remainingRows=(await db.query('select * from transaction_history_rows($1,$2,$3,$4)',[owner,from,to,afterRemovalSnapshot])).rows;
+assert.ok(remainingRows.some(r=>r.entry_type==='earn'),'Ordinary history export survives game removal');
+const reportAfterRemoval=await reportRows();
+const resultAfterRemoval=(await db.query('select clear_transaction_history_range($1,$2,$3,$4,$5,$6) result',[owner,owner,from,to,afterRemovalSnapshot,remainingRows.length])).rows[0].result;
+assert.equal(resultAfterRemoval.remaining,0);assert.deepEqual(await reportRows(),reportAfterRemoval);
 await db.close();console.log('PASS: all history including bonuses/audit cleared; compact receipts prevent repeat bonuses; reports, balances, rights, owner/date/snapshot scope preserved.');

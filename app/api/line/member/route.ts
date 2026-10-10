@@ -12,6 +12,7 @@ type Registration = {
   gender: "male" | "female" | "other" | "prefer_not_to_say";
   birthDate: string;
   phone: string;
+  email?: string; dogCount?: number; catCount?: number;
   termsAccepted: true;
 };
 
@@ -29,6 +30,9 @@ function validRegistration(value: unknown): value is Registration {
   if (item.termsAccepted !== true) return false;
   if (!genders.has(item.gender as Registration["gender"])) return false;
   if (typeof item.phone !== "string" || !/^0\d{9}$/.test(item.phone)) return false;
+  if (item.email !== undefined && (typeof item.email !== "string" || item.email.length>254 || item.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email))) return false;
+  for(const count of [item.dogCount,item.catCount]) if(count!==undefined && (typeof count!=="number" || !Number.isSafeInteger(count) || count<0 || count>999)) return false;
+  if(item.birthDate === "") return true;
   if (typeof item.birthDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.birthDate)) return false;
   const date = new Date(`${item.birthDate}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === item.birthDate
@@ -67,9 +71,11 @@ export async function POST(request: Request) {
   if (!input || typeof input !== "object") return reply({error:"คำขอไม่ถูกต้อง"},400);
   if ((!input.idToken || typeof input.idToken !== "string") && (!input.accessToken || typeof input.accessToken !== "string"))
     return reply({ error: "กรุณาเข้าสู่ระบบผ่าน LINE อีกครั้ง" }, 401);
-  if (input.action !== "lookup" && input.action !== "register") return reply({ error: "คำขอไม่ถูกต้อง" }, 400);
+  if (input.action !== "lookup" && input.action !== "register" && input.action !== "confirmPhone") return reply({ error: "คำขอไม่ถูกต้อง" }, 400);
   if (input.action === "register" && !validRegistration(input.registration))
     return reply({ error: "กรุณากรอกข้อมูลให้ครบและตรวจสอบเบอร์โทรกับวันเกิด" }, 400);
+
+  if(input.action === "confirmPhone" && (typeof input.phone!=="string" || !/^0\d{9}$/.test(input.phone))) return reply({error:"กรุณากรอกเบอร์โทรศัพท์ 10 หลัก"},400);
 
   prepareLineIdToken(typeof input.idToken === "string" ? input.idToken : undefined);
   let ownerId:string,channelId:string;
@@ -92,13 +98,15 @@ export async function POST(request: Request) {
   }
 
   timings.push(`identity;dur=${(performance.now()-stage).toFixed(1)}`);stage=performance.now();
-  const linked = await db.from("members").select("id,line_picture_url,line_display_name,member_code,name,level,points,birth_date,status")
+  const linked = await db.from("members").select("id,line_picture_url,line_display_name,member_code,name,level,points,birth_date,status,phone")
     .eq("owner_id", ownerId).eq("line_user_id", lineSubject).maybeSingle();
   timings.push(`member;dur=${(performance.now()-stage).toFixed(1)}`);
   if (linked.error) return reply({ error: "ตรวจข้อมูลสมาชิกไม่สำเร็จ" }, 500);
   if (linked.data) {
     const existing = linked.data;
     if (!existing || existing.status !== "active") return reply({ error: "บัญชีสมาชิกนี้ไม่พร้อมใช้งาน กรุณาติดต่อร้าน" }, 403);
+    if(input.action === "lookup" && input.requirePhoneConfirmation === true) return reply({registered:true,requiresPhone:true});
+    if(input.action === "confirmPhone" && input.phone !== existing.phone) return reply({error:"เบอร์โทรไม่ตรงกับสมาชิกที่เชื่อม LINE นี้"},403);
     // Avoid writing the same LINE profile on every login.
     if ((lineDisplayName && lineDisplayName !== linked.data.line_display_name) || (linePictureUrl && linePictureUrl !== linked.data.line_picture_url)) {
       after(async () => {
@@ -113,14 +121,15 @@ export async function POST(request: Request) {
     return reply({ registered: true, member: publicMember(existing, linePictureUrl || linked.data.line_picture_url) });
   }
 
-  if (input.action === "lookup") return reply({ registered: false });
+  if (input.action === "lookup" || input.action === "confirmPhone") return reply({ registered: false, lineProfile: { displayName: lineDisplayName, pictureUrl: linePictureUrl } });
   const form = input.registration as Registration;
-  const result = await db.rpc("register_line_member", {
+  const result = await db.rpc("register_line_member_profile", {
     line_subject: lineSubject,
     first: form.firstName.trim(),
     last: form.lastName.trim(),
     member_gender: form.gender,
-    birthday: form.birthDate,
+    birthday: form.birthDate || null,
+    profile: {email:form.email?.trim().toLowerCase() || null,dogCount:form.dogCount || 0,catCount:form.catCount || 0},
     mobile: form.phone,
   });
   if (result.error) {

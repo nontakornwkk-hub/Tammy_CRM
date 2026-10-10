@@ -11,10 +11,10 @@ export async function GET(request:Request){
  const filter=()=>db.from("points_transactions").select("id",{count:"exact",head:true}).eq("owner_id",actor.ownerId).gte("created_at",range.fromInstant).lt("created_at",range.toInstant).lte("created_at",range.snapshot);
  if(url.searchParams.get("download")!=="1"){
   const redemption=()=>db.from("redemptions").select("id",{count:"exact",head:true}).eq("owner_id",actor.ownerId).gte("redeemed_at",range.fromInstant).lt("redeemed_at",range.toInstant).lte("redeemed_at",range.snapshot);
-  const [all,coupons,rewards,games,audit]=await Promise.all([filter(),redemption().not("coupon_id","is",null),redemption().is("coupon_id",null),db.from("game_plays").select("id",{count:"exact",head:true}).eq("owner_id",actor.ownerId).gte("created_at",range.fromInstant).lt("created_at",range.toInstant).lte("created_at",range.snapshot),db.from("audit_logs").select("id",{count:"exact",head:true}).eq("owner_id",actor.ownerId).gte("created_at",range.fromInstant).lt("created_at",range.toInstant).lte("created_at",range.snapshot)]);
-  if([all,coupons,rewards,games,audit].some(result=>result.error))return noStore({error:"นับรายการไม่สำเร็จ"},500);
-  const others=(coupons.count||0)+(rewards.count||0)+(games.count||0);
-  return noStore({from:range.from,to:range.to,snapshot:range.snapshot,count:(all.count||0)+others+(audit.count||0),total:(all.count||0)+others+(audit.count||0),preserved:0,counts:{points:all.count||0,coupons:coupons.count||0,rewards:rewards.count||0,games:games.count||0,audit:audit.count||0}});
+  const [all,coupons,rewards,audit]=await Promise.all([filter(),redemption().not("coupon_id","is",null),redemption().is("coupon_id",null),db.from("audit_logs").select("id",{count:"exact",head:true}).eq("owner_id",actor.ownerId).gte("created_at",range.fromInstant).lt("created_at",range.toInstant).lte("created_at",range.snapshot)]);
+  if([all,coupons,rewards,audit].some(result=>result.error))return noStore({error:"นับรายการไม่สำเร็จ"},500);
+  const others=(coupons.count||0)+(rewards.count||0);
+  return noStore({from:range.from,to:range.to,snapshot:range.snapshot,count:(all.count||0)+others+(audit.count||0),total:(all.count||0)+others+(audit.count||0),preserved:0,counts:{points:all.count||0,coupons:coupons.count||0,rewards:rewards.count||0,audit:audit.count||0}});
  }
  let cursor:{history_key:string;created_at:string}|null=null,started=false,exportedCount=0;const encoder=new TextEncoder();
  const stream=new ReadableStream<Uint8Array>({async pull(controller){

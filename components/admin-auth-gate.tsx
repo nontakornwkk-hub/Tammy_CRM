@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer", "/customer/games-preview", "/customer/games-admin-preview"]);
+const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer"]);
 const AdminAccessGate = dynamic(() => import("./admin-access-gate").then(module => module.AdminAccessGate), {
   ssr: false,
   loading: () => <main className="admin-auth-check" role="status">กำลังตรวจสอบสิทธิ์เข้าระบบ…</main>,

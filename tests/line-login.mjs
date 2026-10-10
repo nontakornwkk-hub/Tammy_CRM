@@ -103,7 +103,7 @@ try {
   const stub = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
   const context = await load('lib/line/shop-context.ts', { '../single-flight': (await load('lib/single-flight.ts')).url });
   const afterTasks = [];
-  let reads = [], memberPoints = 120, memberStatus = 'active';
+  let reads = [], memberPoints = 120, memberStatus = 'active', memberExists = true;
   globalThis.__lineLoginDb = { from(table) {
     const filters = {}, builder = {
       select() { return builder; }, eq(key, value) { filters[key] = value; return builder; },
@@ -112,7 +112,7 @@ try {
         reads.push(table);
         if (table === 'members') {
           assert.deepEqual(filters, { owner_id: 'shop', line_user_id: subject });
-          resolve({ error: null, data: { id: 'member', status: memberStatus, points: memberPoints, name: 'Member', level: 'Gold', member_code: 'TM-TEST', line_display_name: 'Old name', line_picture_url: null } });
+          resolve({ error: null, data: memberExists ? { id: 'member', phone:'0990000000', status: memberStatus, points: memberPoints, name: 'Member', level: 'Gold', member_code: 'TM-TEST', line_display_name: 'Old name', line_picture_url: null } : null });
         } else resolve({ error: null, data: table === 'public_shop_profiles' ? { owner_id: 'shop' } : { login_channel_id: channel, liff_id: 'test-liff' } });
       },
     }; return builder;
@@ -132,12 +132,19 @@ try {
     const lookup = () => route.POST(request({ action: 'lookup', idToken: token }));
     const response = await lookup();
     assert.equal(response.status, 200); assert.equal((await response.json()).member.points, 120);
+    const needsPhone=await route.POST(request({action:'lookup',idToken:token,requirePhoneConfirmation:true}));
+    assert.deepEqual(await needsPhone.json(),{registered:true,requiresPhone:true},'No member data before phone confirmation after explicit logout');
+    const wrongPhone=await route.POST(request({action:'confirmPhone',idToken:token,phone:'0880000000'}));assert.equal(wrongPhone.status,403);
+    const correctPhone=await route.POST(request({action:'confirmPhone',idToken:token,phone:'0990000000'}));assert.equal(correctPhone.status,200);assert.equal((await correctPhone.json()).member.points,120);
+    assert.equal((await route.POST(request({action:'confirmPhone',phone:'0990000000'}))).status,401,'A phone number alone cannot sign in');
     assert.match(response.headers.get('Server-Timing'), /shop;dur=.*identity;dur=.*member;dur=.*total;dur=/);
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
-    assert.equal(afterTasks.length, 1, 'Profile write is scheduled after responding');
+    assert.equal(afterTasks.length, 2, 'Successful lookup and phone confirmation schedule profile updates; rejected confirmation does not');
     memberPoints = 777;
     assert.equal((await (await lookup()).json()).member.points, 777, 'Warm keys do not reuse an old member balance');
     memberStatus = 'inactive'; assert.equal((await lookup()).status, 403, 'Disabled membership is rejected on the next lookup');
+    memberExists = false;
+    assert.deepEqual(await (await lookup()).json(), {registered:false,lineProfile:{displayName:claims.name,pictureUrl:claims.picture}}, 'Signup receives the verified LINE profile without requiring an existing member');
     reads = [];
     assert.equal((await route.POST(request({ action: 'lookup', idToken: invalid[0] }))).status, 401);
     assert.ok(!reads.includes('members'), 'Invalid signature cannot reach member data');

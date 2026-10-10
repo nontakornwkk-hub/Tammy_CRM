@@ -23,7 +23,6 @@ const navigation = [
   { label: "สมาชิก", detail: "จัดการข้อมูลสมาชิก", art: "members", href: "/members" },
   { label: "แดชบอร์ดวิเคราะห์", detail: "สรุปยอดและรายงาน", art: "reports", href: "/reports" },
   { label: "ของรางวัล คูปอง และข่าวสาร", detail: "จัดการของรางวัล คูปอง โปรโมชั่น", art: "rewards", href: "/rewards" },
-  { label: "ลุ้นของรางวัล", detail: "เกม สิทธิ์สะสม และรับรางวัล", art: "lucky", href: "/games" },
   { label: "ตั้งค่าระบบ", detail: "จัดการระบบและสิทธิ์ผู้ใช้", art: "settings", href: "/settings" },
 ];
 
@@ -47,12 +46,12 @@ function sameBrand(a: Brand, b: Brand) {
   return a.logo === b.logo && a.name === b.name && a.subtitle === b.subtitle && a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 }
 
-export function Sidebar({ activePath, onClose, preview = false }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports" | "/games"; onClose?: () => void; preview?: boolean }) {
+export function Sidebar({ activePath, onClose, preview = false }: { activePath: "/points" | "/members" | "/rewards" | "/settings" | "/reports"; onClose?: () => void; preview?: boolean }) {
   const router = useRouter();
   const [brand, setBrand] = useState<Brand>(() => cachedBrand ?? defaultBrand);
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const role = preview ? "owner" : crmRole();
-  const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings" || href === "/games"));
+  const visibleNavigation = navigation.filter(({ href }) => role === "owner" || role === "manager" || role === "staff" && (href === "/points" || href === "/settings"));
 
   useEffect(() => {
     const refresh = () => {

@@ -20,9 +20,9 @@ import { CustomerNewsCarousel } from "./customer-news-carousel";
 import { CustomerNavigation } from "./customer-navigation";
 import { cachedMemberCatalog, clearMemberCatalog, loadMemberCatalog } from "@/lib/customer-catalog";
 import { watchCatalogChanges } from "@/lib/catalog-live";
-import { MemberGameHub } from "./games/member-game-hub";
+import { singleFlight } from "@/lib/single-flight";
 
-type Tab = "rewards" | "coupons" | "home" | "lucky" | "account";
+type Tab = "rewards" | "coupons" | "home" | "account";
 const memberFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], display: "swap" });
 type PublicShop = { shop_name: string; shop_name_en: string; logo_url: string | null; card_design: CardDesign };
 type Reward = { id: string; title: string; description: string; category: string; points_cost: number; stock: number | null; image_url: string | null; active: boolean; starts_at: string | null; ends_at: string | null };
@@ -35,10 +35,22 @@ type PortalProps =
 const sectionText: Record<Exclude<Tab, "home">, { title: string; empty: string }> = {
   rewards: { title: "ของรางวัล", empty: "ยังไม่มีของรางวัลที่เปิดให้แลกในขณะนี้" },
   coupons: { title: "คูปอง", empty: "ยังไม่มีคูปองที่เปิดให้ใช้งานในขณะนี้" },
-  lucky: { title: "ลุ้นรางวัล", empty: "ยังไม่มีกิจกรรมลุ้นรางวัลในขณะนี้" },
   account: { title: "ข้อมูลของฉัน", empty: "ข้อมูลสมาชิกและประวัติแต้มจะแสดงเมื่อเชื่อมบัญชีสมาชิกอย่างปลอดภัย" },
 };
 let publicShopSnapshot: { shop: PublicShop; news: PopupDisplay[] } | null = null;
+const pendingShop = singleFlight<void>();
+export function prepareCustomerShop(fresh=false) {
+  if (!fresh && publicShopSnapshot) return Promise.resolve();
+  return pendingShop("shop", async () => {
+    if (!supabase) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
+    const {data,error} = await supabase.from("public_shop_profiles")
+      .select("shop_name,shop_name_en,logo_url,card_design").eq("slug","tammy").maybeSingle();
+    if (error || !data) throw new Error("โหลดข้อมูลร้านไม่สำเร็จ");
+    const config=data.card_design as Record<string,unknown>|null;
+    publicShopSnapshot={shop:{...data,card_design:normalizeCardDesign(data.card_design)},
+      news:normalizePopupDisplay(config?.popup_content).filter(item=>item.active&&item.source==="news")};
+  });
+}
 
 export function CustomerPortal({ mode, initialTab = "home", initialView, member, idToken, accessToken, onLogout, onMemberUpdated }: PortalProps) {
   const isMember = mode === "customer";
@@ -243,26 +255,12 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
     const client = supabase;
     if (!client) return;
     let active = true;
-    const refreshShop = () => { void client.from("public_shop_profiles")
-      .select("shop_name,shop_name_en,logo_url,card_design")
-      .eq("slug", "tammy")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!active || !data) return;
-        const config = data.card_design as Record<string, unknown> | null;
-        const nextShop = {
-          shop_name: data.shop_name,
-          shop_name_en: data.shop_name_en,
-          logo_url: data.logo_url,
-          card_design: normalizeCardDesign(data.card_design),
-        };
-        const nextNews = normalizePopupDisplay(config?.popup_content).filter((item) => item.active && item.source === "news");
-        publicShopSnapshot = { shop: nextShop, news: nextNews };
-        setShop(nextShop);
-        setNews(nextNews);
-      }); };
+    const refreshShop = (fresh=false) => { void prepareCustomerShop(fresh).then(() => {
+      if (!active || !publicShopSnapshot) return;
+      setShop(publicShopSnapshot.shop);setNews(publicShopSnapshot.news);
+    }).catch(()=>undefined); };
     refreshShop();
-    const stopWatching = watchCatalogChanges(refreshShop);
+    const stopWatching = watchCatalogChanges(()=>refreshShop(true));
     return () => { active = false; stopWatching(); };
   }, []);
 
@@ -357,7 +355,6 @@ export function CustomerPortal({ mode, initialTab = "home", initialView, member,
           {tab === "coupons" && <><div className="customer-catalog-intro"><div><h1>คูปองของฉัน</h1><p className="customer-catalog-description">สิทธิพิเศษดี ๆ สำหรับสมาชิก</p></div><div className="customer-catalog-summary"><span>สิทธิพิเศษสำหรับคุณ</span><Tag size={29} strokeWidth={1.5} aria-hidden="true" /></div></div>{catalogLoading ? <p className="customer-home-catalog-state">กำลังโหลดคูปอง…</p> : catalogError ? <p className="customer-home-catalog-state" role="alert">{catalogError}</p> : coupons.length ? <div className="customer-coupon-tickets">{coupons.map(item => <article className="customer-coupon-ticket" key={item.id}><CouponTicketFace variant="member" title={item.title} discountType={item.discount_type} discountValue={Number(item.discount_value)} minSpend={Number(item.min_spend)} remaining={item.usage_limit === null ? null : Math.max(0, item.usage_limit - item.used_count)} endsAt={item.ends_at} theme={item.theme_color} onUse={() => { void openCoupon(item); }} /></article>)}</div> : <p className="customer-home-catalog-state">{sectionText.coupons.empty}</p>}</>}
 
         </section> : null}
-        <section className="customer-home-catalog customer-game-mounted" aria-label="ลุ้นรางวัล" style={{display:tab==="lucky"&&!selectedReward?undefined:"none"}}><MemberGameHub active={tab==="lucky"&&!selectedReward} preview={!isMember} member={{memberCode:member?.memberCode||"preview",name:memberName,points:memberPoints,linePictureUrl:member?.linePictureUrl}} idToken={idToken} accessToken={accessToken} onPointsUpdated={points=>{memberRevision.current++;clearMemberCatalog();setMemberPoints(points);setAccountRevision(v=>v+1);}}/></section>
         <section className="customer-home-catalog customer-account-mounted" aria-label="ข้อมูลของฉัน" style={{ display: tab === "account" && !selectedReward ? undefined : "none" }}><CustomerAccount preview={!isMember} member={member} idToken={idToken} accessToken={accessToken} onLogout={onLogout} onMemberUpdated={onMemberUpdated} refreshKey={accountRevision} /></section>
       </div>
 

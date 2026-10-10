@@ -1,9 +1,0 @@
-export type PrizeKind = "points" | "coupon" | "item";
-export type PublicPrize = { id: string; title: string; kind: PrizeKind; image: string; color: string; points: number; discountType: "percent" | "fixed"; discountValue: number; minSpend: number; maxDiscount: number | null; expiryMode: "hours" | "fixed"; expiryHours: number; expiresAt: string | null };
-export type AdminPrize = PublicPrize & { weight: number; stock: number | null; active: boolean };
-export type GameDefinition = { id: string; key: string; engine: string; name: string; difficulty: string; enabled: boolean; version: number; prizes: PublicPrize[] };
-export type GameProgram = { purchaseThreshold: number; earningEnabled: boolean };
-export type GameSetup = { program: GameProgram; game: Omit<GameDefinition, "prizes"> & { prizes: AdminPrize[] } };
-export type GameGrant = { id: string; play_id: string | null; title: string; kind: PrizeKind; status: "available" | "used"; expires_at: string | null; qr_token: string; snapshot: PublicPrize; created_at: string };
-export type GamePlay = { id: string; game_key: string; prize: PublicPrize; created_at: string; tickets_before: number; tickets_after: number; grant_id?: string; points_after?: number; slots?: PublicPrize[] };
-export type MemberGames = { ready: boolean; program: GameProgram; games: GameDefinition[]; wallet: { balance: number; carry: number; testBalance?: number }; plays: GamePlay[]; grants: GameGrant[] };

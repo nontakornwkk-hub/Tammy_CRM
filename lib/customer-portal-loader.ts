@@ -8,3 +8,9 @@ export function loadCustomerPortal() {
     throw cause;
   });
 }
+
+// Keep one entry loading screen until both the code and shop content are ready.
+export async function prepareCustomerPortal() {
+  const portal = await loadCustomerPortal();
+  await portal.prepareCustomerShop();
+}

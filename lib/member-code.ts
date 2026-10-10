@@ -40,11 +40,3 @@ export function normalizeCouponScan(raw: string): string | null {
   if (hex.length !== 32) return null;
   return `${isTest ? "TAMMY-TEST-COUPON" : "TAMMY-COUPON"}:${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
-
-export function normalizeGameScan(raw: string): string | null {
-  const converted=Array.from(raw.trim().normalize("NFKC")).map(letter=>/[\u0E00-\u0E7F]/.test(letter)?thaiToLatin.get(letter)??letter:letter).join("").toUpperCase();
-  if(!/^TAMMY[^A-Z0-9]*GAME[^A-Z0-9]+/.test(converted))return null;
-  const hex=converted.replace(/^TAMMY[^A-Z0-9]*GAME[^A-Z0-9]+/,"").replace(/[^A-F0-9]/g,"");
-  if(hex.length!==32)return null;
-  return `TAMMY-GAME:${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-}

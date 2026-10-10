@@ -6,11 +6,11 @@ import { supabase } from "@/lib/supabase/client";
 import { crmRole, prefetchCrmPages, setVerifiedCrmUser, verifiedCrmUser } from "@/lib/supabase/crm-data";
 import { clearAdminExtras, prefetchAdminExtras } from "@/lib/supabase/admin-preload";
 
-const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer", "/customer/games-preview", "/customer/games-admin-preview"]);
+const publicPaths = new Set(["/login", "/reset-password", "/line-membership", "/customer"]);
 function canOpen(role: ReturnType<typeof crmRole>, pathname: string) {
   if (role === "owner") return true;
-  if (role === "manager") return ["/points", "/members", "/rewards", "/reports", "/settings", "/line", "/games"].includes(pathname) || pathname.startsWith("/customer/") || pathname.startsWith("/games/");
-  return role === "staff" && (["/points", "/settings", "/line", "/games"].includes(pathname) || pathname.startsWith("/games/"));
+  if (role === "manager") return ["/points", "/members", "/rewards", "/reports", "/settings", "/line"].includes(pathname) || pathname.startsWith("/customer/");
+  return role === "staff" && (["/points", "/settings", "/line"].includes(pathname));
 }
 
 export function AdminAccessGate({ children }: { children: ReactNode }) {

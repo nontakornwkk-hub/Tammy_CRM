@@ -109,14 +109,6 @@
 .customer-news-dots button::after { content:""; position:absolute; width:6px; height:6px; border-radius:99px; background:#d9cabe; top:12px; left:9px; }
 .customer-news-dots button.active::after { background:#eb7658; width:14px; left:5px; }
 @media(max-width:600px){.customer-catalog-refresh .customer-home-news{margin-top:18px}.customer-catalog-refresh .customer-news-slide-copy{padding:10px 12px 11px}.customer-catalog-refresh .customer-news-slide-copy h2{font-size:15px}.customer-catalog-refresh .customer-news-slide-copy>span{margin-top:7px}}
-.customer-lucky-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:410px; text-align:center; }
-.customer-lucky-art { position:relative; display:grid; place-items:center; width:195px; height:185px; color:#e66b4b; border-radius:50%; background:radial-gradient(circle,#ffe5c8,transparent 70%); }
-.customer-lucky-art > svg:first-of-type { position:absolute; left:22px; top:28px; color:#edb34b; fill:#ffe2a0; }
-.customer-lucky-art .lucky-paw { position:absolute; right:5px; bottom:29px; transform:rotate(20deg); color:#dba17f; }
-.customer-lucky-art .lucky-star-two { position:absolute; top:26px; right:14px; width:18px; color:#edb34b; }
-.customer-lucky-placeholder h1 { margin:6px 0 12px; font-size:30px; color:#563629; }
-.customer-lucky-placeholder > span { padding:8px 21px; border-radius:99px; background:#ffeadb; color:#d45f41; font-weight:700; }
-.customer-lucky-placeholder p { font-size:13px; line-height:1.9; color:#998473; }
 .customer-catalog-refresh .customer-home-catalog-heading { margin:3px 0 15px; }
 .customer-catalog-refresh .customer-home-catalog-heading h1 { font-size:25px; }
 .customer-account { gap:12px; }

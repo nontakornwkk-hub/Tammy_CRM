@@ -2,7 +2,6 @@ const artworkBoxes = {
   rewards: "90 210 335 340",
   coupons: "460 210 375 340",
   home: "860 210 350 340",
-  lucky: "1230 210 380 340",
   account: "1665 210 290 340",
 } as const;
 

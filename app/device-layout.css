@@ -176,7 +176,6 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-members{background-position:-100.75px -190.12px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-reports{background-position:-100.75px -251.06px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-rewards{background-position:-100.75px -310.37px}
-  .sidebar-reference:not(.is-collapsed) .sidebar-picture-lucky{background-position:-100.75px -369.69px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-line{background-position:-100.75px -431.44px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-settings{background-position:-100.75px -494.81px}
   .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy strong{font-size:13px;line-height:1.35;font-weight:750;white-space:normal}
@@ -197,7 +196,6 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-members{background-position:-85.25px -160.88px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-reports{background-position:-85.25px -212.44px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-rewards{background-position:-85.25px -262.63px}
-  .sidebar-reference:not(.is-collapsed) .sidebar-picture-lucky{background-position:-85.25px -312.81px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-line{background-position:-85.25px -365.06px}
   .sidebar-reference:not(.is-collapsed) .sidebar-picture-settings{background-position:-85.25px -418.69px}
   .sidebar-reference:not(.is-collapsed) .sidebar-menu-copy strong{font-size:12px}
@@ -221,7 +219,6 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   .sidebar-reference .sidebar-picture-members{background-position:-69.75px -131.63px}
   .sidebar-reference .sidebar-picture-reports{background-position:-69.75px -173.81px}
   .sidebar-reference .sidebar-picture-rewards{background-position:-69.75px -214.88px}
-  .sidebar-reference .sidebar-picture-lucky{background-position:-69.75px -255.94px}
   .sidebar-reference .sidebar-picture-line{background-position:-69.75px -298.69px}
   .sidebar-reference .sidebar-picture-settings{background-position:-69.75px -342.56px}
 }

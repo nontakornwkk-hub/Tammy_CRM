@@ -4,7 +4,6 @@
 .sidebar-picture-members { background-position: -124px -234px; }
 .sidebar-picture-reports { background-position: -124px -309px; }
 .sidebar-picture-rewards { background-position: -124px -382px; }
-.sidebar-picture-lucky { background-position: -124px -455px; }
 .sidebar-picture-line { background-position: -124px -531px; }
 .sidebar-picture-settings { background-position: -124px -609px; }
 .sidebar-reference .sidebar-picture-preview { background-image: none; display: grid; place-items: center; color: #69a8d7; background-color: #e8f5ff; }
@@ -30,7 +29,6 @@
   .sidebar-reference .sidebar-picture-members { background-position: -77.5px -146.25px; }
   .sidebar-reference .sidebar-picture-reports { background-position: -77.5px -193.125px; }
   .sidebar-reference .sidebar-picture-rewards { background-position: -77.5px -238.75px; }
-  .sidebar-reference .sidebar-picture-lucky { background-position: -77.5px -284.375px; }
   .sidebar-reference .sidebar-picture-line { background-position: -77.5px -331.875px; }
   .sidebar-reference .sidebar-picture-settings { background-position: -77.5px -380.625px; }
   .sidebar-reference .nav-item.active { background: linear-gradient(110deg,#cbe8ff,#c4e2fc); border-color: #d8ecfc; }
@@ -53,7 +51,6 @@
   .sidebar-reference .sidebar-picture-members { background-position: -62px -117px; }
   .sidebar-reference .sidebar-picture-reports { background-position: -62px -154.5px; }
   .sidebar-reference .sidebar-picture-rewards { background-position: -62px -191px; }
-  .sidebar-reference .sidebar-picture-lucky { background-position: -62px -227.5px; }
   .sidebar-reference .sidebar-picture-line { background-position: -62px -265.5px; }
   .sidebar-reference .sidebar-picture-settings { background-position: -62px -304.5px; }
   .sidebar-reference .sidebar-menu-copy strong { font-size: 9px; white-space: nowrap; }

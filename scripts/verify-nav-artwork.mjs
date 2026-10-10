@@ -7,7 +7,7 @@ import * as icons from 'lucide-react';
 import ts from 'typescript';
 const exports={};
 runInNewContext(ts.transpileModule(readFileSync('components/customer-nav-icon.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:()=>jsx});
-const items=[['rewards','ของรางวัล'],['coupons','คูปอง'],['home','หน้าหลัก'],['lucky','ลุ้นรางวัล'],['account','ข้อมูลของฉัน']];
+const items=[['rewards','ของรางวัล'],['coupons','คูปอง'],['home','หน้าหลัก'],['account','ข้อมูลของฉัน']];
 const styles=[...readFileSync('app/layout.tsx','utf8').matchAll(/import "\.\/(.+\.css)"/g)].map(match=>readFileSync('app/'+match[1],'utf8')).join('\n');
 const sprite='data:image/png;base64,'+readFileSync('public/assets/customer-nav-pastel.png').toString('base64');
 const bars=items.map((_,active)=>`<section class="customer-catalog-refresh"><nav class="customer-nav customer-soft-nav" style="--customer-active-tab:${active}">${items.map(([tab,label],i)=>`<button class="${i===active?'active':''}"><span class="customer-soft-nav-icon">${renderToStaticMarkup(jsx.jsx(exports.CustomerNavIcon,{tab})).replace('/assets/customer-nav-pastel.png',sprite)}</span><span>${label}</span></button>`).join('')}</nav></section>`).join('');

@@ -8,7 +8,6 @@ import { ReportMonthPicker } from "./report-month-picker";
 import { supabase } from "@/lib/supabase/client";
 import { cachedData, crmOwnerId, fetchReportsData, loadCachedData } from "@/lib/supabase/crm-data";
 import { cachedLinePictures, rememberLinePictures } from "@/lib/supabase/line-profile-cache";
-import { CouponUsagePanel } from "./coupon-usage-panel";
 
 type Member = { id:string; name:string; member_code:string; level:string; created_at:string; last_visit:string|null };
 type Transaction = { id:string; member_id:string; sale_amount:number; points_delta:number; created_at:string; transaction_type:string };
@@ -181,7 +180,6 @@ export function ReportsManager() {
           </svg>
           {!report.current[1]?<p className="report-note">ยังไม่มีรายการซื้อในช่วงวันที่เลือก</p>:null}
         </section>
-        <CouponUsagePanel start={range.start} end={range.end} reload={reload} />
         <section className="panel report-follow"><div className="report-section-head"><div><h2><Clock3 size={23}/> ลูกค้าที่ต้องติดตาม</h2><p>จำนวนวันที่ไม่ได้ซื้อ ณ {dateLabel(range.end)} · แต่ละกลุ่มไม่นับซ้ำ</p></div></div>
           <div className="report-follow-grid">{buckets.map((b,i)=><button key={b.label} onClick={()=>setFollow(follow===i?null:i)} aria-expanded={follow===i}><Users size={23}/><span>{b.label}<strong>{report.inactive.filter(m=>m.days!==null&&m.days>=b.min&&m.days<=b.max).length} คน</strong></span></button>)}</div>
           <div className="report-custom"><label>กำหนดเอง: ไม่ได้ซื้ออย่างน้อย <input aria-label="จำนวนวันที่ต้องการติดตาม" type="number" min="1" max="3650" value={customDays} onChange={e=>setCustomDays(Math.max(1,Math.min(3650,Number(e.target.value)||1)))}/> วัน</label><button className="button outline" onClick={()=>setFollow(follow===4?null:4)} aria-expanded={follow===4}>ดูรายชื่อ</button></div>

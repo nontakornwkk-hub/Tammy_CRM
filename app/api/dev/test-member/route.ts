@@ -8,6 +8,12 @@ export async function GET(request: Request) {
   const token = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
   const test = await testAdminContext(token);
   if (!test) return noStore({ error: "โหมดทดสอบใช้ได้เฉพาะแอดมินบนเซิร์ฟเวอร์พัฒนา" }, 403);
+  if(new URL(request.url).searchParams.get("confirmPhone")==="1") {
+    const phone=new URL(request.url).searchParams.get("phone") || "";
+    if(!/^0\d{9}$/.test(phone)) return noStore({error:"กรุณากรอกเบอร์โทรศัพท์ 10 หลัก"},400);
+    const check=await test.db.from("members").select("id").eq("owner_id",test.ownerId).eq("notes",testMemberMarker).eq("status","active").eq("phone",phone).maybeSingle();
+    if(check.error || !check.data) return noStore({error:"เบอร์โทรไม่ตรงกับสมาชิกทดสอบ"},403);
+  }
   let member = await test.db.from("members").select("id,member_code,name,level,points")
     .eq("owner_id", test.ownerId).eq("notes", testMemberMarker).eq("status", "active").maybeSingle();
   if (member.error) return noStore({ error: "โหลดสมาชิกทดสอบไม่สำเร็จ" }, 500);

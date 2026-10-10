@@ -6,7 +6,6 @@ const items = [
   { id: "rewards", label: "ของรางวัล" },
   { id: "coupons", label: "คูปอง" },
   { id: "home", label: "หน้าหลัก" },
-  { id: "lucky", label: "ลุ้นรางวัล" },
   { id: "account", label: "ข้อมูลของฉัน" },
 ] as const;
 

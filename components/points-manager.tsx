@@ -30,7 +30,7 @@ import { PromotionDisplay } from "./promotion-display";
 import { MemberQrScanner } from "./member-qr-scanner";
 import { CouponQrScanner } from "./coupon-qr-scanner";
 import { ProfilePhoto } from "./profile-photo";
-import { normalizeCouponScan, normalizeGameScan, normalizeMemberScan } from "@/lib/member-code";
+import { normalizeCouponScan, normalizeMemberScan } from "@/lib/member-code";
 
 type MemberLevel = "Platinum" | "Gold" | "Silver" | "Member";
 type Customer = {
@@ -183,7 +183,7 @@ export function PointsManager() {
 
   useEffect(()=>{if(loading)return;const url=new URL(window.location.href);const scan=url.searchParams.get("scan");if(!scan)return;selectByCode(scan);url.searchParams.delete("scan");window.history.replaceState(null,"",url.pathname+url.search+url.hash);},[loading,customers]);
   function routeScan(rawCode: string) {
-    const couponQr = normalizeGameScan(rawCode) || normalizeCouponScan(rawCode);
+    const couponQr = normalizeCouponScan(rawCode);
     if (couponQr) { setScannerOpen(false); setCouponScanQr(couponQr); setScannerError(""); return true; }
     return selectByCode(rawCode);
   }
